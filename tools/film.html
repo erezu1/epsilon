@@ -63,7 +63,8 @@ function texture(W, H, opts) {
     let [R, G, B, Y] = look(d);
     const m = Math.max(R, G, B, 1e-6);
     const sat = 1 - Math.min(R, G, B) / m;                     // how coloured it is
-    const a = Math.min(1, Math.pow(Math.max(0, Y), 0.85)) * (0.25 + 0.75 * sat);   // clear where it is dark or grey
+    // clearer where it is dark or grey, but never quite clear: any edge of the glass catches some colour
+    const a = 0.3 + 0.7 * Math.min(1, Math.pow(Math.max(0, Y), 0.85)) * (0.25 + 0.75 * sat);
     const gam = c => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
     const k = 1 / Math.max(1.35, m);                            // the reflected colour itself, brightest parts kept in range
     data[i * 4] = gam(Math.min(1, Math.max(0, R * k))); data[i * 4 + 1] = gam(Math.min(1, Math.max(0, G * k))); data[i * 4 + 2] = gam(Math.min(1, Math.max(0, B * k)));
@@ -87,7 +88,7 @@ function blurred(tile, px) {
   return out;
 }
 
-var SETTINGS = {size: 400, seed: 7, warp: 0.12, d0: 150, d1: 520, blur: 6};
+var SETTINGS = {size: 400, seed: 7, warp: 0.12, d0: 190, d1: 540, blur: 6};
 var c = blurred(texture(SETTINGS.size, SETTINGS.size, SETTINGS), SETTINGS.blur);
 var url = c.toDataURL("image/webp", 0.9);
 document.getElementById("save").href = url;

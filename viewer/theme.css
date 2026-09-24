@@ -1081,7 +1081,10 @@ a.lib-title { color: var(--ink); }
   background: url(film.webp) 0 0 / 900px 900px repeat; opacity: var(--film-o);
   mix-blend-mode: var(--film-blend);      /* on dark glass the film adds light, as a reflection does */
 }
-.l2m-fnsheet::before, .app-toast::before { background-position: -300px -520px; }
+/* the film is laid from the edge each piece of glass ends at, so that edge always meets the film's most coloured
+   band (its last rows): the bottom of the bar and of the shown part of a panel, the top of a sheet */
+.l2m-bar::before, .l2m-menu::before { inset: 0 0 auto 0; height: var(--shown, 100%); background-position: 0 100%; }
+.l2m-fnsheet::before, .app-toast::before { background-position: -300px -889px; }
 /* as on a bubble, the colours grow toward the rim (light meets it at a glancing angle there): faint across the
    glass, rising over the last hundred pixels or so to the edge it ends at (the bottom of the bar and of a panel,
    the top of a sheet), and quickly in the last few pixels at the sides (the two masks add up). The rise is set in
@@ -1089,31 +1092,31 @@ a.lib-title { color: var(--ink); }
 :root {
   --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.68) 14px, rgb(0 0 0 / 0.38) 36px, rgb(0 0 0 / 0.2) 64px, rgb(0 0 0 / 0.1) 110px, rgb(0 0 0 / 0.1) 100%);
   --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.68) 14px, rgb(0 0 0 / 0.38) 36px, rgb(0 0 0 / 0.2) 64px, rgb(0 0 0 / 0.1) 110px, rgb(0 0 0 / 0.1) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.8) 8px, rgb(0 0 0 / 0.32) 26px, transparent 64px, transparent calc(100% - 64px),
-    rgb(0 0 0 / 0.32) calc(100% - 26px), rgb(0 0 0 / 0.8) calc(100% - 8px), #000 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.7) 5px, rgb(0 0 0 / 0.28) 14px, transparent 34px, transparent calc(100% - 34px),
+    rgb(0 0 0 / 0.28) calc(100% - 14px), rgb(0 0 0 / 0.7) calc(100% - 5px), #000 100%);
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
   --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 8px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px),
-    rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 8px), #000 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.5) 5px, rgb(0 0 0 / 0.2) 11px, transparent 26px, transparent calc(100% - 26px),
+    rgb(0 0 0 / 0.2) calc(100% - 11px), rgb(0 0 0 / 0.5) calc(100% - 5px), #000 100%);
 } }
 :root[data-theme="dark"] {
   --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
   --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 8px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px),
-    rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 8px), #000 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.5) 5px, rgb(0 0 0 / 0.2) 11px, transparent 26px, transparent calc(100% - 26px),
+    rgb(0 0 0 / 0.2) calc(100% - 11px), rgb(0 0 0 / 0.5) calc(100% - 5px), #000 100%);
 }
 .l2m-bar::before, .l2m-menu::before {
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  -webkit-mask-size: 100% var(--shown, 100%); mask-size: 100% var(--shown, 100%);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;       /* (the film's own box is the shown part) */
 }
 .l2m-fnsheet::before, .app-toast::before {
   -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides);
 }
-/* a panel unrolls from under the bar: its film covers only what is shown so far, so its rim travels down with the
-   panel's edge (and where it starts, it is the bar's own film, rim and all) */
+/* a panel unrolls from under the bar: its film covers only what is shown so far and hangs from the shown edge, so
+   rim and film travel down with it (and where it starts, it is the bar's own film, rim and all) */
 @property --open { syntax: "<number>"; inherits: true; initial-value: 0; }
 .l2m-menu, .l2m-menu.open {
   clip-path: inset(0 0 calc((1 - var(--open)) * (100% - var(--l2m-bar-h, 64px)) - var(--open) * 60px) 0);
