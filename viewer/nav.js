@@ -94,7 +94,10 @@ window.L2M_nav = function (opts) {
     if (mem.length) { scrollToY(mem.pop()); update(); }
   }
 
+  var skipPop = false;       // the history step of a panel being closed by hand: already handled
   on(window, "popstate", function (e) {
+    if (skipPop) { skipPop = false; return; }
+    if (panel) { closeMenu("pop"); return; }       // back closes the open panel, nothing else
     var st = e.state;
     if (st && st.l2mPaper !== undefined && st.l2mPaper !== KEY) return;   // another paper's entry: the host switches
     if (st && typeof st.l2mIdx === "number") {
@@ -130,6 +133,9 @@ window.L2M_nav = function (opts) {
     if (!el || panel === name) return;
     closeSheet();
     if (panel) hidePanel(panel);
+    else if (useHistory) {
+      try { if (!state().l2mPanel) history.pushState(assign(state(), {l2mPanel: true}), ""); } catch (e) {}
+    }
     panel = name;
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
     el.classList.add("open");
@@ -149,8 +155,16 @@ window.L2M_nav = function (opts) {
     if (inner) { edgeFade(inner); requestAnimationFrame(function () { edgeFade(inner); }); }
     update();
   }
-  function closeMenu() {             // closes whichever panel is open
+  function closeMenu(how) {          // closes whichever panel is open; how: "pop" (by back), "jump" (a link follows)
     if (!panel) return;
+    if (useHistory && how !== "pop") {
+      try {
+        if (state().l2mPanel) {
+          if (how === "jump") { var st = assign(state(), {}); delete st.l2mPanel; history.replaceState(st, ""); }
+          else { skipPop = true; history.back(); }
+        }
+      } catch (e) {}
+    }
     hidePanel(panel);
     panel = null;
     bar.classList.remove("menu-open");
@@ -512,7 +526,7 @@ window.L2M_nav = function (opts) {
       var id = decodeURIComponent(a.getAttribute("href").slice(1));
       if (id && document.getElementById(id)) {
         e.preventDefault();
-        closeMenu();
+        closeMenu("jump");
         closeSheet();
         navigate(id);
         return;
@@ -528,11 +542,12 @@ window.L2M_nav = function (opts) {
   backBtn.addEventListener("click", function () {
     if (panel) closeMenu(); else goBack();
   });
-  topBtn.addEventListener("click", function () { closeMenu(); navigate("l2m-top"); });
+  topBtn.addEventListener("click", function () { closeMenu("jump"); navigate("l2m-top"); });
   Array.prototype.forEach.call(document.querySelectorAll('[data-act="library"]'), function (b) {
     b.addEventListener("click", function (e) {
       if (!opts.onLibrary || e.metaKey || e.ctrlKey || e.shiftKey) return;   // a plain link otherwise
       e.preventDefault();
+      closeMenu("jump");
       opts.onLibrary();
     });
   });

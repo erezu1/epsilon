@@ -889,3 +889,8 @@ a.lib-title { color: var(--ink); }
 .app-bar.searching .app-tabs, .app-bar.searching .app-spacer,
 .app-bar.searching #app-search, .app-bar.searching #app-plus, .app-bar.searching #app-gear { display: none; }
 .app-bar [hidden] { display: none !important; }
+/* a paper's bar: the title close to the back button, the other buttons packed at the right */
+.l2m-bar:not(.app-bar) .bar-inner { gap: 0; }
+.l2m-bar:not(.app-bar) .bar-title { padding-left: 2px; gap: 8px; margin-right: 4px; }
+.l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 40px; height: 44px; border-radius: 12px; }
+.l2m-bar:not(.app-bar) { padding-right: max(4px, env(safe-area-inset-right, 0px)); }

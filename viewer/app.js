@@ -340,8 +340,11 @@
       (n ? '<p class="app-row app-pad"><button type="button" class="app-pill" id="off-clear">Remove offline copies</button></p>' : "");
     return h;
   }
+  var skipPop = false;       // the history step of a panel closed by hand: already handled
   function openPanel(which) {
-    closePanel();
+    var had = panelOpen;
+    closePanel(had ? "pop" : "jump");            // from one panel to the other: the same history step
+    if (!had) try { if (!(history.state || {}).l2mPanel) history.pushState(Object.assign({}, history.state || {}, {l2mPanel: true}), ""); } catch (e) {}
     var el = shell.querySelector(which === "add" ? "#app-addp" : "#app-settings"), inner = el.querySelector(".menu-inner");
     if (which === "add") {
       inner.innerHTML = '<p class="menu-head">Add a paper</p><form class="app-form" id="add-form">' +
@@ -353,7 +356,7 @@
         e.preventDefault();
         var ids = inner.querySelector("#add-id").value.split(/[\s,]+/).filter(Boolean);
         if (!ids.length) return;
-        closePanel();
+        closePanel("jump");
         convert(ids);
       });
     } else {
@@ -371,8 +374,14 @@
       if (f) f.focus();
     });
   }
-  function closePanel() {
+  function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
     if (!panelOpen || !shell) { panelOpen = false; return; }
+    try {
+      if (how !== "pop" && (history.state || {}).l2mPanel) {
+        if (how === "jump") { var st = Object.assign({}, history.state); delete st.l2mPanel; history.replaceState(st, ""); }
+        else { skipPop = true; history.back(); }
+      }
+    } catch (e) {}
     ["#app-settings", "#app-addp"].forEach(function (id) {
       var el = shell.querySelector(id);
       el.classList.remove("open");
@@ -487,7 +496,7 @@
         store("repo", repo); store("token", tok);
         src = s;
         toast("Connected to " + esc(repo) + ".");
-        closePanel();
+        closePanel("jump");
         load().then(function () { go("library"); });
       }, function (err) { toast("Could not connect: " + esc(err.message), 7000); });
     });
@@ -753,7 +762,7 @@
   var listMove = false;                      // the next show() moves between the two lists
   function refresh() { if (isPage(current)) showLists(current === "app:new" ? current : "app:library", false); }
   function go(pageName, key) {
-    closePanel();
+    closePanel("jump");
     close();                                // saves the reading place in the entry being left
     var k = key || "app:" + pageName;
     if (k === current) return;
@@ -772,6 +781,8 @@
     else go(a.getAttribute("data-go"));
   });
   window.addEventListener("popstate", function (e) {
+    if (skipPop) { skipPop = false; return; }
+    if (panelOpen) { closePanel("pop"); return; }       // back closes the open panel, nothing else
     var k = (e.state && e.state.l2mPaper) || wanted();
     if (k === current) return;              // a step inside the open paper: nav.js handles it
     listMove = isPage(current) && isPage(k);
