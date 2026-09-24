@@ -232,15 +232,19 @@
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>New</span></button></div>' +
       '<span class="app-spacer"></span>' +
+      '<button type="button" class="bar-btn" id="app-plus" aria-label="Add a paper" aria-expanded="false" aria-controls="app-addp">' + (I.add || "+") + "</button>" +
       '<button type="button" class="bar-btn" data-act="settings" id="app-gear" aria-label="Settings" aria-expanded="false" aria-controls="app-settings">' +
       (I.settings || "") + "</button></div></header>" +
       '<div class="l2m-menu l2m-settings app-settings" id="app-settings" role="dialog" aria-label="Settings" aria-hidden="true">' +
+      '<div class="menu-inner"></div></div>' +
+      '<div class="l2m-menu l2m-settings app-settings" id="app-addp" role="dialog" aria-label="Add a paper" aria-hidden="true">' +
       '<div class="menu-inner"></div></div>';
     main.parentNode.insertBefore(holder, main);
     root.classList.add("l2m-bar-always");
     root.style.setProperty("--l2m-bar-h", holder.querySelector("#app-bar").getBoundingClientRect().height + "px");
     shell = holder;
-    holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen ? closePanel() : openPanel(); });
+    holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
+    holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     return holder;
   }
   function dropShell() {
@@ -256,6 +260,7 @@
     ind.style.transform = "translate(" + on.offsetLeft + "px," + on.offsetTop + "px)";
   }
   function setTab(name) {
+    shell.querySelector("#app-plus").hidden = !(src && src.run);
     var tabs = shell.querySelector(".app-tabs");
     Array.prototype.forEach.call(tabs.querySelectorAll(".seg-btn"), function (b) {
       b.setAttribute("aria-checked", b.getAttribute("data-go") === name ? "true" : "false");
@@ -318,26 +323,49 @@
       (n ? '<p class="app-row app-pad"><button type="button" class="app-pill" id="off-clear">Remove offline copies</button></p>' : "");
     return h;
   }
-  function openPanel() {
-    var el = shell.querySelector("#app-settings"), inner = el.querySelector(".menu-inner");
-    inner.innerHTML = panelHTML();
-    bindPanel(inner);
+  function openPanel(which) {
+    closePanel();
+    var el = shell.querySelector(which === "add" ? "#app-addp" : "#app-settings"), inner = el.querySelector(".menu-inner");
+    if (which === "add") {
+      inner.innerHTML = '<p class="menu-head">Add a paper</p><form class="app-form" id="add-form">' +
+        '<input class="app-field" id="add-id" inputmode="url" placeholder="arXiv number or link, e.g. 2609.28331" aria-label="arXiv number or link" ' +
+        'autocomplete="off" autocapitalize="off" spellcheck="false">' +
+        '<p class="app-help">It is converted on GitHub and appears in your library in a few minutes. Several numbers at once are fine.</p>' +
+        '<p class="app-row"><button type="submit" class="app-pill">Add</button></p></form>';
+      inner.querySelector("#add-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var ids = inner.querySelector("#add-id").value.split(/[\s,]+/).filter(Boolean);
+        if (!ids.length) return;
+        closePanel();
+        convert(ids);
+      });
+    } else {
+      inner.innerHTML = panelHTML();
+      bindPanel(inner);
+      root.classList.add("l2m-settings-open");
+      for (var key in (theme.fonts || [])) if (window.L2M_loadFont) L2M_loadFont(theme.fonts[key].key);
+    }
     el.classList.add("open");
     el.setAttribute("aria-hidden", "false");
     shell.querySelector("#app-bar").classList.add("menu-open");
-    shell.querySelector("#app-gear").setAttribute("aria-expanded", "true");
-    root.classList.add("l2m-settings-open");
-    for (var key in (theme.fonts || [])) if (window.L2M_loadFont) L2M_loadFont(theme.fonts[key].key);
-    panelOpen = true;
-    requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
+    shell.querySelector(which === "add" ? "#app-plus" : "#app-gear").setAttribute("aria-expanded", "true");
+    panelOpen = which;
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide);
+      var f = inner.querySelector("#add-id");
+      if (f) f.focus();
+    });
   }
   function closePanel() {
     if (!panelOpen || !shell) { panelOpen = false; return; }
-    var el = shell.querySelector("#app-settings");
-    el.classList.remove("open");
-    el.setAttribute("aria-hidden", "true");
+    ["#app-settings", "#app-addp"].forEach(function (id) {
+      var el = shell.querySelector(id);
+      el.classList.remove("open");
+      el.setAttribute("aria-hidden", "true");
+    });
     shell.querySelector("#app-bar").classList.remove("menu-open");
     shell.querySelector("#app-gear").setAttribute("aria-expanded", "false");
+    shell.querySelector("#app-plus").setAttribute("aria-expanded", "false");
     root.classList.remove("l2m-settings-open");
     panelOpen = false;
   }
@@ -511,20 +539,30 @@
           (got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + t + "</a>" : '<span class="lib-title">' + t + "</span>") +
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) +
           (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + "</span>" +
-          '<details class="app-abs"><summary>Abstract</summary><p>' + (i.abstractHtml || esc(i.abstract)) + "</p></details></div>" +
+          '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></div>" +
           '<div class="app-paper-act">' + act + "</div></li>";
       }).join("") + "</ol>";
     }).join("");
     var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
       (feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "") +
       (src && src.run ? ' &middot; <button type="button" class="app-link" id="feed-now">refresh</button>' : "");
-    main.innerHTML = (src && src.run ? '<form class="app-add" id="app-add"><input class="app-field" id="add-id" placeholder="Any paper: arXiv id or link" ' +
-                       'aria-label="arXiv id or link" autocomplete="off" autocapitalize="off" spellcheck="false">' +
-                       '<button type="submit" class="app-pill">Convert</button></form>' : "") +
-      '<p class="app-note app-small">' + meta + "</p>" +
+    main.innerHTML = '<p class="app-note app-small">' + meta + "</p>" +
       (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>");
-    var f = document.getElementById("app-add");
-    if (f) f.addEventListener("submit", function (e) { e.preventDefault(); convert(document.getElementById("add-id").value.split(/[\s,]+/)); });
+    // abstracts: the first lines, then "More" (as long captions in the figure viewer)
+    Array.prototype.forEach.call(main.querySelectorAll(".app-abs"), function (p) {
+      if (p.scrollHeight <= p.clientHeight + 2) return;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "cap-more";
+      b.textContent = "More";
+      b.setAttribute("aria-expanded", "false");
+      b.addEventListener("click", function () {
+        var open = p.classList.toggle("open");
+        b.textContent = open ? "Less" : "More";
+        b.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+      p.parentNode.insertBefore(b, p.nextSibling);
+    });
     var r = document.getElementById("feed-now");
     if (r) r.addEventListener("click", function () {
       src.run("feed.yml", {}).then(function () { toast("Fetching the new papers. Come back in a minute."); },
@@ -538,7 +576,7 @@
     main.innerHTML = '<p class="app-note">Your papers are kept in a private GitHub repo. To read them here, open the settings ' +
       '(the button at the top right) and paste an access token under <em>Library</em>.</p>' +
       '<p class="app-row"><button type="button" class="app-pill" id="open-settings">Open settings</button></p>';
-    document.getElementById("open-settings").addEventListener("click", function (e) { e.stopPropagation(); openPanel(); });
+    document.getElementById("open-settings").addEventListener("click", function (e) { e.stopPropagation(); openPanel("settings"); });
   }
 
   function showPaper(key) {
