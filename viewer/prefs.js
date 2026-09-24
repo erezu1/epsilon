@@ -39,6 +39,13 @@
     (theme.fonts || []).forEach(function (f) { FONTS[f.key] = f; });
     DEF = theme.defaults || {};
     if (DEF.font) load(DEF.font);
+    if (theme.uiFont && !document.getElementById("l2m-font-ui")) {      // the font of the bar, panels and app lists
+      var l = document.createElement("link");
+      l.id = "l2m-font-ui";
+      l.rel = "stylesheet";
+      l.href = "https://fonts.googleapis.com/css2?family=" + theme.uiFont + "&display=swap";
+      (document.head || root).appendChild(l);
+    }
     var p = window.L2M_prefs();
     window.L2M_applyFont(p.font || DEF.font);
     window.L2M_applyTheme(p.theme || DEF.appearance);

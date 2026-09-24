@@ -840,3 +840,52 @@ a.lib-title { color: var(--ink); }
 .app-group[hidden] { display: none; }
 .l2m-app-lists main { touch-action: pan-y; }   /* Library / New only: sideways swipes change tab */
 @media (prefers-reduced-motion: reduce) { .app-picker { transition-duration: 0.01s; } }
+
+/* ------------------------------------------------------------ interface size and font (Material 3 measures)
+   The bar is 64px tall with 48px touch targets and 24px icons; the interface (bar, panels, app lists,
+   buttons) is set in a clean sans, while papers keep the reading font. */
+:root { --ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.l2m-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); padding-bottom: 8px; }
+.bar-btn { width: 48px; height: 48px; }
+.bar-btn svg, .bar-title-ico svg { width: 24px; height: 24px; }
+.bar-inner { gap: 4px; }
+.bar-title { font-family: var(--ui); font-size: 19px; font-weight: 600; padding: 8px; gap: 10px; letter-spacing: -0.005em; }
+.bar-title-inner .secnum { font-weight: 600; }
+.app-logo { width: 34px; height: 34px; border-radius: 9px; margin: 0 10px 0 10px; }
+.app-bar .app-tabs { gap: 24px; }
+.app-bar .app-tabs .seg-btn { font-family: var(--ui); font-size: 20px; font-weight: 600; padding: 12px 0; letter-spacing: -0.01em; }
+.app-bar .app-tabs .sel-ind { bottom: 5px; height: 3px; }
+.menu-head { font-family: var(--ui); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+.seg-btn { font-family: var(--ui); font-size: 15px; font-weight: 500; }
+.opt-note, .app-help, .app-group { font-family: var(--ui); }
+.app-pill, .app-chip, .cap-more, .app-toggle, .l2m-action, .viewer-goto, .app-link, .app-toast, .app-field { font-family: var(--ui); }
+.app-pill, .l2m-action, .viewer-goto { font-size: 15px; font-weight: 500; padding: 8px 16px; }
+.app-chip { font-size: 15px; font-weight: 500; padding: 7px 13px; }
+.l2m-menu a { font-family: var(--ui); font-weight: 500; }
+.l2m-app-lists main { font-family: var(--ui); }
+.l2m-app-lists .lib-title { font-size: 1.06em; font-weight: 600; line-height: 1.3; letter-spacing: -0.005em; }
+.l2m-app-lists .lib-authors { font-size: 0.9em; margin-top: 0.25rem; }
+.l2m-app-lists .lib-meta { font-size: 0.78em; }
+.l2m-app-lists .app-abs { font-size: 0.88em; line-height: 1.55; }
+.l2m-app-lists .app-day { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+.app-act.bar-btn { width: 44px; height: 44px; }
+
+/* Library and New side by side: a strip that slides; each list scrolls on its own */
+.l2m-app-lists, .l2m-app-lists body { height: 100%; overflow: hidden; }
+.l2m-app-lists body { padding: 0; }
+.l2m-app-lists main { max-width: none; margin: 0; padding-top: var(--l2m-bar-h, 64px); overflow: hidden; }
+.app-track { display: flex; width: 200%; will-change: transform; }
+.app-pane {
+  width: 50%; height: calc(100vh - var(--l2m-bar-h, 64px)); height: calc(100dvh - var(--l2m-bar-h, 64px));
+  overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+}
+.app-pane-in { max-width: 40rem; margin: 0 auto; padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 72px); }
+.app-pane-in > .l2m-library:first-child > li:first-child, .app-pane-in > .app-note + .l2m-library > li:first-child { border-top: 0; }
+
+/* search: the field takes the whole bar */
+.app-searchbar { display: none; flex: 1 1 auto; align-items: center; gap: 4px; min-width: 0; }
+.app-searchbar .app-field { margin: 0 0 0 10px; font-size: 18px; border-bottom-color: var(--link); }
+.app-bar.searching .app-searchbar { display: flex; }
+.app-bar.searching .app-logo, .app-bar.searching .app-tabs, .app-bar.searching .app-spacer,
+.app-bar.searching #app-search, .app-bar.searching #app-plus, .app-bar.searching #app-gear { display: none; }
+.app-bar [hidden] { display: none !important; }
