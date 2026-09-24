@@ -198,6 +198,11 @@
     return Math.max(n, r.top + 1) - r.top;
   }
   function capturePlace() {
+    var p = spot();
+    p.progress = window.L2M_progress ? Math.round(L2M_progress() * 1000) / 1000 : 0;   // how far through, for Library
+    return p;
+  }
+  function spot() {                         // the block at the top of the screen, and how far into it
     var top = barBottom() + 4, list = anchors(), k = -1;
     if (window.pageYOffset < 40 || !list.length) return {n: -1, frac: 0};
     for (var i = 0; i < list.length; i++) { if (list[i].getBoundingClientRect().top <= top) k = i; else break; }
@@ -760,6 +765,24 @@
       setTimeout(function () { moved.forEach(function (li) { li.style.transition = li.style.position = li.style.zIndex = ""; }); }, 560);
     }, wait);
   }
+  // each paper's reading line (the bottom rule of its row, filled as far as it is read) grows to a new length
+  var shownRead = null;
+  function growReading(box) {
+    var was = shownRead;
+    shownRead = {};
+    Array.prototype.forEach.call(box.querySelectorAll("li[data-k]"), function (li) {
+      var k = li.getAttribute("data-k"), now = parseFloat(li.style.getPropertyValue("--read")) || 0;
+      shownRead[k] = now;
+      if (!was || Math.abs((was[k] || 0) - now) < 0.002) return;
+      li.setAttribute("data-read", "");
+      li.style.setProperty("--read", String(was[k] || 0));
+      li.classList.add("read-still");
+      void li.offsetWidth;
+      li.classList.remove("read-still");
+      setTimeout(function () { li.style.setProperty("--read", String(now)); if (!now) li.removeAttribute("data-read"); },
+                 root.classList.contains("l2m-in-back") ? 420 : 40);
+    });
+  }
   function renderLibrary() {
     var box = pane("app:library");
     var before = measureLibrary() || libTops;
@@ -782,7 +805,8 @@
       else if (x.kind === "draft") meta.push("your draft");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
-      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
+      var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;
+      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
         (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
@@ -805,6 +829,7 @@
     box.innerHTML = (papers.length || converting ? '<ol class="l2m-library" id="lib-list">' + converting + items + "</ol>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
     slideLibrary(box, before);
+    growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
       b.addEventListener("click", function () {
         var c = b.closest("li").querySelector(".app-confirm");
@@ -1000,7 +1025,8 @@
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
             return paperFile(key, entry, "images/" + name).then(function (b) { var u = URL.createObjectURL(b); urls.push(u); return u; });
           },
-          mathjax: lib && lib.mathjax, onLibrary: backToLists, libraryHref: "./", actions: actions});
+          mathjax: lib && lib.mathjax, onLibrary: backToLists, libraryHref: "./", actions: actions,
+          leaving: function () { return leavingPaper === key; }});
         var v = view;
         // opened afresh (not by back or forward): the place it was left, on this device or another
         if (fresh && reading[key] && !location.hash) v.ready.then(function () {
@@ -1057,10 +1083,17 @@
   function refresh() { if (isPage(current)) showLists(current === "app:new" ? current : "app:library", false); }
   var fromList = false;                     // the open paper was opened from Library or New
   var newAboveLibrary = false;
-  var toLibrary = false;                    // the bar's back button is on its way down to Library              // the history has Library right below the New entry
+  var toLibrary = false;                    // the bar's back button is on its way down to Library
+  var leavingPaper = null;                  // ... stepping back past this paper's entries              // the history has Library right below the New entry
   function backToLists(steps) {             // steps: the jumps made inside the paper, stepped over too
     // the list's own history entry, where it was left; opened from New, on down to Library (one step below it)
-    if (fromList) { toLibrary = current !== null && newAboveLibrary; history.go(-1 - (steps || 0)); return; }
+    if (fromList) {
+      // on down past every entry the paper made (a jump from its contents leaves one more than it counts)
+      leavingPaper = current;
+      toLibrary = current !== null && newAboveLibrary;
+      history.go(-1 - (steps || 0));
+      return;
+    }
     close();                                // opened from a link: the library takes the paper's place
     try { history.replaceState({l2mPaper: "app:library"}, "", location.pathname); } catch (e) {}
     show("app:library");
@@ -1097,6 +1130,10 @@
     if (panelOpen) { closePanel("pop"); return; }       // back closes the open panel, nothing else
     if (shell && shell.querySelector("#app-bar").classList.contains("searching")) { searching(false, "pop"); return; }
     var k = (e.state && e.state.l2mPaper) || wanted();
+    if (leavingPaper) {
+      if (k === leavingPaper) { history.back(); return; }   // still one of the paper's own entries
+      leavingPaper = null;
+    }
     if (toLibrary) {
       toLibrary = false;
       if (k === "app:new") { newAboveLibrary = false; history.back(); return; }   // passing New on the way

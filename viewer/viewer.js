@@ -50,7 +50,14 @@
       return inner ? '<p class="menu-head">' + head + '</p><div class="' + cls + '" role="radiogroup" aria-label="' + head + '">' +
         '<span class="sel-ind" aria-hidden="true"></span>' + inner + "</div>" : "";
     }
-    return group("Font", "opt-list", fonts) + group("Text size", "seg", sizes) + group("Appearance", "seg", looks) + group("Tone", "seg", tones);
+    // the font: the chosen one on its own; tapped, the list of fonts opens under it
+    var cur = (theme.fonts || []).filter(function (f) { return f.key === D.font; })[0] || (theme.fonts || [])[0];
+    var fontPick = fonts && cur ? '<p class="menu-head">Font</p><div class="font-pick">' +
+      '<button type="button" class="opt font-current" data-font-toggle aria-expanded="false" aria-label="Font: ' + esc(cur.name) + ', tap to choose another">' +
+      '<span class="opt-name" style="font-family:' + esc(cur.stack) + '">' + esc(cur.name) + '</span><span class="opt-note">' + esc(cur.note) + "</span>" +
+      '<span class="opt-chev">' + (I.chevron || "&#9662;") + "</span></button>" +
+      '<div class="font-drop"><div class="opt-list" role="radiogroup" aria-label="Font"><span class="sel-ind" aria-hidden="true"></span>' + fonts + "</div></div></div>" : "";
+    return fontPick + group("Text size", "seg", sizes) + group("Appearance", "seg", looks) + group("Tone", "seg", tones);
   }
   window.L2M_readingSettings = readingSettings;
 
@@ -201,7 +208,7 @@
     var imagesIn = Promise.all(fetched.concat(Array.prototype.map.call(main.querySelectorAll("img:not([data-l2m-img])"), function (img) {
       return img.complete ? null : new Promise(function (r) { img.addEventListener("load", r); img.addEventListener("error", r); });
     })));
-    nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary,
+    nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving,
                           ready: Promise.all([ready, imagesIn])});
     if (svg) done();
     else drawMath(m, o.mathjax || theme.mathjax, main, add, done, function () { return closed; });

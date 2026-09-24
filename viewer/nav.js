@@ -97,6 +97,7 @@ window.L2M_nav = function (opts) {
 
   var skipPop = false;       // the history step of a panel being closed by hand: already handled
   on(window, "popstate", function (e) {
+    if (opts.leaving && opts.leaving()) return;    // the host is taking the reader out of the paper
     if (skipPop) { skipPop = false; return; }
     if (panel) { closeMenu("pop"); return; }       // back closes the open panel, nothing else
     var st = e.state;
@@ -168,6 +169,8 @@ window.L2M_nav = function (opts) {
     }
     hidePanel(panel);
     panel = null;
+    var fp = panels.settings && panels.settings.querySelector(".font-pick.open");   // next time, the fonts start folded
+    if (fp) setTimeout(function () { fp.classList.remove("open"); fp.querySelector(".font-current").setAttribute("aria-expanded", "false"); }, 320);
     bar.classList.remove("menu-open");
     root.classList.remove("l2m-settings-open");
     titleBtn.setAttribute("aria-expanded", "false");
@@ -208,6 +211,14 @@ window.L2M_nav = function (opts) {
     var font = session.font || DEF.font, look = session.theme || DEF.appearance;
     var opts = el.querySelectorAll("[data-font]");
     for (var k = 0; k < opts.length; k++) opts[k].setAttribute("aria-checked", opts[k].getAttribute("data-font") === font ? "true" : "false");
+    var curBtn = el.querySelector(".font-current"), f0 = FONTS[font];
+    if (curBtn && f0) {
+      var nm = curBtn.querySelector(".opt-name");
+      nm.textContent = f0.name;
+      nm.style.fontFamily = f0.stack;
+      curBtn.querySelector(".opt-note").textContent = f0.note || "";
+      curBtn.setAttribute("aria-label", "Font: " + f0.name + ", tap to choose another");
+    }
     var want = {"data-theme-opt": look, "data-size-opt": session.size || DEF.size, "data-tone-opt": session.tone || DEF.tone};
     for (var attr in want) {
       var segs = el.querySelectorAll("[" + attr + "]");
@@ -255,9 +266,18 @@ window.L2M_nav = function (opts) {
   }
 
   if (panels.settings) {
+    var pick = panels.settings.querySelector(".font-pick");
+    function openFonts(on) {
+      if (!pick) return;
+      pick.classList.toggle("open", on);
+      pick.querySelector(".font-current").setAttribute("aria-expanded", on ? "true" : "false");
+      placeIndicators(true);
+    }
     panels.settings.addEventListener("click", function (e) {
+      if (e.target.closest("[data-font-toggle]")) { openFonts(!pick.classList.contains("open")); return; }
       var b = e.target.closest("[data-font], [data-theme-opt], [data-size-opt], [data-tone-opt]");
       if (!b) return;
+      if (b.hasAttribute("data-font")) setTimeout(function () { openFonts(false); }, 260);   // chosen: the list folds away
       var f = b.getAttribute("data-font"), t = b.getAttribute("data-theme-opt");
       var z = b.getAttribute("data-size-opt"), tone = b.getAttribute("data-tone-opt");
       if (f) {
@@ -585,7 +605,19 @@ window.L2M_nav = function (opts) {
     }, 140);
   }
 
+  // how far through the paper: the references count as the end (they are reached, not read)
+  var prog = document.createElement("span");
+  prog.className = "bar-progress";
+  prog.setAttribute("aria-hidden", "true");
+  bar.appendChild(prog);
+  function progress() {
+    var refs = document.getElementById("refs-h");
+    var end = refs ? refs.getBoundingClientRect().top + window.pageYOffset : document.documentElement.scrollHeight;
+    return Math.max(0, Math.min(1, window.pageYOffset / Math.max(1, end - window.innerHeight)));
+  }
+  window.L2M_progress = progress;
   function update() {
+    prog.style.transform = "scaleX(" + progress().toFixed(4) + ")";
     var show = ALWAYS || (trigger ? trigger.getBoundingClientRect().bottom < 8 : window.pageYOffset > 240) || panel !== null;
     if (show !== shown) {
       shown = show;
@@ -651,6 +683,7 @@ window.L2M_nav = function (opts) {
       clearTimeout(fadeTimer);
       clearTimeout(saveTimer);
       root.classList.remove("l2m-noscroll", "l2m-settings-open");
+      if (window.L2M_progress === progress) window.L2M_progress = null;
     }
   };
 };
