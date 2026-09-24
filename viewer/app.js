@@ -243,6 +243,7 @@
     root.classList.add("l2m-bar-always");
     root.style.setProperty("--l2m-bar-h", holder.querySelector("#app-bar").getBoundingClientRect().height + "px");
     shell = holder;
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (shell) slide(shell.querySelector(".app-tabs")); });
     holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     return holder;

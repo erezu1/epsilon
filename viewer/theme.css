@@ -750,8 +750,8 @@ a.lib-title { color: var(--ink); }
 .app-search + .l2m-library > li:first-child { border-top: 0; }
 /* the app's own bar and settings panel (the same parts as a paper's) */
 .app-bar .bar-inner { gap: 6px; }
-.app-bar .app-tabs { margin: 0; flex: 0 0 auto; }
-.app-bar .app-tabs .seg-btn { padding: 6px 16px; }
+.app-bar .app-tabs { margin: 0; flex: 0 0 auto; width: 176px; box-sizing: border-box; }
+.app-bar .app-tabs .seg-btn { flex: 1 1 0; min-width: 0; padding: 6px 0; }
 .app-spacer { flex: 1 1 auto; }
 .app-settings .app-form, .app-settings .app-pad { padding: 0 10px; }
 .app-settings .app-form .seg { margin: 0 0 12px; }
