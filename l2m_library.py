@@ -362,7 +362,10 @@ def main():
     sub.add_parser("drafts", help="convert the drafts whose sources changed")
     sub.add_parser("feed", help="refresh feed.json")
     sub.add_parser("list", help="list the papers")
-    a = ap.parse_args()
+    argv = sys.argv[1:]
+    push_too = "--push" in argv                    # accepted anywhere on the line
+    a = ap.parse_args([x for x in argv if x != "--push"])
+    a.push = a.push or push_too
     lib = Library(a.library)
     if a.cmd == "convert":
         ids = " ".join(a.ids).replace(",", " ").split()

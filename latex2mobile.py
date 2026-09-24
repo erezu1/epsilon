@@ -361,6 +361,7 @@ def plain_text(tex):
     t = re.sub(r"\\\\", " ", t)
     t = re.sub(r"\\[A-Za-z]+\*?", " ", t)
     t = t.replace("{", "").replace("}", "").replace("~", " ")
+    t = t.replace("``", "\u201c").replace("''", "\u201d").replace("---", "\u2014").replace("--", "\u2013")
     return re.sub(r"\s+", " ", t).strip()
 
 def wrap_greek(page):

@@ -61,7 +61,7 @@
     };
   }
   function githubSource(repo, token) {
-    var api = "https://api.github.com/repos/" + repo;
+    var api = (store("api") || "https://api.github.com") + "/repos/" + repo;   // "api": a stand-in for tests
     function call(path, opts) {
       opts = opts || {};
       opts.headers = Object.assign({"Authorization": "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28",
