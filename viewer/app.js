@@ -550,16 +550,56 @@
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
 
-  var mathIn = false;
-  function feedMath() {                   // the glyphs and styles of the formulas drawn into feed.json
-    if (mathIn || !feed || !feed.math || !feed.math.cache) return;
-    mathIn = true;
+  var mathIn = false, libMathIn = null;
+  function addMath(m) {                  // the glyphs and styles of formulas drawn into feed.json or library.json
+    if (!m || !m.cache) return;
     var st = document.createElement("style");
-    st.textContent = feed.math.css || "";
+    st.textContent = m.css || "";
     document.head.appendChild(st);
     var d = document.createElement("div");
-    d.innerHTML = feed.math.cache;
+    d.innerHTML = m.cache;
     if (d.firstChild) document.body.appendChild(d.firstChild);
+  }
+  function feedMath() {
+    if (!mathIn && feed && feed.math && feed.math.cache) { mathIn = true; addMath(feed.math); }
+    if (lib && lib.math && libMathIn !== lib.math.cache) { libMathIn = lib.math.cache; addMath(lib.math); }
+  }
+  // abstracts: the first lines, fading out; "More" (or a tap on the text) slides the rest open
+  var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function foldAbstracts(box) {
+    Array.prototype.forEach.call(box.querySelectorAll(".app-abs"), function (p) {
+      if (p.scrollHeight <= p.clientHeight + 2) { p.classList.add("short"); return; }
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "app-toggle";
+      b.setAttribute("aria-expanded", "false");
+      b.innerHTML = "<span>More</span>" + CHEVRON;
+      function toggle() {
+        var open = !p.classList.contains("open");
+        p.style.maxHeight = p.scrollHeight + "px";            // from the height it has now...
+        if (open) {
+          p.classList.add("open");
+          p.addEventListener("transitionend", function done(e) {
+            if (e.propertyName !== "max-height") return;
+            p.removeEventListener("transitionend", done);
+            if (p.classList.contains("open")) p.style.maxHeight = "none";
+          });
+        } else {
+          void p.offsetHeight;                                 // ...back to its first lines
+          p.classList.remove("open");
+          p.style.maxHeight = "";
+        }
+        b.setAttribute("aria-expanded", open ? "true" : "false");
+        b.firstChild.textContent = open ? "Less" : "More";
+      }
+      b.addEventListener("click", function (e) { e.stopPropagation(); toggle(); });
+      p.addEventListener("click", function (e) {
+        e.stopPropagation();                                   // not a tap on the paper's row
+        if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not tapping
+        toggle();
+      });
+      p.parentNode.insertBefore(b, p.nextSibling);
+    });
   }
 
   var ORDER = ["app:library", "app:new"];
@@ -608,7 +648,8 @@
       return '<li data-hay="' + esc(hay) + '"><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
-        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
+        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") +
+        (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") + "</div>" +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
@@ -643,6 +684,7 @@
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove-yes]"), function (b) {
       b.addEventListener("click", function () { removePaper(b.getAttribute("data-remove-yes"), b); });
     });
+    foldAbstracts(box);
     filterLibrary();
   }
 
@@ -709,40 +751,7 @@
         }, 15000);
       }, function (e) { toast("Could not fetch it: " + esc(e.message)); });
     });
-    // abstracts: the first lines, fading out; "More" slides the rest open
-    var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    Array.prototype.forEach.call(box.querySelectorAll(".app-abs"), function (p) {
-      if (p.scrollHeight <= p.clientHeight + 2) { p.classList.add("short"); return; }
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "app-toggle";
-      b.setAttribute("aria-expanded", "false");
-      b.innerHTML = "<span>More</span>" + CHEVRON;
-      function toggle() {
-        var open = !p.classList.contains("open");
-        p.style.maxHeight = p.scrollHeight + "px";            // from the height it has now...
-        if (open) {
-          p.classList.add("open");
-          p.addEventListener("transitionend", function done(e) {
-            if (e.propertyName !== "max-height") return;
-            p.removeEventListener("transitionend", done);
-            if (p.classList.contains("open")) p.style.maxHeight = "none";
-          });
-        } else {
-          void p.offsetHeight;                                 // ...back to its first lines
-          p.classList.remove("open");
-          p.style.maxHeight = "";
-        }
-        b.setAttribute("aria-expanded", open ? "true" : "false");
-        b.firstChild.textContent = open ? "Less" : "More";
-      }
-      b.addEventListener("click", toggle);
-      p.addEventListener("click", function () {
-        if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not tapping
-        toggle();
-      });
-      p.parentNode.insertBefore(b, p.nextSibling);
-    });
+    foldAbstracts(box);
     // a date pinned under the bar joins it: one glass block, the shadow under the date
     var paneEl = box.parentNode;
     function joinBar() {

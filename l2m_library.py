@@ -80,7 +80,7 @@ class Library:
         lib = self.index()
         lib["papers"] = [p for p in lib["papers"] if p["key"] != entry["key"]] + [entry]
         lib["papers"].sort(key=lambda p: p.get("added", ""), reverse=True)
-        self.write("library.json", lib)
+        self.write("library.json", draw_list(lib, self.root))
 
     def entry(self, key):
         return next((p for p in self.index()["papers"] if p["key"] == key), None)
@@ -306,7 +306,7 @@ def convert_draft(lib, name):
         entry.update(status="ok" if ok else "failed", source=tex.name)
         if ok:
             doc = json.loads((out / "paper.json").read_text())
-            entry.update(title=doc.get("title") or name, authors=doc.get("authors", []))
+            entry.update(title=doc.get("title") or name, authors=doc.get("authors", []), abstract=tex_abstract(tex))
         else:
             entry.update(error=log[-800:], title=old.get("title", name), authors=old.get("authors", []))
     entry.update(converted=now(), converter=CONVERTER)
@@ -337,6 +337,52 @@ MATH_PACKAGES = ["base", "ams", "newcommand", "noundefined", "configmacros", "bo
 MATH_SPLIT = re.compile(r"(\$\$.+?\$\$|\$[^$]+\$|\\\(.+?\\\)|\\\[.+?\\\])", re.S)
 
 
+def tex_abstract(tex):
+    r"""The abstract of a LaTeX file: \begin{abstract}...\end{abstract} or JHEP's \abstract{...}, lightly cleaned."""
+    try:
+        t = Path(tex).read_text(errors="replace")
+    except OSError:
+        return ""
+    t = re.sub(r"(?<!\\)%.*", "", t)
+    m = re.search(r"\\begin\{abstract\}(.*?)\\end\{abstract\}", t, re.S)
+    body = m.group(1) if m else ""
+    if not body:
+        k = t.find("\\abstract{")
+        if k >= 0:
+            depth, j = 0, k + len("\\abstract")
+            for j in range(k + len("\\abstract"), len(t)):
+                depth += {"{": 1, "}": -1}.get(t[j], 0)
+                if depth == 0:
+                    break
+            body = t[k + len("\\abstract{"):j]
+    body = re.sub(r"\\(?:cite[pt]?|ref|eqref|label|footnote)\s*(?:\[[^\]]*\])?\{[^{}]*\}", "", body)
+    body = re.sub(r"\\(?:emph|textit|textbf|textrm|textsc)\{([^{}]*)\}", r"\1", body)
+    body = re.sub(r"\\(?:noindent|medskip|smallskip|bigskip|par)\b", " ", body)
+    return re.sub(r"\s+", " ", body).strip()
+
+
+def draw_list(idx, root=None):
+    """Titles and abstracts of the library, with their math drawn (each paper with its own macros), for the
+    app's list. The glyphs the drawings share are kept once, in idx["math"]."""
+    defs, css = {}, ""
+    for p in idx.get("papers", []):
+        macros = {}
+        if root:
+            try:
+                macros = json.loads((Path(root) / p.get("path", "papers/" + p["key"]) / "paper.json").read_text())["math"]["macros"]
+            except (OSError, ValueError, KeyError):
+                pass
+        abstract = (p.get("arxiv") or {}).get("abstract") or p.get("abstract") or ""
+        htmls, cache, c = math_html([tex_text(p.get("title", "")), tex_text(abstract)], macros)
+        p["titleHtml"], p["abstractHtml"] = htmls[0], (htmls[1] if abstract else None)
+        css = css or c
+        for m in re.finditer(r'<path id="([^"]+)"[^>]*></path>', cache):
+            defs.setdefault(m.group(1), m.group(0))
+    idx["math"] = {"cache": '<svg style="display: none;" id="MJX-SVG-global-cache"><defs>' + "".join(defs.values()) + "</defs></svg>" if defs else "",
+                   "css": css}
+    return idx
+
+
 def tex_text(t):
     """The LaTeX in arXiv titles and abstracts that is not math: \\texorpdfstring, dashes, quotes."""
     t = t or ""
@@ -349,7 +395,7 @@ def tex_text(t):
     return "".join(parts)
 
 
-def math_html(texts):
+def math_html(texts, macros=None):
     """Plain text with $...$ math (arXiv titles and abstracts) as HTML, the math drawn to SVG once with
     MathJax in node. Returns (htmls, glyph cache, stylesheet); without node, the text is returned escaped."""
     import html as H
@@ -368,7 +414,7 @@ def math_html(texts):
     if items:
         tmp = Path(tempfile.mkdtemp(prefix="l2m-feedmath-"))
         try:
-            (tmp / "job.json").write_text(json.dumps({"items": items, "macros": {}, "packages": MATH_PACKAGES}))
+            (tmp / "job.json").write_text(json.dumps({"items": items, "macros": macros or {}, "packages": MATH_PACKAGES}))
             r = subprocess.run(["node", str(HERE / "render_math.js"), str(tmp / "job.json"), str(tmp / "out.json")],
                                capture_output=True, text=True, timeout=600)
             if r.returncode == 0:
@@ -550,7 +596,7 @@ def remove(lib, keys):
         if len(idx["papers"]) < before:
             gone.append(key)
         say("%s: %s" % (key, "removed" if key in gone else "not in the library"))
-    lib.write("library.json", idx)
+    lib.write("library.json", draw_list(idx, lib.root))
     return gone
 
 
@@ -587,6 +633,7 @@ def main():
     r = sub.add_parser("remove", help="take papers out of the library")
     r.add_argument("keys", nargs="+")
     sub.add_parser("list", help="list the papers")
+    sub.add_parser("redraw", help="redraw the list's titles and abstracts (after updating this tool)")
     argv = sys.argv[1:]
     push_too = "--push" in argv                    # accepted anywhere on the line
     a = ap.parse_args([x for x in argv if x != "--push"])
@@ -627,6 +674,15 @@ def main():
     elif a.cmd == "feed":
         fetch_feed(lib, a.before)
         msg = "Feed " + now()[:10]
+    elif a.cmd == "redraw":
+        idx = lib.index()
+        for p in idx["papers"]:
+            if p.get("kind") == "draft" and not p.get("abstract"):
+                tex = main_tex(lib.root / "sources" / "drafts" / p["key"])
+                if tex:
+                    p["abstract"] = tex_abstract(tex)
+        lib.write("library.json", draw_list(idx, lib.root))
+        msg = "Redraw the list"
     else:
         for p in lib.index()["papers"]:
             print("%-22s %-7s %s" % (p["key"], p.get("status"), p.get("title", "")[:70]))
