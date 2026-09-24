@@ -956,14 +956,23 @@ a.lib-title { color: var(--ink); }
 .app-bar.joined { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 160ms ease, border-color 160ms ease; }
 .app-pane .app-day { border-bottom-color: transparent; }
 .app-pane .app-day.stuck { border-bottom: 1px solid var(--bar-line); box-shadow: 0 10px 30px -20px var(--bar-shadow); }
-/* opening a panel: the bar keeps its glass until the panel under it is fully there, then lets the panel's
-   glass show through (blur does not animate smoothly, so it switches, it does not fade); closing, the bar
-   has its glass back at once, before the panel fades */
-.l2m-bar {
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 200ms ease, border-color 200ms ease,
-              background-color 0s, -webkit-backdrop-filter 0s, backdrop-filter 0s;
+
+/* panels (contents, settings) under the bar, without flicker: the glass is never faded or doubled.
+   The panel starts below the bar (the two glass layers never overlap) and unrolls with a clip; only its
+   contents fade. While it is open the bar keeps its glass and loses its shadow and line: one block. */
+.l2m-menu {
+  top: var(--l2m-bar-h, 64px); padding-top: 0; opacity: 1; transform: none;
+  clip-path: inset(0 0 100% 0); visibility: hidden;
+  transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms;
 }
+.l2m-menu.open {
+  clip-path: inset(0 0 -60px 0); visibility: visible;
+  transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
+}
+.l2m-menu .menu-inner { opacity: 0; transform: translateY(-6px); transition: opacity 180ms ease, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.l2m-menu.open .menu-inner { opacity: 1; transform: none; transition: opacity 220ms ease 60ms, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .l2m-bar.menu-open {
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 200ms ease, border-color 200ms ease,
-              background-color 0s 240ms, -webkit-backdrop-filter 0s 240ms, backdrop-filter 0s 240ms;
+  background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
+  box-shadow: none; border-bottom-color: transparent;
 }
+@media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu .menu-inner { transition-duration: 0.01s; } }
