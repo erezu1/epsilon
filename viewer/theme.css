@@ -1073,7 +1073,7 @@ a.lib-title { color: var(--ink); }
    thickness that flows in swirls. It lies faintly over the glass, clear where the film reflects little. One still
    image, drawn once: nothing moves or is worked out while scrolling. Laid from the top of the screen, the bar's and
    an open panel's film continue each other. */
-:root { --film-o: 0.26; --film-blend: normal; }
+:root { --film-o: 0.32; --film-blend: normal; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.3; --film-blend: screen; } }
 :root[data-theme="dark"] { --film-o: 0.3; --film-blend: screen; }
 .l2m-bar::before, .l2m-menu::before, .l2m-fnsheet::before, .app-toast::before {
@@ -1087,10 +1087,22 @@ a.lib-title { color: var(--ink); }
    the top of a sheet), and quickly in the last few pixels at the sides (the two masks add up). The rise is set in
    pixels from the edge, so it is the same on a short or a tall piece of glass. */
 :root {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.3) 36px, rgb(0 0 0 / 0.17) 64px, rgb(0 0 0 / 0.12) 110px, rgb(0 0 0 / 0.12) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.3) 36px, rgb(0 0 0 / 0.17) 64px, rgb(0 0 0 / 0.12) 110px, rgb(0 0 0 / 0.12) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 6px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px),
-    rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 6px), #000 100%);
+  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.68) 14px, rgb(0 0 0 / 0.38) 36px, rgb(0 0 0 / 0.2) 64px, rgb(0 0 0 / 0.1) 110px, rgb(0 0 0 / 0.1) 100%);
+  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.68) 14px, rgb(0 0 0 / 0.38) 36px, rgb(0 0 0 / 0.2) 64px, rgb(0 0 0 / 0.1) 110px, rgb(0 0 0 / 0.1) 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.8) 8px, rgb(0 0 0 / 0.32) 26px, transparent 64px, transparent calc(100% - 64px),
+    rgb(0 0 0 / 0.32) calc(100% - 26px), rgb(0 0 0 / 0.8) calc(100% - 8px), #000 100%);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
+  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 8px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px),
+    rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 8px), #000 100%);
+} }
+:root[data-theme="dark"] {
+  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
+  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 8px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px),
+    rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 8px), #000 100%);
 }
 .l2m-bar::before, .l2m-menu::before {
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
