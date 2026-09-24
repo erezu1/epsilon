@@ -550,17 +550,18 @@
       var label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
       return '<p class="app-day">' + esc(label) + '</p><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
         var k = arxivKey(i.id), got = have[k] && have[k].status === "ok", act;
-        if (got) act = '<a class="app-pill" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">Open</a>';
-        else if (p[k]) act = '<span class="app-pill app-busy">Converting&hellip;</span>';
-        else if (src && src.run) act = '<button type="button" class="app-pill" data-convert="' + esc(i.id) + '">Convert</button>';
-        else act = '<a class="app-pill" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener">arXiv</a>';
+        var Ic = theme.icons || {};
+        if (got) act = '<a class="bar-btn app-act" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '" aria-label="Open">' + (Ic.open || "&rsaquo;") + "</a>";
+        else if (p[k]) act = '<span class="bar-btn app-act app-working" role="img" aria-label="Converting">' + (Ic.add || "+") + "</span>";
+        else if (src && src.run) act = '<button type="button" class="bar-btn app-act app-add-btn" data-convert="' + esc(i.id) + '" aria-label="Add to the library">' + (Ic.add || "+") + "</button>";
+        else act = '<a class="bar-btn app-act" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener" aria-label="On arXiv">' + (Ic.external || "&nearr;") + "</a>";
         var t = i.titleHtml || esc(i.title);
-        return '<li class="app-paper"><div class="app-paper-text">' +
+        return '<li class="app-paper"><div class="app-paper-head"><div class="app-paper-text">' +
           (got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + t + "</a>" : '<span class="lib-title">' + t + "</span>") +
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) +
-          (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + "</span>" +
-          '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></div>" +
-          '<div class="app-paper-act">' + act + "</div></li>";
+          (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + "</span></div>" +
+          '<div class="app-paper-act">' + act + "</div></div>" +
+          '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></li>";
       }).join("") + "</ol>";
     }).join("");
     var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
@@ -568,19 +569,35 @@
       (src && src.run ? ' &middot; <button type="button" class="app-link" id="feed-now">refresh</button>' : "");
     main.innerHTML = '<p class="app-note app-small">' + meta + "</p>" +
       (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>");
-    // abstracts: the first lines, then "More" (as long captions in the figure viewer)
+    // abstracts: the first lines, fading out; "More" slides the rest open
+    var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     Array.prototype.forEach.call(main.querySelectorAll(".app-abs"), function (p) {
-      if (p.scrollHeight <= p.clientHeight + 2) return;
+      if (p.scrollHeight <= p.clientHeight + 2) { p.classList.add("short"); return; }
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "cap-more";
-      b.textContent = "More";
+      b.className = "app-toggle";
       b.setAttribute("aria-expanded", "false");
-      b.addEventListener("click", function () {
-        var open = p.classList.toggle("open");
-        b.textContent = open ? "Less" : "More";
+      b.innerHTML = "<span>More</span>" + CHEVRON;
+      function toggle() {
+        var open = !p.classList.contains("open");
+        p.style.maxHeight = p.scrollHeight + "px";            // from the height it has now...
+        if (open) {
+          p.classList.add("open");
+          p.addEventListener("transitionend", function done(e) {
+            if (e.propertyName !== "max-height") return;
+            p.removeEventListener("transitionend", done);
+            if (p.classList.contains("open")) p.style.maxHeight = "none";
+          });
+        } else {
+          void p.offsetHeight;                                 // ...back to its first lines
+          p.classList.remove("open");
+          p.style.maxHeight = "";
+        }
         b.setAttribute("aria-expanded", open ? "true" : "false");
-      });
+        b.firstChild.textContent = open ? "Less" : "More";
+      }
+      b.addEventListener("click", toggle);
+      p.addEventListener("click", function () { if (!p.classList.contains("open")) toggle(); });
       p.parentNode.insertBefore(b, p.nextSibling);
     });
     var r = document.getElementById("feed-now");
@@ -683,7 +700,7 @@
     var a = e.target.closest && e.target.closest("[data-p], [data-go], [data-convert]");
     if (!a) return;
     e.preventDefault();
-    if (a.hasAttribute("data-convert")) { a.disabled = true; a.textContent = "Starting\u2026"; convert([a.getAttribute("data-convert")]); return; }
+    if (a.hasAttribute("data-convert")) { a.disabled = true; a.classList.add("app-working"); convert([a.getAttribute("data-convert")]); return; }
     if (a.hasAttribute("data-p")) go(null, a.getAttribute("data-p"));
     else go(a.getAttribute("data-go"));
   });
