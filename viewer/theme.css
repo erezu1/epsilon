@@ -1244,3 +1244,5 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
   --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px rgb(0 0 0 / 0.35);
 }
 .seg .sel-ind, .app-seg .seg-btn[aria-checked="true"] { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
+/* a panel open over New with a date pinned: the bar has no shadow or line of its own either (the panel has them) */
+.app-bar.joined.menu-open { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 0s, border-color 0s; }
