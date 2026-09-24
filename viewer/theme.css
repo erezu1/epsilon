@@ -1014,3 +1014,5 @@ a.lib-title { color: var(--ink); }
               box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
               background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms;
 }
+/* section titles in the bar fill the first line before wrapping (no balancing) */
+.l2m-bar:not(.app-bar) .bar-title-inner { text-wrap: wrap; }
