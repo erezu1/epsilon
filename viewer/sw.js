@@ -2,9 +2,9 @@
 // The page asks for its files by release (name?v=release): those never change, so the saved copy answers at
 // once. The page itself is asked of the network first (a new release shows at once), with the saved copy
 // after a short wait on a slow network, or offline.
-var SHELL = "l2m-shell-v5";
+var SHELL = "l2m-shell-v6";
 var FILES = ["./", "index.html", "theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js",
-             "manifest.webmanifest", "icon-192.png", "apple-touch-icon.png", "favicon.png"];
+             "manifest.webmanifest", "icon-192.png", "apple-touch-icon.png", "favicon.png", "film.webp"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(SHELL).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
 });
@@ -34,14 +34,14 @@ self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.indexOf("/__") >= 0) return;
   var shell = FILES.some(function (f) { return new URL(f, self.registration.scope).pathname === url.pathname; });
   if (!shell) return;                                   // papers and lists: app.js decides
-  if (url.searchParams.has("v") || /\.png$/.test(url.pathname)) {
-    // a release's file (or an icon): the saved copy, else the network (and saved for next time)
+  if (url.searchParams.has("v") || /\.(png|webp)$/.test(url.pathname)) {
+    // a release's file (or an image): the saved copy, else the network (and saved for next time)
     e.respondWith(caches.match(e.request).then(function (hit) {
       var net = fetch(e.request).then(function (r) {
         if (r.ok && url.searchParams.has("v")) dropOtherReleases(url);
         return save(e.request, r);
       });
-      if (hit && /\.png$/.test(url.pathname)) net.catch(function () {});   // icons refresh in the background
+      if (hit && /\.(png|webp)$/.test(url.pathname)) net.catch(function () {});   // icons refresh in the background
       return hit || net;
     }));
     return;

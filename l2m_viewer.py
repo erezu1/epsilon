@@ -27,7 +27,7 @@ from l2m_render import ascii_html, inline_json  # noqa: E402
 
 VIEWER = HERE / "viewer"
 FILES = ["index.html", "theme.json", "theme.css", "prefs.js", "nav.js", "viewer.js", "app.js", "sw.js",
-         "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.png"]
+         "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.png", "film.webp"]
 
 
 def doc_name(folder):

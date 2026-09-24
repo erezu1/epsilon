@@ -1068,30 +1068,31 @@ a.lib-title { color: var(--ink); }
   .app-busy-btn:active { background: transparent; }
 }
 
-/* glass with a soap-film edge: the glass itself stays clear; its edge catches the light, as a line that shades
-   from rose through gold and mint to sky along its length, with a soft glow of the same colours fading into the
-   glass (in place of the plain line) */
-:root { --film-a: 0.9; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-a: 0.75; } }
-:root[data-theme="dark"] { --film-a: 0.75; }
-.l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast { --bar-line: transparent; }
-.l2m-bar::after, .l2m-menu::after, .l2m-fnsheet::after, .app-toast::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 14px; pointer-events: none;
-  background: linear-gradient(90deg, rgb(255 132 196 / var(--film-a)), rgb(255 200 120 / var(--film-a)) 27%,
-    rgb(140 226 184 / var(--film-a)) 51%, rgb(118 188 255 / var(--film-a)) 75%, rgb(186 142 255 / var(--film-a)));
-  -webkit-mask-image: linear-gradient(to top, #000 0, #000 2px, rgb(0 0 0 / 0.32) 2px, rgb(0 0 0 / 0.1) 7px, transparent 100%);
-  mask-image: linear-gradient(to top, #000 0, #000 2px, rgb(0 0 0 / 0.32) 2px, rgb(0 0 0 / 0.1) 7px, transparent 100%);
+/* glass with a soap film. film.webp holds the colours a water film reflects, computed from thin-film interference
+   (the reflectance of a film a few hundred nanometres thick, over the daylight spectrum, as the eye sees it) across a
+   thickness that flows in swirls. It lies faintly over the glass, clear where the film reflects little. One still
+   image, drawn once: nothing moves or is worked out while scrolling. Laid from the top of the screen, the bar's and
+   an open panel's film continue each other. */
+:root { --film-o: 0.3; --film-blend: normal; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.34; --film-blend: screen; } }
+:root[data-theme="dark"] { --film-o: 0.34; --film-blend: screen; }
+.l2m-bar::before, .l2m-menu::before, .l2m-fnsheet::before, .app-toast::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: url(film.webp) 0 0 / 900px 900px repeat; opacity: var(--film-o);
+  mix-blend-mode: var(--film-blend);      /* on dark glass the film adds light, as a reflection does */
 }
-.l2m-fnsheet::after, .app-toast::after {
-  bottom: auto; top: -1px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 2px, rgb(0 0 0 / 0.32) 2px, rgb(0 0 0 / 0.1) 7px, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0, #000 2px, rgb(0 0 0 / 0.32) 2px, rgb(0 0 0 / 0.1) 7px, transparent 100%);
+.l2m-fnsheet::before, .app-toast::before { background-position: -300px -520px; }
+/* as on a bubble, the colours are strongest toward the rim (light meets it at a glancing angle there) and faint
+   across the middle, where the panel's text is */
+.l2m-menu::before, .l2m-fnsheet::before {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.5) 18%, rgb(0 0 0 / 0.22) 45%, rgb(0 0 0 / 0.3) 75%, #000 100%);
+  mask-image: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.5) 18%, rgb(0 0 0 / 0.22) 45%, rgb(0 0 0 / 0.3) 75%, #000 100%);
 }
-.l2m-bar::after { transition: opacity 0s 300ms; }
-.l2m-bar.menu-open::after { opacity: 0; transition: opacity 0s; }
+.l2m-bar::before { transition: opacity 0s 300ms; }
+.l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
 .l2m-bar .bar-progress { z-index: 1; }
-/* a panel open: the bar is clear and the panel's edge is the one line; closing, the bar takes its line back
-   in the same step as its glass */
+/* a panel open: the bar is clear and the panel's film shows behind it; closing, the bar takes its film back in
+   the same step as its glass */
 .l2m-bar {
   transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
               background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms, background-image 0s 300ms;
@@ -1205,5 +1206,4 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 .l2m-vt .l2m-bar.show { background-color: var(--glass-solid); }
 /* a paper's bar is as tall with a one-line section title as with a two-line one (it never jumps between them) */
 .l2m-bar:not(.app-bar) .bar-title { min-height: calc(2.6em + 9px); box-sizing: border-box; }
-.l2m-menu::after { bottom: 0; }          /* (the panel clips at its padding edge) */
 .skel-bar .skel-bar-title { width: 62%; height: 0.95em; margin: 0; }
