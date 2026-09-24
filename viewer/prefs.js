@@ -54,20 +54,4 @@
   };
   if (window.L2M_THEME) window.L2M_initPrefs(window.L2M_THEME);   // a bundled page carries its theme inline
 
-  // the glass's soap film drifts sideways as anything scrolls (the page, or a list in the app), by how far it
-  // scrolled: switching between lists never makes it jump
-  var last = typeof WeakMap === "function" ? new WeakMap() : null, drift = 0, queued = false;
-  function place() {
-    queued = false;
-    var period = 1.7 * (window.innerWidth || 400);
-    root.style.setProperty("--iris-x", (((drift % period) + period) % period).toFixed(1) + "px");
-  }
-  if (last) document.addEventListener("scroll", function (e) {
-    var el = e.target === document ? document.scrollingElement || root : e.target;
-    if (!el || typeof el.scrollTop !== "number") return;
-    var y = el.scrollTop, was = last.has(el) ? last.get(el) : y;
-    last.set(el, y);
-    drift += (y - was) * 0.3;
-    if (!queued) { queued = true; requestAnimationFrame(place); }
-  }, {capture: true, passive: true});
 })();

@@ -39,21 +39,33 @@
   }
   // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
   var SPIN = '<span class="app-spin" aria-hidden="true"></span>';
-  var SPLASH_ICON = null;                   // the loading screen's icon, drawn in the page (taken from index.html)
-  function splash(p) {
-    var icon = document.querySelector(".app-splash-icon");
-    SPLASH_ICON = SPLASH_ICON || (icon ? icon.outerHTML : '<img src="icon-192.png" alt="" width="88" height="88">');
-    // the icon's underline is the progress bar (and the \u03b5 writes itself as it comes up)
-    return '<div class="app-splash' + (p == null ? " indet" : "") + '" role="status" aria-label="Loading" style="--p:' + (p || 0) + '">' + SPLASH_ICON + "</div>";
+  // ---------------------------------------------------------------- stand-ins while things load
+  // grey, gently pulsing shapes where the text will be: paper rows in the lists, a page in the viewer
+  function skelLine(w, cls) { return '<span class="skel' + (cls ? " " + cls : "") + '" style="width:' + w + '%"></span>'; }
+  function skelRows(n, seed) {
+    var out = "", r = seed || 3;
+    function rnd(lo, hi) { r = (r * 9301 + 49297) % 233280; return lo + (hi - lo) * r / 233280; }   // the same shapes every time
+    for (var i = 0; i < n; i++) {
+      out += '<li class="skel-row">' + skelLine(rnd(78, 96), "skel-title") + (rnd(0, 1) > 0.45 ? skelLine(rnd(35, 70), "skel-title") : "") +
+        skelLine(rnd(40, 65), "skel-small") + skelLine(rnd(22, 34), "skel-small") +
+        skelLine(100) + skelLine(100) + skelLine(rnd(55, 85)) + "</li>";
+    }
+    return '<ol class="l2m-library skel-list" aria-hidden="true">' + out + "</ol>";
   }
-  function showSplash(p) {                  // the loading screen already up (the app is starting): it carries on
-    var s = main.querySelector(".app-splash");
-    if (s && main.children.length === 1) progress(p); else main.innerHTML = splash(p);
+  function skelPaper(title) {
+    var p = function (lines, last) { var h = ""; for (var i = 0; i < lines; i++) h += skelLine(i === lines - 1 ? last : 100); return '<p class="skel-par">' + h + "</p>"; };
+    return '<div class="skel-paper" aria-hidden="true">' +
+      (title ? '<h1 class="skel-real">' + esc(title) + "</h1>" : skelLine(92, "skel-h1") + skelLine(60, "skel-h1")) +
+      skelLine(55, "skel-small") + skelLine(38, "skel-small") +
+      '<p class="skel-gap"></p>' + p(6, 70) + skelLine(40, "skel-h2") + p(5, 45) + p(4, 80) + skelLine(50, "skel-h2") + p(6, 60) + "</div>";
   }
-  function progress(p) {
-    var s = main.querySelector(".app-splash");
-    if (s) { s.classList.remove("indet"); s.style.setProperty("--p", String(p)); }
+  function skelBar(title) {                   // the paper's bar, as the viewer will draw it
+    var I = theme.icons || {};
+    return '<header class="l2m-bar show skel-bar" aria-hidden="true"><div class="bar-inner">' +
+      '<span class="bar-btn">' + (I.back || "") + '</span><span class="bar-title"><span class="bar-title-inner">' + esc(title || "") + "</span></span>" +
+      '<span class="bar-btn">' + (I.settings || "") + "</span></div></header>";
   }
+  function dropBoot() { var b = document.getElementById("boot-chrome"); if (b) b.remove(); }
   // INSPIRE (the high-energy physics literature database) knows papers from these archives
   function inspire(id, cats) {
     var hep = (cats || []).some(function (c) { return /^(hep-|gr-qc|nucl-|astro-ph|math-ph)/.test(c || ""); });
@@ -157,10 +169,40 @@
   }
   function offlineSet() { return store("offline") || {}; }
   function isOffline(key) { return !!offlineSet()[key]; }
+  var PAPER_CACHE = "l2m-papers-v1", KEEP_PAPERS = 30;
   function paperFile(key, entry, name) {
-    var path = (entry.path || "papers/" + key) + "/" + name;
+    var base = entry.path || "papers/" + key, path = base + "/" + name, ver = entry.converted || "";
     if (isOffline(key)) return fromCache(path).then(function (r) { return r.blob(); }, function () { return src.blob(path); });
-    return src.blob(path);
+    if (!window.caches || !ver || src.kind === "site") return src.blob(path);
+    var ck = new URL("__papers/" + path + "?v=" + encodeURIComponent(ver), location.href).href;
+    return caches.open(PAPER_CACHE).then(function (c) {
+      return c.match(ck).then(function (hit) {
+        if (hit) return hit.blob();
+        return src.blob(path).then(function (b) {
+          c.put(ck, new Response(b)).then(function () { notePaper(c, key, base, ver); }, function () {});
+          return b;
+        });
+      });
+    }, function () { return src.blob(path); });
+  }
+  // the papers kept: the last ones opened; an older conversion of a paper goes when a newer one comes
+  function notePaper(c, key, base, ver) {
+    var kept = store("kept") || {}, was = kept[key];
+    kept[key] = {t: Date.now(), base: base, ver: ver};
+    var drop = [];
+    if (was && was.ver !== ver) drop.push({base: was.base, ver: was.ver});
+    var keys = Object.keys(kept).sort(function (a, b) { return kept[b].t - kept[a].t; });
+    keys.slice(KEEP_PAPERS).forEach(function (k) { drop.push({base: kept[k].base}); delete kept[k]; });
+    store("kept", kept);
+    if (!drop.length) return;
+    c.keys().then(function (reqs) {
+      reqs.forEach(function (r) {
+        var u = decodeURIComponent(r.url);
+        drop.forEach(function (d) {
+          if (u.indexOf("/__papers/" + d.base + "/") >= 0 && (!d.ver || u.indexOf("?v=" + d.ver) >= 0)) c.delete(r);
+        });
+      });
+    });
   }
   function keepOffline(entry, on) {
     var key = keyOf(entry), base = entry.path || "papers/" + key, set = offlineSet();
@@ -258,7 +300,10 @@
   }
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") savePlace(current, true);
-    else pullReading().then(function () { if (isPage(current)) refresh(); });
+    else {
+      var order = JSON.stringify(store("opened") || {});
+      pullReading().then(function () { if (isPage(current) && JSON.stringify(store("opened") || {}) !== order) refresh(); });
+    }
   });
   window.addEventListener("pagehide", function () { savePlace(current, true); });
 
@@ -340,7 +385,7 @@
     holder.className = "l2m-chrome app-chrome";
     holder.innerHTML =
       '<header class="l2m-bar show app-bar" id="app-bar"><div class="bar-inner">' +
-      '<img class="app-logo" src="favicon.png" alt="" width="28" height="28">' +
+      '<svg class="app-logo" viewBox="119 117 290 290" width="28" height="28" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '<div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>New</span></button></div>' +
@@ -356,6 +401,7 @@
       '<div class="menu-inner"></div></div>' +
       '<div class="l2m-menu l2m-settings app-settings" id="app-addp" role="dialog" aria-label="Add a paper" aria-hidden="true">' +
       '<div class="menu-inner"></div></div>';
+    dropBoot();
     main.parentNode.insertBefore(holder, main);
     root.classList.add("l2m-bar-always");
     shell = holder;
@@ -711,7 +757,7 @@
   var ORDER = ["app:library", "app:new"];
   function track() {
     var t = main.querySelector(".app-track");
-    if (!t) {
+    if (!t || !t.querySelector("[data-pane]")) {        // (the page's own stand-in track has no panes to fill)
       main.innerHTML = '<div class="app-track">' + ORDER.map(function (k) {
         return '<section class="app-pane" data-pane="' + k + '"><div class="app-pane-in"></div></section>';
       }).join("") + "</div>";
@@ -726,7 +772,7 @@
     t.style.transform = "translateX(" + (-50 * Math.max(0, ORDER.indexOf(k))) + "%)";
   }
   function showLists(k, animate) {
-    var had = !!main.querySelector(".app-track");
+    var had = !!main.querySelector(".app-track [data-pane]");
     buildShell();
     root.classList.add("l2m-app-lists");
     setTab(k.slice(4));
@@ -1008,11 +1054,12 @@
         (entry.arxiv ? '<p class="app-row"><a class="app-pill" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "");
       return;
     }
-    showSplash(0.12);
+    dropBoot();
+    root.classList.add("l2m-bar-always");
+    main.innerHTML = skelBar(entry.title) + skelPaper(entry.title);
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
-    var docP = paperFile(key, entry, "paper.json").then(function (b) { progress(0.55); return b.text(); }).then(JSON.parse);
+    var docP = paperFile(key, entry, "paper.json").then(function (b) { return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
-    Promise.all([docP, mathP]).then(function () { progress(0.9); }, function () {});
     docP.then(function (doc) {
       return mathP.then(function (cache) {
         if (current !== key) return;
@@ -1032,6 +1079,7 @@
           mathjax: lib && lib.mathjax, onLibrary: backToLists, libraryHref: "./", actions: actions,
           leaving: function () { return leavingPaper === key; }});
         var v = view;
+        main.classList.remove("l2m-arrive"); void main.offsetWidth; main.classList.add("l2m-arrive");
         // opened afresh (not by back or forward): the place it was left, on this device or another
         if (fresh && reading[key] && !location.hash) v.ready.then(function () {
           setTimeout(function () { if (view === v) restorePlace(reading[key]); }, 60);
@@ -1222,16 +1270,45 @@
   });
 
   // ---------------------------------------------------------------- start
-  function load() {
-    if (!src) return Promise.resolve();
-    return Promise.all([
-      getJSON("library.json", true).catch(function () { return {papers: []}; }),
-      getJSON("feed.json", true).catch(function () { return null; }),
-      getJSON("config.json", true).catch(function () { return null; })
-    ]).then(function (r) { lib = r[0]; feed = r[1]; config = r[2]; return pullReading(); });
+  // The lists come at once from the copies kept on this device; the fresh ones follow from the network, and
+  // the lists are drawn again only if they changed. With nothing kept yet, stand-ins show while they come.
+  var LISTS = ["library.json", "feed.json", "config.json"], listText = [null, null, null];
+  function useLists(t) {
+    lib = t[0] ? JSON.parse(t[0]) : {papers: []};
+    feed = t[1] ? JSON.parse(t[1]) : null;
+    config = t[2] ? JSON.parse(t[2]) : null;
+    listText = t;
   }
-  var themeP = theme ? Promise.resolve(theme) : fetch("theme.json").then(function (r) { return r.json(); });
-  var siteP = fetch("library.json", {cache: "no-cache"}).then(function (r) { return r.ok; }, function () { return false; });
+  function savedLists() {
+    return Promise.all(LISTS.map(function (p) {
+      return fromCache(p).then(function (r) { return r.text(); }, function () { return null; });
+    }));
+  }
+  function freshLists() {
+    return Promise.all(LISTS.map(function (p, i) {
+      return src.blob(p).then(function (b) { remember(p, b); return b.text(); }, function () { return listText[i]; });
+    }));
+  }
+  function load() {                          // (also used when the settings change the library)
+    if (!src) return Promise.resolve();
+    return freshLists().then(function (t) { useLists(t); return pullReading(); });
+  }
+  function standIns(k) {
+    buildShell();
+    root.classList.add("l2m-app-lists");
+    setTab(k.slice(4));
+    pane("app:library").innerHTML = skelRows(5, 3);
+    pane("app:new").innerHTML = skelRows(5, 11);
+    place(k, false);
+  }
+  // this release's files are asked for by name and release, so the app's offline copy can answer at once
+  var REL = (function () {
+    try { var v = new URL(document.currentScript.src).searchParams.get("v"); return v && v !== "__RELEASE__" ? v : ""; } catch (e) { return ""; }
+  })();
+  var themeP = theme ? Promise.resolve(theme) : fetch("theme.json" + (REL ? "?v=" + REL : "")).then(function (r) { return r.json(); });
+  // a site with its own library.json next to the page; not asked when a GitHub library is set up here
+  var ghSet = store("site") !== location.pathname && store("repo") && store("token");
+  var siteP = ghSet ? Promise.resolve(false) : fetch("library.json", {cache: "no-cache"}).then(function (r) { return r.ok; }, function () { return false; });
   Promise.all([themeP, siteP]).then(function (r) {
     theme = r[0];
     if (window.L2M_initPrefs) L2M_initPrefs(theme);
@@ -1240,7 +1317,13 @@
     // offline, a site is still a site: its lists and saved papers come from this device
     if (r[1] || store("site") === location.pathname) src = staticSource();
     else if (store("repo") && store("token")) src = githubSource(store("repo"), store("token"));
-    return load();
+    if (!src) return;
+    return savedLists().then(function (t) {
+      if (t[0]) { useLists(t); return; }
+      var k0 = wanted();
+      if (isPage(k0)) standIns(k0);
+      return freshLists().then(useLists);
+    });
   }).then(function () {
     var k = wanted();
     try {
@@ -1255,6 +1338,16 @@
     } catch (e) {}
     show(k);
     watch();
+    if (!src) return;
+    // then, quietly: the fresh lists and the reading places from the other devices
+    var before = listText.join("\u0000"), order = JSON.stringify(store("opened") || {});
+    freshLists().then(function (t) {
+      var changed = t.join("\u0000") !== before;
+      if (changed) useLists(t);
+      return pullReading().then(function () {
+        if ((changed || JSON.stringify(store("opened") || {}) !== order) && isPage(current)) refresh();
+      });
+    });
   }).catch(function (e) {
     main.innerHTML = '<p class="app-note">Cannot start: ' + esc(e.message || e) + "</p>";
   });
