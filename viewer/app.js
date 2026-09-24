@@ -228,6 +228,7 @@
     holder.className = "l2m-chrome app-chrome";
     holder.innerHTML =
       '<header class="l2m-bar show app-bar" id="app-bar"><div class="bar-inner">' +
+      '<img class="app-logo" src="icon-192.png" alt="" width="28" height="28">' +
       '<div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>New</span></button></div>' +

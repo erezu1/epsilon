@@ -751,7 +751,8 @@ a.lib-title { color: var(--ink); }
 /* the app's own bar and settings panel (the same parts as a paper's) */
 .app-bar .bar-inner { gap: 6px; }
 /* the bar's tabs: two words, the current one in ink with a line under it */
-.app-bar .app-tabs { flex: 0 0 auto; display: flex; gap: 20px; margin: 0 0 0 10px; padding: 0; background: none; border-radius: 0; }
+.app-logo { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 7px; margin: 0 8px 0 10px; }
+.app-bar .app-tabs { flex: 0 0 auto; display: flex; gap: 20px; margin: 0 0 0 2px; padding: 0; background: none; border-radius: 0; }
 .app-bar .app-tabs .seg-btn {
   flex: 0 0 auto; padding: 8px 0; border-radius: 0; background: none; box-shadow: none;
   font-family: var(--serif); font-size: var(--fs); font-weight: 600; color: var(--muted); transition: color 180ms ease;
