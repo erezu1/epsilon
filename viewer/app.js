@@ -324,7 +324,7 @@
   }
   function setTab(name) {
     shell.querySelector("#app-plus").hidden = !(src && src.run);
-    shell.querySelector("#app-search").hidden = name !== "library";
+    shell.querySelector("#app-search").classList.toggle("app-away", name !== "library");   // fades, keeps its place
     if (name !== "new") shell.querySelector("#app-bar").classList.remove("joined");
     else { var dd = document.querySelector('[data-pane="app:new"] .app-day.stuck'); shell.querySelector("#app-bar").classList.toggle("joined", !!dd); }
     if (name !== "library" && shell.querySelector("#app-bar").classList.contains("searching")) searching(false);

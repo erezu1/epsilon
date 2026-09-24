@@ -1024,3 +1024,7 @@ a.lib-title { color: var(--ink); }
 
 .app-splash-icon { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 10px 30px -12px var(--bar-shadow); }
 .app-tappable { cursor: pointer; }
+/* the search button fades in and out with the Library tab (it keeps its place, so nothing else moves) */
+#app-search { transition: opacity 200ms ease, visibility 0s linear 0s; }
+#app-search.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
+@media (prefers-reduced-motion: reduce) { #app-search { transition-duration: 0.01s; } }
