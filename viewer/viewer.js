@@ -129,6 +129,7 @@
     var lib = o.onLibrary && tb.indexOf("library") >= 0 ?
       '<p class="l2m-libnav"><a href="' + esc(o.libraryHref || "./") + '" data-act="library">All papers</a></p>\n' : "";
     main.innerHTML = '<span id="l2m-top"></span>\n' + lib + fill(body);
+    Array.prototype.forEach.call(main.querySelectorAll("details.toc"), function (t) { t.remove(); });
     // a document's links go to places, never run code
     Array.prototype.forEach.call(main.querySelectorAll("a[href]"), function (a) {
       if (/^\s*(javascript|data|vbscript):/i.test(a.getAttribute("href"))) a.removeAttribute("href");
@@ -176,6 +177,8 @@
       return '<li class="' + (h.level === top ? "lvl1" : "lvl2") + '"><a href="#' + h.id + '"><span class="tocnum">' +
         h.number + "</span><span>" + h.html + "</span></a></li>";
     });
+    if ((theme.bar || []).indexOf("top") < 0)          // no top button in the bar: the contents start with it
+      items.unshift('<li class="lvl1 l2m-to-top"><a href="#l2m-top"><span class="tocnum"></span><span>Top of the paper</span></a></li>');
     if (document.getElementById("notes-h")) items.push('<li class="lvl1"><a href="#notes-h"><span class="tocnum"></span><span>Notes</span></a></li>');
     if (document.getElementById("refs-h")) items.push('<li class="lvl1"><a href="#refs-h"><span class="tocnum"></span><span>References</span></a></li>');
     if (o.menuItems) {

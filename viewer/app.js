@@ -301,9 +301,18 @@
     if (!shell) return;
     closePanel();
     shell.querySelector("#app-bar").classList.toggle("searching", on);
-    var f = shell.querySelector("#lib-q");
-    if (on) { if (current !== "app:library") go("library"); setTimeout(function () { f.focus(); }, 50); }
-    else { f.value = ""; filterLibrary(); f.blur(); }
+    var f = shell.querySelector("#lib-q"), bar = shell.querySelector("#app-bar");
+    bar.classList.remove("search-in", "search-out");
+    void bar.offsetWidth;
+    if (on) {
+      bar.classList.add("search-in");
+      if (current !== "app:library") go("library");
+      setTimeout(function () { f.focus(); }, 60);
+    } else {
+      f.value = ""; filterLibrary(); f.blur();
+      bar.classList.add("search-out");
+    }
+    setTimeout(function () { bar.classList.remove("search-in", "search-out"); if (shell) slide(shell.querySelector(".app-tabs")); }, 320);
   }
   function setTab(name) {
     shell.querySelector("#app-plus").hidden = !(src && src.run);
@@ -800,9 +809,19 @@
     urls.forEach(function (u) { URL.revokeObjectURL(u); });
     urls = [];
   }
+  // into a paper the page moves in from the right; back out to the lists it comes from the left
+  function enter(dir) {
+    root.classList.remove("l2m-in-fwd", "l2m-in-back");
+    void root.offsetWidth;
+    root.classList.add(dir > 0 ? "l2m-in-fwd" : "l2m-in-back");
+    clearTimeout(enter.t);
+    enter.t = setTimeout(function () { root.classList.remove("l2m-in-fwd", "l2m-in-back"); }, 420);
+  }
   function show(k, save) {
+    var was = current;
     close(save);
     current = k;
+    if (was !== null && was !== undefined && isPage(was) !== isPage(k)) enter(isPage(k) ? -1 : 1);
     if (!isPage(k)) root.classList.remove("l2m-app-lists");
     if (isPage(k)) {
       showLists(k === "app:new" ? k : "app:library", listMove);

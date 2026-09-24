@@ -359,6 +359,7 @@ def plain_text(tex):
     t = re.sub(r"\$([^$]*)\$", r"\1", tex)
     t = re.sub(r"\\(?:thanks|footnote)\s*\{[^{}]*\}", "", t)
     t = re.sub(r"\\\\", " ", t)
+    t = re.sub(r"\\(?:[vh]space\*?|vskip|hskip|kern|raisebox|rule)\s*(?:\{[^{}]*\}|-?[\d.]+\s*(?:pt|cm|mm|em|ex|in|bp)?)", " ", t)
     t = re.sub(r"\\[A-Za-z]+\*?", " ", t)
     t = t.replace("{", "").replace("}", "").replace("~", " ")
     t = t.replace("``", "\u201c").replace("''", "\u201d").replace("---", "\u2014").replace("--", "\u2013")
