@@ -10,8 +10,10 @@ an export: change the theme or the viewer and run this again, the document stays
 """
 
 import argparse
+import base64
 import html
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -39,11 +41,21 @@ def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=
     if kicker:
         doc = dict(doc, kicker=kicker)
     read = lambda name: (theme_dir / name).read_text()
+
+    def css():
+        # the theme's own images (the glass's soap film) go inside the page, which has no files beside it
+        def inline(m):
+            f = theme_dir / m.group(1)
+            if not f.is_file():
+                return m.group(0)
+            kind = {".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml"}.get(f.suffix, "application/octet-stream")
+            return "url(data:%s;base64,%s)" % (kind, base64.b64encode(f.read_bytes()).decode())
+        return re.sub(r"url\(([\w.-]+\.(?:webp|png|svg))\)", inline, read("theme.css"))
     head = ("<title>%s</title>\n"
             '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
             "<style>\n%s</style>\n<script>window.L2M_THEME = %s;</script>\n<script>\n%s</script>\n") % (
-        ascii_html(doc.get("title") or "Paper"), read("theme.css"), inline_json(theme), read("prefs.js"))
+        ascii_html(doc.get("title") or "Paper"), css(), inline_json(theme), read("prefs.js"))
     boot = ('(function () {\n'
             '  var doc = JSON.parse(document.getElementById("l2m-doc").textContent);\n'
             '  var cache = JSON.parse(document.getElementById("l2m-math").textContent);\n'
