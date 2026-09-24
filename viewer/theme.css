@@ -1073,20 +1073,24 @@ a.lib-title { color: var(--ink); }
    thickness that flows in swirls. It lies faintly over the glass, clear where the film reflects little. One still
    image, drawn once: nothing moves or is worked out while scrolling. Laid from the top of the screen, the bar's and
    an open panel's film continue each other. */
-:root { --film-o: 0.22; --film-blend: normal; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.26; --film-blend: screen; } }
-:root[data-theme="dark"] { --film-o: 0.26; --film-blend: screen; }
+:root { --film-o: 0.26; --film-blend: normal; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.3; --film-blend: screen; } }
+:root[data-theme="dark"] { --film-o: 0.3; --film-blend: screen; }
 .l2m-bar::before, .l2m-menu::before, .l2m-fnsheet::before, .app-toast::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
   background: url(film.webp) 0 0 / 900px 900px repeat; opacity: var(--film-o);
   mix-blend-mode: var(--film-blend);      /* on dark glass the film adds light, as a reflection does */
 }
 .l2m-fnsheet::before, .app-toast::before { background-position: -300px -520px; }
-/* as on a bubble, the colours are strongest toward the rim (light meets it at a glancing angle there) and faint
-   across the middle, where the panel's text is */
-.l2m-menu::before, .l2m-fnsheet::before {
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.5) 18%, rgb(0 0 0 / 0.22) 45%, rgb(0 0 0 / 0.3) 75%, #000 100%);
-  mask-image: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.5) 18%, rgb(0 0 0 / 0.22) 45%, rgb(0 0 0 / 0.3) 75%, #000 100%);
+/* as on a bubble, the colours grow toward the rim (light meets it at a glancing angle there): faint across the
+   glass, rising gradually to the edge it ends at (the bottom of the bar and of a panel, the top of a sheet) */
+.l2m-bar::before, .l2m-menu::before {
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
+}
+.l2m-fnsheet::before, .app-toast::before {
+  -webkit-mask-image: linear-gradient(to top, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
+  mask-image: linear-gradient(to top, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
 }
 .l2m-bar::before { transition: opacity 0s 300ms; }
 .l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
