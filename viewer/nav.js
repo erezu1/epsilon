@@ -91,7 +91,8 @@ window.L2M_nav = function (opts) {
 
   function goBack() {
     if (useHistory && idx > 0) { saveHere(); history.back(); return; }
-    if (mem.length) { scrollToY(mem.pop()); update(); }
+    if (mem.length) { scrollToY(mem.pop()); update(); return; }
+    if (opts.onLibrary) opts.onLibrary();    // nothing left to go back to in the paper: the library
   }
 
   var skipPop = false;       // the history step of a panel being closed by hand: already handled
@@ -602,7 +603,7 @@ window.L2M_nav = function (opts) {
         menuLinks[m].classList.toggle("current", !!cid && menuLinks[m].getAttribute("href") === "#" + cid);
       }
     }
-    backBtn.disabled = !(panel || (useHistory ? idx > 0 : mem.length > 0));
+    backBtn.disabled = !(panel || opts.onLibrary || (useHistory ? idx > 0 : mem.length > 0));
   }
 
   var ticking = false, saveTimer = null;

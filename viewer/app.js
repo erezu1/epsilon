@@ -37,6 +37,24 @@
     clearTimeout(t.l2mTimer);
     t.l2mTimer = setTimeout(function () { t.classList.remove("on"); }, ms || 4000);
   }
+  // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
+  function splash(p) {
+    return '<div class="app-splash" role="status" aria-label="Loading"><img src="icon-192.png" alt="" width="88" height="88">' +
+      '<div class="app-progress' + (p == null ? " indet" : "") + '"><span style="transform:scaleX(' + (p || 0.3) + ')"></span></div></div>';
+  }
+  function progress(p) {
+    var bar = main.querySelector(".app-progress span");
+    if (bar) { bar.parentNode.classList.remove("indet"); bar.style.transform = "scaleX(" + p + ")"; }
+  }
+  // INSPIRE (the high-energy physics literature database) knows papers from these archives
+  function inspire(id, cats) {
+    var hep = (cats || []).some(function (c) { return /^(hep-|gr-qc|nucl-|astro-ph|math-ph)/.test(c || ""); });
+    return hep ? "https://inspirehep.net/arxiv/" + encodeURIComponent(String(id).replace(/v\d+$/, "")) : null;
+  }
+  function inspireLink(id, cats) {
+    var u = inspire(id, cats);
+    return u ? ' &middot; <a class="app-ext" href="' + u + '" target="_blank" rel="noopener">INSPIRE</a>' : "";
+  }
   function arxivKey(id) { return String(id).replace(/v\d+$/, "").replace("/", "_"); }
   function keyOf(p) { return p.key || String(p.path || "").replace(/^papers\//, ""); }
   function day(iso) {
@@ -571,13 +589,15 @@
     });
     var items = papers.map(function (x) {
       var k = keyOf(x), meta = [];
-      if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : ""));
+      if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : "") +
+                             inspireLink(x.arxiv.id, x.arxiv.categories || [x.arxiv.primary]).replace(" &middot; ", " &middot; "));
       else if (x.kind === "draft") meta.push("your draft");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
-      return '<li data-hay="' + esc(hay) + '"><div class="app-lib-row"><a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '"><span class="lib-title">' +
-        (x.titleHtml || esc(x.title || k)) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
-        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</a>" +
+      return '<li data-hay="' + esc(hay) + '"><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
+        '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
+        '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
+        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
@@ -639,7 +659,7 @@
         return '<li class="app-paper"><div class="app-paper-head"><div class="app-paper-text">' +
           (got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + t + "</a>" : '<span class="lib-title">' + t + "</span>") +
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) +
-          (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + "</span></div>" +
+          (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + inspireLink(i.id, [i.category]) + "</span></div>" +
           '<div class="app-paper-act">' + act + "</div></div>" +
           '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></li>";
       }).join("") + "</ol>";
@@ -737,9 +757,10 @@
         (entry.arxiv ? '<p class="app-row"><a class="app-pill" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "");
       return;
     }
-    main.innerHTML = '<p class="app-note">Loading&hellip;</p>';
-    var docP = paperFile(key, entry, "paper.json").then(function (b) { return b.text(); }).then(JSON.parse);
+    main.innerHTML = splash(0.12);
+    var docP = paperFile(key, entry, "paper.json").then(function (b) { progress(0.55); return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
+    Promise.all([docP, mathP]).then(function () { progress(0.9); }, function () {});
     docP.then(function (doc) {
       return mathP.then(function (cache) {
         if (current !== key) return;
@@ -748,13 +769,15 @@
         if (entry.arxiv) {
           actions.push({label: "arXiv", href: "https://arxiv.org/abs/" + entry.arxiv.id});
           actions.push({label: "PDF", href: "https://arxiv.org/pdf/" + entry.arxiv.id});
+          var ins = inspire(entry.arxiv.id, entry.arxiv.categories || [entry.arxiv.primary]);
+          if (ins) actions.push({label: "INSPIRE", href: ins});
         }
         view = L2M_open({doc: doc, theme: Object.assign({}, theme, {titleblock: []}), cache: cache, key: key, kicker: null,
           base: src.kind === "site" ? (entry.path || "papers/" + key) + "/" : "",
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
             return paperFile(key, entry, "images/" + name).then(function (b) { var u = URL.createObjectURL(b); urls.push(u); return u; });
           },
-          mathjax: lib && lib.mathjax, onLibrary: function () { go("library"); }, libraryHref: "./", actions: actions});
+          mathjax: lib && lib.mathjax, onLibrary: backToLists, libraryHref: "./", actions: actions});
       });
     }).catch(function (e) {
       buildShell(); setTab("library");
@@ -793,7 +816,13 @@
   }
   var listMove = false;                      // the next show() moves between the two lists
   function refresh() { if (isPage(current)) showLists(current === "app:new" ? current : "app:library", false); }
+  var fromList = false;                     // the open paper was opened from Library or New
+  function backToLists() {
+    if (fromList) history.back();           // the list's own history entry, where it was left
+    else go("library");
+  }
   function go(pageName, key) {
+    fromList = !!key && isPage(current);
     closePanel("jump");
     close();                                // saves the reading place in the entry being left
     var k = key || "app:" + pageName;
@@ -805,6 +834,7 @@
   }
   document.addEventListener("click", function (e) {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (e.target.closest && e.target.closest("a.app-ext")) return;      // INSPIRE and the like open as links
     var a = e.target.closest && e.target.closest("[data-p], [data-go], [data-convert]");
     if (!a) return;
     e.preventDefault();
