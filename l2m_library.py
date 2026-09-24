@@ -104,8 +104,45 @@ def arxiv_key(aid):
     return re.sub(r"v\d+$", "", aid).replace("/", "_")
 
 
+def page_text(h):
+    import html as H
+    return re.sub(r"\s+", " ", H.unescape(re.sub(r"<[^>]+>", "", h or ""))).strip()
+
+
+def abs_meta(aid):
+    """The same, read from the paper's page on arxiv.org (when the API refuses, as it does for GitHub's machines)."""
+    import html as H
+    base = re.sub(r"v\d+$", "", aid)
+    page = http_get("https://arxiv.org/abs/" + base).decode("utf-8", "replace")
+    meta = lambda name: [H.unescape(m) for m in re.findall(r'<meta name="%s" content="([^"]*)"' % name, page)]
+    if not meta("citation_title"):
+        raise ValueError("arXiv has no paper %s" % aid)
+
+    def name(a):                       # "Last, First" -> "First Last"
+        return " ".join(reversed([x.strip() for x in a.split(",", 1)])) if "," in a else a
+    ab = re.search(r'<blockquote class="abstract[^"]*">(.*?)</blockquote>', page, re.S)
+    subj = re.search(r'<td class="tablecell subjects">(.*?)</td>', page, re.S)
+    cats = re.findall(r"\(([a-z-]+(?:\.[A-Za-z-]+)?)\)", page_text(subj.group(1)) if subj else "")
+    prim = re.search(r'<span class="primary-subject">[^<]*\(([^)]+)\)</span>', page)
+    ver = re.search(r"\[v(\d+)\]", page)
+    date = (meta("citation_date") or meta("citation_online_date") or [""])[0].replace("/", "-")
+    return {"id": base, "version": ver.group(1) if ver else None,
+            "title": re.sub(r"\s+", " ", meta("citation_title")[0]).strip(),
+            "authors": [name(a) for a in meta("citation_author")],
+            "abstract": re.sub(r"^Abstract:\s*", "", page_text(ab.group(1)) if ab else ""),
+            "primary": prim.group(1) if prim else (cats[0] if cats else None), "categories": cats, "published": date[:10]}
+
+
 def arxiv_meta(aid):
-    """Title, authors, abstract, categories and dates from the arXiv API."""
+    """Title, authors, abstract, categories and dates from the arXiv API (or the paper's page)."""
+    try:
+        return api_meta(aid)
+    except (urllib.error.URLError, ET.ParseError) as e:
+        say("  the arXiv API refused (%s); reading the paper's page" % e)
+        return abs_meta(aid)
+
+
+def api_meta(aid):
     xml = http_get("https://export.arxiv.org/api/query?id_list=" + re.sub(r"v\d+$", "", aid))
     ns = {"a": "http://www.w3.org/2005/Atom", "x": "http://arxiv.org/schemas/atom"}
     e = ET.fromstring(xml).find("a:entry", ns)
@@ -368,6 +405,48 @@ def announcement_window(day):
 
 
 def fetch_day(cat, day, cross):
+    """One announcement day of a category: from the arXiv API, or from arXiv's past-week listing."""
+    try:
+        return api_day(cat, day, cross)
+    except (urllib.error.URLError, ET.ParseError) as e:
+        say("  the arXiv API refused (%s); reading the past-week listing" % e)
+        return listing_day(cat, day, cross)
+
+
+def listing_day(cat, day, cross):
+    """A day from https://arxiv.org/list/<cat>/pastweek (the last five announcements), with each abstract
+    read from the paper's page."""
+    page = http_get("https://arxiv.org/list/%s/pastweek?show=2000" % cat).decode("utf-8", "replace")
+    heads = [(m.start(), m.group(1)) for m in re.finditer(r"<h3>([^<(]+)", page)]
+    want = day.strftime("%a, %d %b %Y")
+    spans = [(a, heads[k + 1][0] if k + 1 < len(heads) else len(page)) for k, (a, t) in enumerate(heads) if t.strip() == want]
+    if not spans:
+        raise ValueError("%s is further back than arXiv's past-week listing" % day)
+    part = page[spans[0][0]:spans[0][1]]
+    out = []
+    for dt, dd in re.findall(r"<dt>(.*?)</dt>\s*<dd>(.*?)</dd>", part, re.S):
+        idm = re.search(r'id="(\d{4}\.\d{4,5}|[a-z-]+/\d{7})"', dt)
+        prim = re.search(r'<span class="primary-subject">[^<]*\(([^)]+)\)</span>', dd)
+        if not idm:
+            continue
+        kind = "new" if prim and prim.group(1) == cat else "cross"
+        if kind == "cross" and not cross:
+            continue
+        title = re.search(r"<div class='list-title[^']*'>(.*?)</div>", dd, re.S)
+        authors = re.search(r"<div class='list-authors'>(.*?)</div>", dd, re.S)
+        m = None
+        try:
+            m = abs_meta(idm.group(1))
+            time.sleep(1)
+        except (urllib.error.URLError, ValueError):
+            pass
+        out.append({"id": idm.group(1), "title": re.sub(r"^Title:\s*", "", page_text(title.group(1))) if title else "",
+                    "authors": [page_text(a) for a in re.findall(r"<a [^>]*>(.*?)</a>", authors.group(1))] if authors else [],
+                    "abstract": m["abstract"] if m else "", "category": cat, "type": kind, "announced": day.isoformat()})
+    return out
+
+
+def api_day(cat, day, cross):
     """One announcement day of a category, from the arXiv API (for days before the RSS feed's)."""
     start, end = announcement_window(day)
     q = "cat:%s AND submittedDate:[%s TO %s]" % (cat, start.strftime("%Y%m%d%H%M"), end.strftime("%Y%m%d%H%M"))
@@ -409,7 +488,11 @@ def fetch_feed(lib, before=None):
         day = previous_weekday(before)
         for cat in cfg["categories"]:
             if re.fullmatch(r"[a-z-]+(\.[A-Za-z-]+)?", cat):
-                for i in fetch_day(cat, day, cfg.get("crossLists")):
+                try:
+                    got = fetch_day(cat, day, cfg.get("crossLists"))
+                except (urllib.error.URLError, ValueError) as e:
+                    sys.exit("l2m_library: could not fetch %s for %s: %s" % (cat, day, e))
+                for i in got:
                     items.setdefault((i["id"], cat), i)      # a paper already listed keeps its day
                 time.sleep(3)
         say("%s: %d papers" % (day, sum(1 for i in items.values() if i["announced"] == day.isoformat())))
