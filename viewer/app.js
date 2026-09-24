@@ -720,6 +720,8 @@
       if (src) { renderLibrary(); renderNew(); } else showConnect();
     }
     place(k, animate && had);
+    if (animate && had) follow(340);        // the pinned date comes and goes with the slide
+    else if (pinned.apply) pinned.apply();
   }
   // where each paper sat in the library list, so a new order can slide into place (not jump)
   var libTops = null;
@@ -916,7 +918,7 @@
       var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === "app:new";
       pinned.apply = joinBar;
       pinned.day = cur >= 0 ? {h: days[cur].offsetHeight, text: days[cur].textContent} : null;
-      if (sw && sw.dir === "x") return;         // a swipe between the tabs draws it meanwhile
+      if ((sw && sw.dir === "x") || pinned.following) return;   // a move between the tabs draws it meanwhile
       bar.classList.toggle("joined", on);
       if (on) {
         var d = days[cur], h = d.offsetHeight;
@@ -1048,9 +1050,11 @@
   var listMove = false;                      // the next show() moves between the two lists
   function refresh() { if (isPage(current)) showLists(current === "app:new" ? current : "app:library", false); }
   var fromList = false;                     // the open paper was opened from Library or New
-  var newAboveLibrary = false;              // the history has Library right below the New entry
+  var newAboveLibrary = false;
+  var toLibrary = false;                    // the bar's back button is on its way down to Library              // the history has Library right below the New entry
   function backToLists(steps) {             // steps: the jumps made inside the paper, stepped over too
-    if (fromList) { history.go(-1 - (steps || 0)); return; }   // the list's own history entry, where it was left
+    // the list's own history entry, where it was left; opened from New, on down to Library (one step below it)
+    if (fromList) { toLibrary = current !== null && newAboveLibrary; history.go(-1 - (steps || 0)); return; }
     close();                                // opened from a link: the library takes the paper's place
     try { history.replaceState({l2mPaper: "app:library"}, "", location.pathname); } catch (e) {}
     show("app:library");
@@ -1087,6 +1091,10 @@
     if (panelOpen) { closePanel("pop"); return; }       // back closes the open panel, nothing else
     if (shell && shell.querySelector("#app-bar").classList.contains("searching")) { searching(false, "pop"); return; }
     var k = (e.state && e.state.l2mPaper) || wanted();
+    if (toLibrary) {
+      toLibrary = false;
+      if (k === "app:new") { newAboveLibrary = false; history.back(); return; }   // passing New on the way
+    }
     if (k === current) return;              // a step inside the open paper: nav.js handles it
     listMove = isPage(current) && isPage(k);
     if (k === "app:library") newAboveLibrary = false;
@@ -1109,6 +1117,17 @@
     row.style.paddingTop = 19 * f + "px";
     row.style.opacity = String((d.op === undefined ? 1 : d.op) * f);
     row.style.transform = "";
+  }
+  function follow(ms) {                     // the track is sliding by itself: the bar follows it frame by frame
+    var t = main.querySelector(".app-track"), end = Date.now() + ms;
+    if (!t || !pinned.day) { pinnedSettle(); return; }
+    pinned.following = true;
+    (function frame() {
+      var m = new DOMMatrix(getComputedStyle(t).transform), w = main.clientWidth || 1;
+      pinnedMix(Math.max(0, Math.min(ORDER.length - 1, -m.m41 / w)));
+      if (Date.now() < end) requestAnimationFrame(frame);
+      else { pinned.following = false; pinnedSettle(); }
+    })();
   }
   function pinnedSettle() {                   // the swipe is over: the bar eases to where the tab it lands on has it
     if (!shell) return;
@@ -1139,7 +1158,6 @@
     var dx = (e && e.changedTouches ? e.changedTouches[0].clientX : sw.x) - sw.x, fast = Date.now() - sw.t < 300;
     var to = sw.i - Math.sign(dx), s0 = sw;
     sw = null;
-    pinnedSettle();
     if (to >= 0 && to < ORDER.length && (Math.abs(dx) > s0.w * 0.25 || (fast && Math.abs(dx) > 30))) {
       s0.track.style.transition = "transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)";
       s0.track.style.transform = "translateX(" + (-to * s0.w) + "px)";
@@ -1147,6 +1165,7 @@
     } else {
       place(current, true);
     }
+    follow(320);
   }
   main.addEventListener("touchend", endSwipe);
   main.addEventListener("touchcancel", endSwipe);
