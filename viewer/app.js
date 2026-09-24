@@ -756,9 +756,16 @@
     var paneEl = box.parentNode;
     function joinBar() {
       if (!shell) return;
-      var barH = shell.querySelector("#app-bar").getBoundingClientRect().height, stuck = null;
+      // a day is pinned while its papers pass under the bar: judged from its list (the pinned date's own
+      // position is not exact on every phone: the bar's height there includes the notch, in fractions of pixels)
+      var barH = parseFloat(getComputedStyle(root).getPropertyValue("--l2m-bar-h")) || shell.querySelector("#app-bar").getBoundingClientRect().height;
+      var stuck = null;
       Array.prototype.forEach.call(box.querySelectorAll(".app-day"), function (d) {
-        var on = paneEl.scrollTop > 0 && Math.abs(d.getBoundingClientRect().top - barH) < 1;
+        var list = d.nextElementSibling, h = d.offsetHeight, on = false;
+        if (list && paneEl.scrollTop > 0) {
+          var r = list.getBoundingClientRect();
+          on = r.top - h <= barH + 0.5 && r.bottom > barH + h;
+        }
         d.classList.toggle("stuck", on);
         if (on) stuck = d;
       });
@@ -935,7 +942,7 @@
   main.addEventListener("touchcancel", endSwipe);
 
   window.addEventListener("resize", function () {
-    if (shell) { root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px"); slide(shell.querySelector(".app-tabs")); }
+    if (shell && !shell.querySelector("#app-bar").classList.contains("joined")) { root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px"); slide(shell.querySelector(".app-tabs")); }
   });
 
   // ---------------------------------------------------------------- start

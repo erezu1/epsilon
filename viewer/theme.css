@@ -1016,3 +1016,6 @@ a.lib-title { color: var(--ink); }
 }
 /* section titles in the bar fill the first line before wrapping (no balancing) */
 .l2m-bar:not(.app-bar) .bar-title-inner { text-wrap: wrap; }
+/* the list's own date strip has no glass (the bar draws the pinned date; Safari draws blur on a pinned element
+   inside a scrolling list only in part) */
+.app-pane .app-day { background-color: var(--ground); -webkit-backdrop-filter: none; backdrop-filter: none; }
