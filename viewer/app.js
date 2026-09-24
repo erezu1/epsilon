@@ -52,19 +52,16 @@
     }
     return '<ol class="l2m-library skel-list" aria-hidden="true">' + out + "</ol>";
   }
-  function skelPaper(title) {
+  function skelPaper() {                      // text in general: the same wherever the paper opens
     var p = function (lines, last) { var h = ""; for (var i = 0; i < lines; i++) h += skelLine(i === lines - 1 ? last : 100); return '<p class="skel-par">' + h + "</p>"; };
-    return '<div class="skel-paper" aria-hidden="true">' +
-      (title ? '<h1 class="skel-real">' + esc(title) + "</h1>" : skelLine(92, "skel-h1") + skelLine(60, "skel-h1")) +
-      skelLine(55, "skel-small") + skelLine(38, "skel-small") +
-      '<p class="skel-gap"></p>' + p(6, 70) + skelLine(40, "skel-h2") + p(5, 45) + p(4, 80) + skelLine(50, "skel-h2") + p(6, 60) + "</div>";
+    return '<div class="skel-paper" aria-hidden="true">' + p(4, 64) + p(6, 80) + skelLine(44, "skel-h2") + p(5, 52) + p(6, 75) + p(4, 40) + "</div>";
   }
-  function skelBar(title) {                   // the paper's bar as the viewer will draw it, until it does
+  function skelBar() {                        // the paper's bar as the viewer will draw it, until it does
     dropSkelBar();
     var I = theme.icons || {}, h = document.createElement("div");
     h.innerHTML = '<header class="l2m-bar show skel-bar" id="l2m-skel-bar" aria-hidden="true"><div class="bar-inner">' +
       '<button type="button" class="bar-btn swap" tabindex="-1"><span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' +
-      (I.close || "") + '</span></button><button type="button" class="bar-title" tabindex="-1"><span class="bar-title-inner">' + esc(title || "") +
+      (I.close || "") + '</span></button><button type="button" class="bar-title" tabindex="-1"><span class="bar-title-inner"><span class="skel skel-bar-title"></span>' +
       '</span></button><button type="button" class="bar-btn" tabindex="-1">' + (I.settings || "") + "</button></div></header>";
     var bar = h.firstChild;
     document.body.insertBefore(bar, main);
@@ -235,18 +232,22 @@
   }
 
   // ---------------------------------------------------------------- where each paper was left, on all devices
-  // A place is kept as "this far into this block": the paragraph, equation or figure at the top of the
-  // screen (counted from the start), and how far into it. The same place on any width and font.
+  // A place is kept as "this far into this block": the paragraph, heading or figure at the top of the screen
+  // (its number in the paper), and how far into it. The same place on any width and font.
   // Kept on the device, and in reading.json in the library repo for the other devices.
   var reading = store("reading") || {}, readingSha = null, readingDirty = false, readingTimer = null;
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
-  function anchors() {                     // the paper's blocks, in order: the same on every device
-    return Array.prototype.filter.call(main.querySelectorAll("p, li, h1, h2, h3, h4, h5, figure, table, [id]"), function (e) {
-      return e.offsetParent !== null && !e.closest(".l2m-chrome, .l2m-bar, .l2m-panel") && e.id !== "l2m-top" && e.offsetHeight > 0;
+  // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
+  // every device and at any moment, whatever is laid out yet
+  function anchors() {
+    return Array.prototype.filter.call(main.querySelectorAll("p, li, h1, h2, h3, h4, h5, figure, table"), function (e) {
+      return !e.closest(".l2m-chrome, .l2m-bar, .l2m-panel, .skel-paper");
     });
   }
-  function span(list, k) {                  // from a block's top to the next one's (or its own bottom)
-    var r = list[k].getBoundingClientRect(), n = list[k + 1] ? list[k + 1].getBoundingClientRect().top : r.bottom;
+  function shown(e) { return e.getClientRects().length > 0; }
+  function span(list, k) {                  // from a block's top to the next shown one's (or its own bottom)
+    var r = list[k].getBoundingClientRect(), n = r.bottom;
+    for (var i = k + 1; i < list.length; i++) if (shown(list[i])) { n = list[i].getBoundingClientRect().top; break; }
     return Math.max(n, r.top + 1) - r.top;
   }
   function capturePlace() {
@@ -257,17 +258,18 @@
   function spot() {                         // the block at the top of the screen, and how far into it
     var top = barBottom() + 4, list = anchors(), k = -1;
     if (window.pageYOffset < 40 || !list.length) return {n: -1, frac: 0};
-    for (var i = 0; i < list.length; i++) { if (list[i].getBoundingClientRect().top <= top) k = i; else break; }
+    for (var i = 0; i < list.length; i++) {
+      if (!shown(list[i])) continue;
+      if (list[i].getBoundingClientRect().top <= top) k = i; else break;
+    }
     if (k < 0) return {n: -1, frac: 0};
     var a = list[k].getBoundingClientRect().top, h = span(list, k);
-    return {n: k, of: list.length, anchor: list[k].id || null, frac: h > 0 ? Math.max(0, Math.min(1, (top - a) / h)) : 0};
+    return {n: k, frac: h > 0 ? Math.max(0, Math.min(1, (top - a) / h)) : 0};
   }
   function restorePlace(p) {
-    if (!p || !(p.n >= 0 || p.anchor)) return;
-    var list = anchors(), k = p.n;
-    if (p.of !== list.length || !list[k]) k = p.anchor ? list.map(function (e) { return e.id; }).indexOf(p.anchor) : -1;
-    if (k < 0) return;
-    window.scrollTo(0, window.pageYOffset + list[k].getBoundingClientRect().top + span(list, k) * (p.frac || 0) - barBottom() - 4);
+    var list = anchors();
+    if (!p || !(p.n >= 0) || p.of || !list[p.n]) return;     // (a place kept by the earlier count, "of", is not this one)
+    window.scrollTo(0, window.pageYOffset + list[p.n].getBoundingClientRect().top + span(list, p.n) * (p.frac || 0) - barBottom() - 4);
   }
   function savePlace(key, leaving) {
     if (!key || isPage(key) || !view) return;
@@ -1065,9 +1067,9 @@
     }
     dropBoot();
     root.classList.add("l2m-bar-always");
-    skelBar(entry.title);
-    main.innerHTML = skelPaper(entry.title);
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
+    skelBar();
+    main.innerHTML = skelPaper();
     var docP = paperFile(key, entry, "paper.json").then(function (b) { return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
     docP.then(function (doc) {
