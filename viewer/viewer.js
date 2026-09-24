@@ -61,7 +61,7 @@
       back: '<button type="button" class="bar-btn swap" data-act="back" aria-label="Back to where you were" disabled>' +
         '<span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' + (I.close || "") + "</span></button>",
       title: '<button type="button" class="bar-title" aria-label="Show contents" aria-expanded="false" aria-controls="l2m-menu">' +
-        '<span class="bar-title-ico" aria-hidden="true">' + (I.menu || "") + '</span><span class="bar-title-inner">' + esc(title) + "</span></button>",
+        '<span class="bar-title-inner">' + esc(title) + "</span></button>",
       top: '<button type="button" class="bar-btn" data-act="top" aria-label="Go to the top">' + (I.top || "") + "</button>",
       settings: '<button type="button" class="bar-btn" data-act="settings" aria-label="Reading settings" aria-controls="l2m-settings">' +
         (I.settings || "") + "</button>",
