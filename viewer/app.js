@@ -615,6 +615,7 @@
     filterLibrary();
   }
 
+  var daysShown = 1, fetchingDay = null;      // New shows the latest day, and more on request
   function renderNew() {
     var box = pane("app:new");
     feedMath();
@@ -623,7 +624,9 @@
     var cats = (feed && feed.categories) || (config && config.categories) || ["hep-th"];
     var byDay = {};
     ((feed && feed.items) || []).forEach(function (i) { (byDay[i.announced] = byDay[i.announced] || []).push(i); });
-    var days = Object.keys(byDay).sort().reverse().map(function (d) {
+    var order = Object.keys(byDay).sort().reverse();
+    var shown = Math.max(1, Math.min(daysShown, order.length));
+    var days = order.slice(0, shown).map(function (d) {
       var label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
       return '<p class="app-day">' + esc(label) + '</p><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
         var k = arxivKey(i.id), got = have[k] && have[k].status === "ok", act;
@@ -644,8 +647,37 @@
     var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
       (feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "") +
       (src && src.run ? ' &middot; <button type="button" class="app-link" id="feed-now">refresh</button>' : "");
+    var older = "";
+    if (order.length > shown) {
+      older = '<p class="app-row app-older"><button type="button" class="app-pill" id="feed-older">' +
+        esc(new Date(order[shown] + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"})) + "</button></p>";
+    } else if (order.length && src && src.run) {
+      older = '<p class="app-row app-older">' + (fetchingDay ? '<span class="app-pill app-busy">Fetching the day before&hellip;</span>' :
+        '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
+    }
     box.innerHTML = '<p class="app-note app-small">' + meta + "</p>" +
-      (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>");
+      (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>") + older;
+    var ob = box.querySelector("#feed-older");
+    if (ob) ob.addEventListener("click", function () {
+      if (order.length > shown) { daysShown = shown + 1; renderNew(); return; }
+      var oldest = order[order.length - 1];
+      src.run("feed.yml", {before: oldest}).then(function () {
+        fetchingDay = oldest;
+        renderNew();
+        var tries = 0, t = setInterval(function () {
+          getJSON("feed.json", true).then(function (f) {
+            var got = (f.items || []).some(function (i) { return i.announced < oldest; });
+            if (got || ++tries > 20) {
+              clearInterval(t);
+              fetchingDay = null;
+              if (got) { feed = f; mathIn = false; feedMath(); daysShown = shown + 1; }
+              else toast("The day before could not be fetched; try again later.");
+              if (isPage(current)) renderNew();
+            }
+          }).catch(function () {});
+        }, 15000);
+      }, function (e) { toast("Could not fetch it: " + esc(e.message)); });
+    });
     // abstracts: the first lines, fading out; "More" slides the rest open
     var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     Array.prototype.forEach.call(box.querySelectorAll(".app-abs"), function (p) {

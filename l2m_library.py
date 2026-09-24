@@ -33,6 +33,7 @@ import tarfile
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -44,7 +45,7 @@ from latex2mobile import __version__ as CONVERTER  # noqa: E402
 UA = "l2m-library/1.0 (+https://github.com/erezu1/l2m-app)"
 ARXIV_ID = re.compile(r"^(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?/\d{7})(v\d+)?$")
 DEFAULT_CONFIG = {"categories": ["hep-th"], "crossLists": False}
-FEED_DAYS = 7
+FEED_DAYS = 30                 # how long announcements stay in feed.json
 
 
 def now():
@@ -299,6 +300,18 @@ MATH_PACKAGES = ["base", "ams", "newcommand", "noundefined", "configmacros", "bo
 MATH_SPLIT = re.compile(r"(\$\$.+?\$\$|\$[^$]+\$|\\\(.+?\\\)|\\\[.+?\\\])", re.S)
 
 
+def tex_text(t):
+    """The LaTeX in arXiv titles and abstracts that is not math: \\texorpdfstring, dashes, quotes."""
+    t = t or ""
+    for _ in range(3):
+        t = re.sub(r"\\texorpdfstring\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{(?:[^{}]|\{[^{}]*\})*\}", r"\1", t)
+    parts = MATH_SPLIT.split(t)
+    for k in range(0, len(parts), 2):           # outside the math only
+        parts[k] = (parts[k].replace("---", "\u2014").replace("--", "\u2013").replace("``", "\u201c")
+                    .replace("''", "\u201d").replace("~", "\u00a0"))
+    return "".join(parts)
+
+
 def math_html(texts):
     """Plain text with $...$ math (arXiv titles and abstracts) as HTML, the math drawn to SVG once with
     MathJax in node. Returns (htmls, glyph cache, stylesheet); without node, the text is returned escaped."""
@@ -338,14 +351,69 @@ def math_html(texts):
 
 
 # ---------------------------------------------------------------- the feed
-def fetch_feed(lib):
+def announcement_window(day):
+    """The submissions announced on DAY (a weekday): arXiv's day runs 14:00 to 14:00 US Eastern, and
+    Monday's announcement covers Thursday 14:00 to Friday 14:00. Returns (start, end) in UTC."""
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    def weekday_before(d):
+        d -= datetime.timedelta(days=1)
+        while d.weekday() >= 5:
+            d -= datetime.timedelta(days=1)
+        return d
+    end_day = weekday_before(day)
+    start_day = weekday_before(end_day)
+    at = lambda d: datetime.datetime(d.year, d.month, d.day, 14, 0, tzinfo=et).astimezone(datetime.timezone.utc)
+    return at(start_day), at(end_day)
+
+
+def fetch_day(cat, day, cross):
+    """One announcement day of a category, from the arXiv API (for days before the RSS feed's)."""
+    start, end = announcement_window(day)
+    q = "cat:%s AND submittedDate:[%s TO %s]" % (cat, start.strftime("%Y%m%d%H%M"), end.strftime("%Y%m%d%H%M"))
+    url = "https://export.arxiv.org/api/query?" + urllib.parse.urlencode(
+        {"search_query": q, "start": 0, "max_results": 1000, "sortBy": "submittedDate", "sortOrder": "ascending"})
+    xml = http_get(url)
+    ns = {"a": "http://www.w3.org/2005/Atom", "x": "http://arxiv.org/schemas/atom"}
+    clean = lambda t: re.sub(r"\s+", " ", t or "").strip()
+    out = []
+    for e in ET.fromstring(xml).findall("a:entry", ns):
+        aid = re.sub(r"v\d+$", "", e.find("a:id", ns).text.rsplit("/abs/", 1)[-1])
+        prim = e.find("x:primary_category", ns)
+        kind = "new" if prim is not None and prim.get("term") == cat else "cross"
+        if kind == "cross" and not cross:
+            continue
+        out.append({"id": aid, "title": clean(e.find("a:title", ns).text),
+                    "authors": [clean(a.find("a:name", ns).text) for a in e.findall("a:author", ns)],
+                    "abstract": clean(e.find("a:summary", ns).text), "category": cat, "type": kind,
+                    "announced": day.isoformat()})
+    return out
+
+
+def previous_weekday(iso):
+    d = datetime.date.fromisoformat(iso) - datetime.timedelta(days=1)
+    while d.weekday() >= 5:
+        d -= datetime.timedelta(days=1)
+    return d
+
+
+def fetch_feed(lib, before=None):
     """New papers in the configured categories, from arXiv's RSS feeds (one announcement each)."""
     cfg = lib.config()
     kinds = {"new", "cross"} if cfg.get("crossLists") else {"new"}
     ns = {"arxiv": "http://arxiv.org/schemas/atom", "dc": "http://purl.org/dc/elements/1.1/"}
     old = lib.read("feed.json", {"items": []})
     items = {(i["id"], i["category"]): i for i in old.get("items", [])}
-    for cat in cfg["categories"]:
+    if before:
+        # an older day, asked for from the app: the announcement before BEFORE, from the arXiv API
+        day = previous_weekday(before)
+        for cat in cfg["categories"]:
+            if re.fullmatch(r"[a-z-]+(\.[A-Za-z-]+)?", cat):
+                for i in fetch_day(cat, day, cfg.get("crossLists")):
+                    items.setdefault((i["id"], cat), i)      # a paper already listed keeps its day
+                time.sleep(3)
+        say("%s: %d papers" % (day, sum(1 for i in items.values() if i["announced"] == day.isoformat())))
+    for cat in ([] if before else cfg["categories"]):
         if not re.fullmatch(r"[a-z-]+(\.[A-Za-z-]+)?", cat):
             say("skipping odd category %r" % cat)
             continue
@@ -372,8 +440,11 @@ def fetch_feed(lib):
     cutoff = (datetime.date.today() - datetime.timedelta(days=FEED_DAYS)).isoformat()
     keep = [i for i in items.values() if i["announced"] >= cutoff and i["category"] in cfg["categories"]
             and i["type"] in kinds]
-    keep.sort(key=lambda i: (i["announced"], i["id"]), reverse=True)
-    htmls, cache, css = math_html([i["title"] for i in keep] + [i["abstract"] for i in keep])
+    # as arXiv lists them: the latest day first; in a day, new submissions by number, then cross-lists
+    keep.sort(key=lambda i: i["id"])
+    keep.sort(key=lambda i: i["type"] != "new")
+    keep.sort(key=lambda i: i["announced"], reverse=True)
+    htmls, cache, css = math_html([tex_text(i["title"]) for i in keep] + [tex_text(i["abstract"]) for i in keep])
     for k, i in enumerate(keep):
         i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]
     lib.write("feed.json", {"updated": now(), "categories": cfg["categories"], "crossLists": cfg.get("crossLists", False),
@@ -428,7 +499,8 @@ def main():
     d.add_argument("tex")
     d.add_argument("--name")
     sub.add_parser("drafts", help="convert the drafts whose sources changed")
-    sub.add_parser("feed", help="refresh feed.json")
+    fd = sub.add_parser("feed", help="refresh feed.json")
+    fd.add_argument("--before", metavar="DATE", help="instead, add the announcement day before DATE (YYYY-MM-DD)")
     r = sub.add_parser("remove", help="take papers out of the library")
     r.add_argument("keys", nargs="+")
     sub.add_parser("list", help="list the papers")
@@ -470,7 +542,7 @@ def main():
         gone = remove(lib, " ".join(a.keys).replace(",", " ").split())
         msg = "Remove " + (", ".join(gone) or "nothing")
     elif a.cmd == "feed":
-        fetch_feed(lib)
+        fetch_feed(lib, a.before)
         msg = "Feed " + now()[:10]
     else:
         for p in lib.index()["papers"]:

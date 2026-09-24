@@ -894,3 +894,11 @@ a.lib-title { color: var(--ink); }
 .l2m-bar:not(.app-bar) .bar-title { padding-left: 2px; gap: 8px; margin-right: 4px; }
 .l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 40px; height: 44px; border-radius: 12px; }
 .l2m-bar:not(.app-bar) { padding-right: max(4px, env(safe-area-inset-right, 0px)); }
+
+/* New: the date stays at the top while its papers scroll under it */
+.app-pane .app-day {
+  position: sticky; top: 0; z-index: 2; margin: 1.2em -18px 0; padding: 10px 18px 8px;
+  background-color: var(--glass-solid); border-bottom: 1px solid var(--rule);
+}
+.app-pane .app-day + .app-feed > li:first-child { border-top: 0; }
+.app-older { justify-content: center; margin: 1.6em 0 0.5em; }
