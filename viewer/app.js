@@ -59,12 +59,18 @@
       skelLine(55, "skel-small") + skelLine(38, "skel-small") +
       '<p class="skel-gap"></p>' + p(6, 70) + skelLine(40, "skel-h2") + p(5, 45) + p(4, 80) + skelLine(50, "skel-h2") + p(6, 60) + "</div>";
   }
-  function skelBar(title) {                   // the paper's bar, as the viewer will draw it
-    var I = theme.icons || {};
-    return '<header class="l2m-bar show skel-bar" aria-hidden="true"><div class="bar-inner">' +
-      '<span class="bar-btn">' + (I.back || "") + '</span><span class="bar-title"><span class="bar-title-inner">' + esc(title || "") + "</span></span>" +
-      '<span class="bar-btn">' + (I.settings || "") + "</span></div></header>";
+  function skelBar(title) {                   // the paper's bar as the viewer will draw it, until it does
+    dropSkelBar();
+    var I = theme.icons || {}, h = document.createElement("div");
+    h.innerHTML = '<header class="l2m-bar show skel-bar" id="l2m-skel-bar" aria-hidden="true"><div class="bar-inner">' +
+      '<button type="button" class="bar-btn swap" tabindex="-1"><span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' +
+      (I.close || "") + '</span></button><button type="button" class="bar-title" tabindex="-1"><span class="bar-title-inner">' + esc(title || "") +
+      '</span></button><button type="button" class="bar-btn" tabindex="-1">' + (I.settings || "") + "</button></div></header>";
+    var bar = h.firstChild;
+    document.body.insertBefore(bar, main);
+    root.style.setProperty("--l2m-bar-h", bar.getBoundingClientRect().height + "px");   // the page starts where it will
   }
+  function dropSkelBar() { var b = document.getElementById("l2m-skel-bar"); if (b) b.remove(); }
   function dropBoot() { var b = document.getElementById("boot-chrome"); if (b) b.remove(); }
   // INSPIRE (the high-energy physics literature database) knows papers from these archives
   function inspire(id, cats) {
@@ -406,6 +412,9 @@
     root.classList.add("l2m-bar-always");
     shell = holder;
     setBarH();
+    var ind0 = holder.querySelector(".app-tabs .sel-ind");
+    ind0.classList.add("no-anim");
+    setTimeout(function () { ind0.classList.remove("no-anim"); }, 60);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (shell) slide(shell.querySelector(".app-tabs")); });
     holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
@@ -806,7 +815,7 @@
     if (!moved.length) return;
     void box.offsetWidth;
     // coming back from a paper: wait for the page to have slid in, then let the order move
-    var wait = root.classList.contains("l2m-in-back") ? 380 : 30;
+    var wait = root.classList.contains("l2m-in-back") || root.classList.contains("l2m-vt-back") ? 380 : 30;
     setTimeout(function () {
       moved.forEach(function (li) {
         li.style.transition = "transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1)";
@@ -830,7 +839,7 @@
       void li.offsetWidth;
       li.classList.remove("read-still");
       setTimeout(function () { li.style.setProperty("--read", String(now)); if (!now) li.removeAttribute("data-read"); },
-                 root.classList.contains("l2m-in-back") ? 420 : 40);
+                 root.classList.contains("l2m-in-back") || root.classList.contains("l2m-vt-back") ? 420 : 40);
     });
   }
   function renderLibrary() {
@@ -1056,7 +1065,8 @@
     }
     dropBoot();
     root.classList.add("l2m-bar-always");
-    main.innerHTML = skelBar(entry.title) + skelPaper(entry.title);
+    skelBar(entry.title);
+    main.innerHTML = skelPaper(entry.title);
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
     var docP = paperFile(key, entry, "paper.json").then(function (b) { return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
@@ -1071,6 +1081,7 @@
           var ins = inspire(entry.arxiv.id, entry.arxiv.categories || [entry.arxiv.primary]);
           if (ins) actions.push({label: "INSPIRE", href: ins});
         }
+        dropSkelBar();                        // the real bar takes its place in the same frame
         view = L2M_open({doc: doc, theme: Object.assign({}, theme, {titleblock: []}), cache: cache, key: key, kicker: null,
           base: src.kind === "site" ? (entry.path || "papers/" + key) + "/" : "",
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
@@ -1102,6 +1113,7 @@
     return (history.state || {}).l2mPaper || "app:library";     // an artifact's address cannot carry ?p
   }
   function close(save) {
+    dropSkelBar();
     if (view && current && !isPage(current)) savePlace(current, true);
     if (view) { view.close(save); view = null; }
     urls.forEach(function (u) { URL.revokeObjectURL(u); });
@@ -1115,11 +1127,28 @@
     clearTimeout(enter.t);
     enter.t = setTimeout(function () { root.classList.remove("l2m-in-fwd", "l2m-in-back"); }, 420);
   }
+  // into a paper and back out: the old page slides away as the new one slides in, and the bar changes in place
+  // (the browser's page transitions; where it has none, the new page alone slides in)
   function show(k, save) {
+    var cross = current !== null && current !== undefined && isPage(current) !== isPage(k);
+    var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (cross && document.startViewTransition && !reduced) {
+      root.classList.add("l2m-vt");
+      root.classList.toggle("l2m-vt-back", isPage(k));
+      try {
+        var vt = document.startViewTransition(function () { showNow(k, save, false); });
+        vt.finished.then(done, done);
+      } catch (e) { done(); showNow(k, save, true); }
+      return;
+    }
+    showNow(k, save, cross);
+    function done() { root.classList.remove("l2m-vt", "l2m-vt-back"); }
+  }
+  function showNow(k, save, slideIn) {
     var was = current;
     close(save);
     current = k;
-    if (was !== null && was !== undefined && isPage(was) !== isPage(k)) enter(isPage(k) ? -1 : 1);
+    if (slideIn) enter(isPage(k) ? -1 : 1);
     if (!isPage(k)) root.classList.remove("l2m-app-lists");
     if (isPage(k)) {
       showLists(k === "app:new" ? k : "app:library", listMove);

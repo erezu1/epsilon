@@ -1162,7 +1162,7 @@ a.lib-title { color: var(--ink); }
 .skel-row .skel-title { height: 1.02em; margin-bottom: 0.42em; background: color-mix(in srgb, var(--ink) 12%, transparent); }
 .skel-row .skel-small { height: 0.72em; margin-bottom: 0.5em; }
 .skel-row .skel-small + .skel:not(.skel-small) { margin-top: 0.95em; }
-.skel-paper { padding-top: 0.2em; }
+.skel-paper { padding-top: 0; }
 .skel-paper .skel-real { margin-bottom: 0.7em; }
 .skel-paper .skel-h1 { height: 1.35em; margin-bottom: 0.45em; background: color-mix(in srgb, var(--ink) 12%, transparent); }
 .skel-paper .skel-small { height: 0.85em; margin-bottom: 0.55em; }
@@ -1178,4 +1178,30 @@ main.l2m-arrive { animation: l2m-arrive 240ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .skel { animation: none; } main.l2m-arrive { animation: none; } }
 
 /* the logo in the bar: the epsilon alone, in the text colour */
-.app-logo { width: 30px; height: 30px; border-radius: 0; margin: 0 10px 0 8px; color: var(--ink); }
+.app-logo { width: 22px; height: 22px; border-radius: 0; margin: 0 14px 0 12px; color: var(--ink); }
+
+/* the stand-in bars do nothing; the page's own shows the Library tab's line where the app will draw it */
+.skel-bar, #boot-chrome { pointer-events: none; }
+#boot-chrome .app-tabs .sel-ind { display: none; }
+#boot-chrome .app-tabs .seg-btn[aria-checked="true"]::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 3px; border-radius: 2px; background: var(--ink);
+}
+.app-bar .app-tabs .sel-ind.no-anim { transition: none; }
+
+/* into a paper and back: the page slides and fades out one way while the next slides in; the bar stays and its
+   contents crossfade */
+.l2m-bar.show { view-transition-name: l2m-bar; }
+.l2m-menu { view-transition-name: none; }
+::view-transition-old(root) { animation: l2m-vt-out 190ms cubic-bezier(0.4, 0, 1, 1) both; }
+::view-transition-new(root) { animation: l2m-vt-in 320ms cubic-bezier(0, 0, 0.2, 1) 70ms both; }
+.l2m-vt-back::view-transition-old(root) { animation-name: l2m-vt-out-back; }
+.l2m-vt-back::view-transition-new(root) { animation-name: l2m-vt-in-back; }
+::view-transition-group(l2m-bar) { animation-duration: 300ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+::view-transition-old(l2m-bar), ::view-transition-new(l2m-bar) { height: 100%; object-fit: none; object-position: 50% 0; }
+@keyframes l2m-vt-out { to { opacity: 0; transform: translateX(-56px); } }
+@keyframes l2m-vt-in { from { opacity: 0; transform: translateX(72px); } }
+@keyframes l2m-vt-out-back { to { opacity: 0; transform: translateX(56px); } }
+@keyframes l2m-vt-in-back { from { opacity: 0; transform: translateX(-72px); } }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
+/* (the bar is captured on its own for the transition, where its glass has nothing behind it: solid meanwhile) */
+.l2m-vt .l2m-bar.show { background-color: var(--glass-solid); }
