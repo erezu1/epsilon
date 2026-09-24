@@ -999,3 +999,9 @@ a.lib-title { color: var(--ink); }
   font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-family: var(--ui);
 }
 .app-pane .app-day.stuck { visibility: hidden; box-shadow: none; border-bottom-color: transparent; }
+/* library rows: the buttons level with the title's first line; the abstract across the whole row */
+#lib-list > li { padding: 0.85rem 0; }
+#lib-list .app-lib-row { align-items: flex-start; }
+#lib-list .app-lib-text { padding: 0; }
+#lib-list .app-lib-row > .bar-btn { margin-top: -13px; }
+#lib-list .app-confirm { margin: 0.5rem 0 0; }
