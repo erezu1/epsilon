@@ -849,7 +849,7 @@ a.lib-title { color: var(--ink); }
 .bar-btn { width: 48px; height: 48px; }
 .bar-btn svg, .bar-title-ico svg { width: 24px; height: 24px; }
 .bar-inner { gap: 4px; }
-.bar-title { font-family: var(--ui); font-size: 19px; font-weight: 600; padding: 8px; gap: 10px; letter-spacing: -0.005em; }
+.bar-title { font-family: var(--serif); font-size: 19px; font-weight: 600; padding: 8px; gap: 10px; letter-spacing: -0.005em; }
 .bar-title-inner .secnum { font-weight: 600; }
 .app-logo { width: 34px; height: 34px; border-radius: 9px; margin: 0 10px 0 10px; }
 .app-bar .app-tabs { gap: 24px; }
@@ -861,7 +861,7 @@ a.lib-title { color: var(--ink); }
 .app-pill, .app-chip, .cap-more, .app-toggle, .l2m-action, .viewer-goto, .app-link, .app-toast, .app-field { font-family: var(--ui); }
 .app-pill, .l2m-action, .viewer-goto { font-size: 15px; font-weight: 500; padding: 8px 16px; }
 .app-chip { font-size: 15px; font-weight: 500; padding: 7px 13px; }
-.l2m-menu a { font-family: var(--ui); font-weight: 500; }
+.l2m-menu a { font-family: var(--serif); }
 .l2m-app-lists main { font-family: var(--ui); }
 .l2m-app-lists .lib-title { font-size: 1.06em; font-weight: 600; line-height: 1.3; letter-spacing: -0.005em; }
 .l2m-app-lists .lib-authors { font-size: 0.9em; margin-top: 0.25rem; }
@@ -886,6 +886,6 @@ a.lib-title { color: var(--ink); }
 .app-searchbar { display: none; flex: 1 1 auto; align-items: center; gap: 4px; min-width: 0; }
 .app-searchbar .app-field { margin: 0 0 0 10px; font-size: 18px; border-bottom-color: var(--link); }
 .app-bar.searching .app-searchbar { display: flex; }
-.app-bar.searching .app-logo, .app-bar.searching .app-tabs, .app-bar.searching .app-spacer,
+.app-bar.searching .app-tabs, .app-bar.searching .app-spacer,
 .app-bar.searching #app-search, .app-bar.searching #app-plus, .app-bar.searching #app-gear { display: none; }
 .app-bar [hidden] { display: none !important; }
