@@ -1085,27 +1085,24 @@ a.lib-title { color: var(--ink); }
    band (its last rows): the bottom of the bar and of the shown part of a panel, the top of a sheet */
 .l2m-bar::before, .l2m-menu::before { inset: 0 0 auto 0; height: var(--shown, 100%); background-position: 0 100%; }
 .l2m-fnsheet::before, .app-toast::before { background-position: -300px -889px; }
-/* as on a bubble, the colours grow toward the rim (light meets it at a glancing angle there): faint across the
-   glass, rising over the last hundred pixels or so to the edge it ends at (the bottom of the bar and of a panel,
-   the top of a sheet), and quickly in the last few pixels at the sides (the two masks add up). The rise is set in
-   pixels from the edge, so it is the same on a short or a tall piece of glass. */
+/* as on a bubble, the colours gather at the rim (light meets it at a glancing angle there): faint across the glass,
+   and the same thin rise, over the last 28px or so, at every edge it has: the sides, and the bottom of the bar and
+   of a panel or the top of a sheet (the edge a bar starts from, and a sheet rests on, has none). The two masks add
+   up. Set in pixels from the edge, the rim is the same on a short or a tall piece of glass. */
 :root {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.68) 14px, rgb(0 0 0 / 0.38) 36px, rgb(0 0 0 / 0.2) 64px, rgb(0 0 0 / 0.1) 110px, rgb(0 0 0 / 0.1) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.68) 14px, rgb(0 0 0 / 0.38) 36px, rgb(0 0 0 / 0.2) 64px, rgb(0 0 0 / 0.1) 110px, rgb(0 0 0 / 0.1) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.7) 5px, rgb(0 0 0 / 0.28) 14px, transparent 34px, transparent calc(100% - 34px),
-    rgb(0 0 0 / 0.28) calc(100% - 14px), rgb(0 0 0 / 0.7) calc(100% - 5px), #000 100%);
+  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.08) 28px, rgb(0 0 0 / 0.08) 100%);
+  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.08) 28px, rgb(0 0 0 / 0.08) 100%);
+  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, transparent 28px,
+    transparent calc(100% - 28px), rgb(0 0 0 / 0.1) calc(100% - 18px), rgb(0 0 0 / 0.26) calc(100% - 10px), rgb(0 0 0 / 0.6) calc(100% - 4px), #000 100%);
 }
+/* dark glass: the body nearly clear (the film adds light there) */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.5) 5px, rgb(0 0 0 / 0.2) 11px, transparent 26px, transparent calc(100% - 26px),
-    rgb(0 0 0 / 0.2) calc(100% - 11px), rgb(0 0 0 / 0.5) calc(100% - 5px), #000 100%);
+  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.04) 28px, rgb(0 0 0 / 0.04) 100%);
+  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.04) 28px, rgb(0 0 0 / 0.04) 100%);
 } }
 :root[data-theme="dark"] {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.58) 14px, rgb(0 0 0 / 0.28) 36px, rgb(0 0 0 / 0.13) 64px, rgb(0 0 0 / 0.045) 110px, rgb(0 0 0 / 0.045) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.5) 5px, rgb(0 0 0 / 0.2) 11px, transparent 26px, transparent calc(100% - 26px),
-    rgb(0 0 0 / 0.2) calc(100% - 11px), rgb(0 0 0 / 0.5) calc(100% - 5px), #000 100%);
+  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.04) 28px, rgb(0 0 0 / 0.04) 100%);
+  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.04) 28px, rgb(0 0 0 / 0.04) 100%);
 }
 .l2m-bar::before, .l2m-menu::before {
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
