@@ -701,8 +701,8 @@
   function renderNew() {
     var box = pane("app:new");
     feedMath();
-    var have = {}, p = pending();
-    ((lib && lib.papers) || []).forEach(function (x) { if (x.arxiv) have[arxivKey(x.arxiv.id)] = x; });
+    var have = {}, p = pending(), rm = removing();
+    ((lib && lib.papers) || []).forEach(function (x) { if (x.arxiv && !rm[keyOf(x)]) have[arxivKey(x.arxiv.id)] = x; });
     var cats = (feed && feed.categories) || (config && config.categories) || ["hep-th"];
     var byDay = {};
     ((feed && feed.items) || []).forEach(function (i) { (byDay[i.announced] = byDay[i.announced] || []).push(i); });
