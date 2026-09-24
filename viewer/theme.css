@@ -1007,3 +1007,10 @@ a.lib-title { color: var(--ink); }
 #lib-list .app-confirm { margin: 0.5rem 0 0; }
 /* two-line section titles: room for letters below the line (g, y, p) */
 .l2m-bar:not(.app-bar) .bar-title-inner { line-height: 1.3; padding-bottom: 1px; }
+/* closing a panel: the bar's shadow and line ease back in as the panel rolls up (the glass still switches
+   back at the end, in one step) */
+.l2m-bar {
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease,
+              box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
+              background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms;
+}
