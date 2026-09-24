@@ -241,7 +241,7 @@
       '<div class="l2m-menu l2m-settings app-settings" id="app-addp" role="dialog" aria-label="Add a paper" aria-hidden="true">' +
       '<div class="menu-inner"></div></div>';
     main.parentNode.insertBefore(holder, main);
-    root.classList.add("l2m-bar-always");
+    root.classList.add("l2m-bar-always", "l2m-app-lists");
     root.style.setProperty("--l2m-bar-h", holder.querySelector("#app-bar").getBoundingClientRect().height + "px");
     shell = holder;
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (shell) slide(shell.querySelector(".app-tabs")); });
@@ -252,7 +252,7 @@
   function dropShell() {
     closePanel();
     if (shell) { shell.remove(); shell = null; }
-    root.classList.remove("l2m-bar-always");
+    root.classList.remove("l2m-bar-always", "l2m-app-lists");
   }
   function slide(group) {                  // the highlight of a segmented control or option list
     var ind = group.querySelector(".sel-ind"), on = group.querySelector('[aria-checked="true"]');
@@ -274,22 +274,10 @@
     slide(tabs);
   }
 
-  // the arXiv categories to choose from (the first eight are shown, the rest under "More categories")
-  var CATEGORIES = [
-    ["hep-th", "High energy physics, theory"], ["hep-ph", "High energy physics, phenomenology"],
-    ["gr-qc", "General relativity and quantum cosmology"], ["quant-ph", "Quantum physics"],
-    ["math-ph", "Mathematical physics"], ["hep-lat", "High energy physics, lattice"],
-    ["cond-mat.str-el", "Strongly correlated electrons"], ["astro-ph.CO", "Cosmology and nongalactic astrophysics"],
-    ["hep-ex", "High energy physics, experiment"], ["nucl-th", "Nuclear theory"],
-    ["cond-mat.stat-mech", "Statistical mechanics"], ["cond-mat.mes-hall", "Mesoscale and nanoscale physics"],
-    ["cond-mat.supr-con", "Superconductivity"], ["cond-mat.quant-gas", "Quantum gases"],
-    ["astro-ph.HE", "High energy astrophysics"], ["astro-ph.GA", "Astrophysics of galaxies"],
-    ["nlin.SI", "Exactly solvable and integrable systems"], ["physics.hist-ph", "History and philosophy of physics"],
-    ["math.AG", "Algebraic geometry"], ["math.DG", "Differential geometry"], ["math.GT", "Geometric topology"],
-    ["math.QA", "Quantum algebra"], ["math.RT", "Representation theory"], ["math.SG", "Symplectic geometry"],
-    ["math.PR", "Probability"], ["math.CO", "Combinatorics"], ["math.NT", "Number theory"],
-    ["cs.LG", "Machine learning"], ["cs.IT", "Information theory"]
-  ];
+  // the arXiv categories, by archive (for the category picker)
+  var CATEGORIES = [["Physics",[["hep-th","High energy physics, theory"],["hep-ph","High energy physics, phenomenology"],["hep-lat","High energy physics, lattice"],["hep-ex","High energy physics, experiment"],["gr-qc","General relativity and quantum cosmology"],["quant-ph","Quantum physics"],["math-ph","Mathematical physics"],["nucl-th","Nuclear theory"],["nucl-ex","Nuclear experiment"],["astro-ph.CO","Cosmology and nongalactic astrophysics"],["astro-ph.EP","Earth and planetary astrophysics"],["astro-ph.GA","Astrophysics of galaxies"],["astro-ph.HE","High energy astrophysical phenomena"],["astro-ph.IM","Instrumentation and methods for astrophysics"],["astro-ph.SR","Solar and stellar astrophysics"],["cond-mat.dis-nn","Disordered systems and neural networks"],["cond-mat.mes-hall","Mesoscale and nanoscale physics"],["cond-mat.mtrl-sci","Materials science"],["cond-mat.other","Other condensed matter"],["cond-mat.quant-gas","Quantum gases"],["cond-mat.soft","Soft condensed matter"],["cond-mat.stat-mech","Statistical mechanics"],["cond-mat.str-el","Strongly correlated electrons"],["cond-mat.supr-con","Superconductivity"],["nlin.AO","Adaptation and self-organizing systems"],["nlin.CD","Chaotic dynamics"],["nlin.CG","Cellular automata and lattice gases"],["nlin.PS","Pattern formation and solitons"],["nlin.SI","Exactly solvable and integrable systems"],["physics.acc-ph","Accelerator physics"],["physics.ao-ph","Atmospheric and oceanic physics"],["physics.app-ph","Applied physics"],["physics.atm-clus","Atomic and molecular clusters"],["physics.atom-ph","Atomic physics"],["physics.bio-ph","Biological physics"],["physics.chem-ph","Chemical physics"],["physics.class-ph","Classical physics"],["physics.comp-ph","Computational physics"],["physics.data-an","Data analysis, statistics and probability"],["physics.ed-ph","Physics education"],["physics.flu-dyn","Fluid dynamics"],["physics.gen-ph","General physics"],["physics.geo-ph","Geophysics"],["physics.hist-ph","History and philosophy of physics"],["physics.ins-det","Instrumentation and detectors"],["physics.med-ph","Medical physics"],["physics.optics","Optics"],["physics.plasm-ph","Plasma physics"],["physics.pop-ph","Popular physics"],["physics.soc-ph","Physics and society"],["physics.space-ph","Space physics"]]],["Mathematics",[["math.AC","Commutative algebra"],["math.AG","Algebraic geometry"],["math.AP","Analysis of PDEs"],["math.AT","Algebraic topology"],["math.CA","Classical analysis and ODEs"],["math.CO","Combinatorics"],["math.CT","Category theory"],["math.CV","Complex variables"],["math.DG","Differential geometry"],["math.DS","Dynamical systems"],["math.FA","Functional analysis"],["math.GM","General mathematics"],["math.GN","General topology"],["math.GR","Group theory"],["math.GT","Geometric topology"],["math.HO","History and overview"],["math.IT","Information theory"],["math.KT","K-theory and homology"],["math.LO","Logic"],["math.MG","Metric geometry"],["math.NA","Numerical analysis"],["math.NT","Number theory"],["math.OA","Operator algebras"],["math.OC","Optimization and control"],["math.PR","Probability"],["math.QA","Quantum algebra"],["math.RA","Rings and algebras"],["math.RT","Representation theory"],["math.SG","Symplectic geometry"],["math.SP","Spectral theory"],["math.ST","Statistics theory"]]],["Computer science",[["cs.AI","Artificial intelligence"],["cs.AR","Hardware architecture"],["cs.CC","Computational complexity"],["cs.CE","Computational engineering, finance and science"],["cs.CG","Computational geometry"],["cs.CL","Computation and language"],["cs.CR","Cryptography and security"],["cs.CV","Computer vision and pattern recognition"],["cs.CY","Computers and society"],["cs.DB","Databases"],["cs.DC","Distributed, parallel and cluster computing"],["cs.DL","Digital libraries"],["cs.DM","Discrete mathematics"],["cs.DS","Data structures and algorithms"],["cs.ET","Emerging technologies"],["cs.FL","Formal languages and automata theory"],["cs.GL","General literature"],["cs.GR","Graphics"],["cs.GT","Computer science and game theory"],["cs.HC","Human-computer interaction"],["cs.IR","Information retrieval"],["cs.IT","Information theory"],["cs.LG","Machine learning"],["cs.LO","Logic in computer science"],["cs.MA","Multiagent systems"],["cs.MM","Multimedia"],["cs.MS","Mathematical software"],["cs.NA","Numerical analysis"],["cs.NE","Neural and evolutionary computing"],["cs.NI","Networking and internet architecture"],["cs.OH","Other computer science"],["cs.OS","Operating systems"],["cs.PF","Performance"],["cs.PL","Programming languages"],["cs.RO","Robotics"],["cs.SC","Symbolic computation"],["cs.SD","Sound"],["cs.SE","Software engineering"],["cs.SI","Social and information networks"],["cs.SY","Systems and control"]]],["Quantitative biology",[["q-bio.BM","Biomolecules"],["q-bio.CB","Cell behavior"],["q-bio.GN","Genomics"],["q-bio.MN","Molecular networks"],["q-bio.NC","Neurons and cognition"],["q-bio.OT","Other quantitative biology"],["q-bio.PE","Populations and evolution"],["q-bio.QM","Quantitative methods"],["q-bio.SC","Subcellular processes"],["q-bio.TO","Tissues and organs"]]],["Quantitative finance",[["q-fin.CP","Computational finance"],["q-fin.EC","Economics"],["q-fin.GN","General finance"],["q-fin.MF","Mathematical finance"],["q-fin.PM","Portfolio management"],["q-fin.PR","Pricing of securities"],["q-fin.RM","Risk management"],["q-fin.ST","Statistical finance"],["q-fin.TR","Trading and market microstructure"]]],["Statistics",[["stat.AP","Applications"],["stat.CO","Computation"],["stat.ME","Methodology"],["stat.ML","Machine learning"],["stat.OT","Other statistics"],["stat.TH","Statistics theory"]]],["Electrical engineering and systems science",[["eess.AS","Audio and speech processing"],["eess.IV","Image and video processing"],["eess.SP","Signal processing"],["eess.SY","Systems and control"]]],["Economics",[["econ.EM","Econometrics"],["econ.GN","General economics"],["econ.TH","Theoretical economics"]]]];
+  var CATNAME = {};
+  CATEGORIES.forEach(function (g) { g[1].forEach(function (c) { CATNAME[c[0]] = c[1]; }); });
   function panelHTML() {
     var off = offlineSet(), n = Object.keys(off).length, mb = 0;
     Object.keys(off).forEach(function (k) { mb += off[k].bytes || 0; });
@@ -298,17 +286,17 @@
     if (src && src.writeJSON) {
       var chosen = {};
       cfg.categories.forEach(function (c) { chosen[c] = 1; });
-      var row = function (c) {
-        return '<button type="button" class="opt" role="checkbox" data-cat="' + esc(c[0]) + '" aria-checked="' + !!chosen[c[0]] + '">' +
-          '<span class="opt-name">' + esc(c[0]) + '</span><span class="opt-note">' + esc(c[1]) + '</span><span class="opt-check">' +
-          ((theme.icons || {}).check || "") + "</span></button>";
-      };
-      var main8 = CATEGORIES.slice(0, 8), rest = CATEGORIES.slice(8);
-      var extra = cfg.categories.filter(function (c) { return !CATEGORIES.some(function (x) { return x[0] === c; }); });
-      h += '<p class="menu-head">New papers</p><div class="opt-list app-cats" role="group" aria-label="arXiv categories">' +
-        main8.concat(rest.filter(function (c) { return chosen[c[0]]; })).concat(extra.map(function (c) { return [c, ""]; })).map(row).join("") + "</div>" +
-        '<details class="app-more"><summary>More categories</summary><div class="opt-list app-cats">' +
-        rest.filter(function (c) { return !chosen[c[0]]; }).map(row).join("") + "</div></details>" +
+      var check = (theme.icons || {}).check || "";
+      h += '<p class="menu-head">New papers</p><div class="app-chips" id="cat-chips"></div>' +
+        '<div class="app-picker" id="cat-picker" aria-hidden="true"><input class="app-field" id="cat-q" type="search" placeholder="Search arXiv categories" ' +
+        'aria-label="Search arXiv categories" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="app-picker-list" role="group" aria-label="arXiv categories">' +
+        CATEGORIES.map(function (g) {
+          return '<p class="app-group">' + esc(g[0]) + "</p>" + g[1].map(function (c) {
+            return '<button type="button" class="opt" role="checkbox" data-cat="' + esc(c[0]) + '" aria-checked="' + !!chosen[c[0]] +
+              '" data-hay="' + esc((c[0] + " " + c[1]).toLowerCase()) + '"><span class="opt-name">' + esc(c[0]) + '</span><span class="opt-note">' +
+              esc(c[1]) + '</span><span class="opt-check">' + check + "</span></button>";
+          }).join("");
+        }).join("") + "</div></div>" +
         '<div class="seg" role="radiogroup" aria-label="Cross-lists"><span class="sel-ind" aria-hidden="true"></span>' +
         '<button type="button" class="seg-btn" role="radio" data-cross="0" aria-checked="' + !cfg.crossLists + '"><span>Primary only</span></button>' +
         '<button type="button" class="seg-btn" role="radio" data-cross="1" aria-checked="' + !!cfg.crossLists + '"><span>With cross-lists</span></button></div>' +
@@ -403,7 +391,7 @@
     });
     var saveTimer = null;
     function feedChoice() {
-      return {categories: Array.prototype.map.call(inner.querySelectorAll('[data-cat][aria-checked="true"]'), function (b) { return b.getAttribute("data-cat"); }),
+      return {categories: Array.prototype.map.call(inner.querySelectorAll('.app-picker [data-cat][aria-checked="true"]'), function (b) { return b.getAttribute("data-cat"); }),
               crossLists: !!inner.querySelector('[data-cross="1"][aria-checked="true"]')};
     }
     function saveFeedSoon() {
@@ -420,11 +408,50 @@
                 function (err) { status.textContent = "Could not save: " + err.message; });
       }, 1200);
     }
-    Array.prototype.forEach.call(inner.querySelectorAll("[data-cat]"), function (b) {
+    var chips = inner.querySelector("#cat-chips"), picker = inner.querySelector("#cat-picker");
+    function drawChips() {
+      if (!chips) return;
+      var on = Array.prototype.map.call(inner.querySelectorAll('.app-picker [data-cat][aria-checked="true"]'), function (b) { return b.getAttribute("data-cat"); });
+      chips.innerHTML = on.map(function (c) {
+        return '<button type="button" class="app-chip" data-chip="' + esc(c) + '" title="' + esc(CATNAME[c] || c) + '" aria-label="Remove ' + esc(c) + '">' +
+          esc(c) + '<span aria-hidden="true">&times;</span></button>';
+      }).join("") + '<button type="button" class="app-chip app-chip-add" id="cat-add" aria-expanded="' + picker.classList.contains("open") + '">' +
+        (picker.classList.contains("open") ? "Done" : "+ Add") + "</button>";
+    }
+    function pickerOpen(open) {
+      picker.classList.toggle("open", open);
+      picker.setAttribute("aria-hidden", open ? "false" : "true");
+      drawChips();
+      if (open) setTimeout(function () { inner.querySelector("#cat-q").focus({preventScroll: true}); }, 280);
+    }
+    if (chips) {
+      drawChips();
+      chips.addEventListener("click", function (e) {
+        var add = e.target.closest("#cat-add"), chip = e.target.closest("[data-chip]");
+        if (add) { pickerOpen(!picker.classList.contains("open")); return; }
+        if (!chip) return;
+        if (inner.querySelectorAll('.app-picker [data-cat][aria-checked="true"]').length === 1) { toast("Keep at least one category."); return; }
+        var b = inner.querySelector('.app-picker [data-cat="' + chip.getAttribute("data-chip") + '"]');
+        if (b) b.setAttribute("aria-checked", "false");
+        drawChips();
+        saveFeedSoon();
+      });
+      inner.querySelector("#cat-q").addEventListener("input", function (e) {
+        var q = e.target.value.trim().toLowerCase();
+        Array.prototype.forEach.call(picker.querySelectorAll("[data-cat]"), function (b) { b.hidden = !!q && b.getAttribute("data-hay").indexOf(q) < 0; });
+        Array.prototype.forEach.call(picker.querySelectorAll(".app-group"), function (g) {
+          var n = g.nextElementSibling, any = false;
+          while (n && !n.classList.contains("app-group")) { if (!n.hidden) any = true; n = n.nextElementSibling; }
+          g.hidden = !any;
+        });
+      });
+    }
+    Array.prototype.forEach.call(inner.querySelectorAll(".app-picker [data-cat]"), function (b) {
       b.addEventListener("click", function () {
         var on = b.getAttribute("aria-checked") !== "true";
-        if (!on && inner.querySelectorAll('[data-cat][aria-checked="true"]').length === 1) { toast("Keep at least one category."); return; }
+        if (!on && inner.querySelectorAll('.app-picker [data-cat][aria-checked="true"]').length === 1) { toast("Keep at least one category."); return; }
         b.setAttribute("aria-checked", on ? "true" : "false");
+        drawChips();
         saveFeedSoon();
       });
     });
@@ -459,7 +486,8 @@
     });
   }
   document.addEventListener("click", function (e) {
-    if (panelOpen && shell && !shell.contains(e.target)) closePanel();
+    // a tap outside the open panel closes it (a control that was just redrawn is not "outside")
+    if (panelOpen && shell && e.target.isConnected && !shell.contains(e.target)) closePanel();
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
 
@@ -597,7 +625,10 @@
         b.firstChild.textContent = open ? "Less" : "More";
       }
       b.addEventListener("click", toggle);
-      p.addEventListener("click", function () { if (!p.classList.contains("open")) toggle(); });
+      p.addEventListener("click", function () {
+        if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not tapping
+        toggle();
+      });
       p.parentNode.insertBefore(b, p.nextSibling);
     });
     var r = document.getElementById("feed-now");
@@ -709,6 +740,51 @@
     if (k === current) return;              // a step inside the open paper: nav.js handles it
     show(k, false);                         // the entry has already changed: nothing to save into it
   });
+  // swiping sideways on Library / New moves to the other one; the list follows the finger
+  var sw = null, ORDER = ["app:library", "app:new"];
+  function neighbour(dx) {
+    var k = ORDER.indexOf(current);
+    return k < 0 ? null : ORDER[k + (dx < 0 ? 1 : -1)] || null;
+  }
+  main.addEventListener("touchstart", function (e) {
+    if (!isPage(current) || panelOpen || e.touches.length !== 1 || !src) { sw = null; return; }
+    sw = {x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dir: null};
+  }, {passive: true});
+  main.addEventListener("touchmove", function (e) {
+    if (!sw) return;
+    var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
+    if (!sw.dir && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) sw.dir = Math.abs(dx) > 1.3 * Math.abs(dy) ? "x" : "y";
+    if (sw.dir !== "x") return;
+    e.preventDefault();                               // a sideways swipe does not scroll the page
+    var edge = neighbour(dx) ? 1 : 0.25;              // no page that way: it only gives a little
+    main.style.transition = "none";
+    main.style.transform = "translateX(" + dx * edge + "px)";
+    main.style.opacity = String(1 - Math.min(0.5, Math.abs(dx) / 700));
+  }, {passive: false});
+  main.addEventListener("touchend", function (e) {
+    if (!sw || sw.dir !== "x") { sw = null; return; }
+    var dx = e.changedTouches[0].clientX - sw.x, fast = Date.now() - sw.t < 300, to = neighbour(dx);
+    sw = null;
+    main.style.transition = "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease";
+    if (to && (Math.abs(dx) > innerWidth * 0.28 || (fast && Math.abs(dx) > 40))) {
+      main.style.transform = "translateX(" + (dx < 0 ? -1 : 1) * innerWidth * 0.5 + "px)";
+      main.style.opacity = "0";
+      setTimeout(function () {
+        go(to.slice(4));
+        main.style.transition = "none";
+        main.style.transform = "translateX(" + (dx < 0 ? 1 : -1) * innerWidth * 0.3 + "px)";
+        void main.offsetWidth;
+        main.style.transition = "transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease";
+        main.style.transform = "";
+        main.style.opacity = "";
+      }, 170);
+    } else {
+      main.style.transform = "";
+      main.style.opacity = "";
+    }
+  });
+  main.addEventListener("touchcancel", function () { sw = null; main.style.transform = ""; main.style.opacity = ""; });
+
   window.addEventListener("resize", function () {
     if (shell) { root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px"); slide(shell.querySelector(".app-tabs")); }
   });

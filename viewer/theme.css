@@ -1,4 +1,7 @@
 /* latex2mobile page style. Colors are tokens on :root, redefined for dark mode. */
+/* no tap highlight, and no focus ring for taps and clicks (it stays for keyboard focus) */
+* { -webkit-tap-highlight-color: transparent; }
+:focus:not(:focus-visible) { outline: none; }
 :root {
   color-scheme: light;
   --ground: #fafbfc;
@@ -799,7 +802,7 @@ a.lib-title { color: var(--ink); }
   transition: max-height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), color 220ms ease;
 }
 .app-abs.short { max-height: none; cursor: auto; -webkit-mask-image: none; mask-image: none; }
-.app-abs.open { color: var(--ink); cursor: auto; -webkit-mask-image: none; mask-image: none; }
+.app-abs.open { color: var(--ink); cursor: pointer; -webkit-mask-image: none; mask-image: none; }
 .app-toggle {
   display: inline-flex; align-items: center; gap: 3px; margin: 2px 0 0; padding: 2px 0;
   border: 0; background: none; color: var(--link); font: inherit; font-size: 0.82em; cursor: pointer;
@@ -815,3 +818,25 @@ a.lib-title { color: var(--ink); }
 .app-working { animation: l2mpulse 1s ease-in-out infinite; }
 @keyframes l2mpulse { 50% { opacity: 0.3; } }
 .app-lib-row { gap: 0; }
+/* the arXiv categories: chips for the chosen ones, a searchable list that slides open */
+.app-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 10px 10px; }
+.app-chip {
+  display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; padding: 5px 11px;
+  background: var(--bar-current); color: var(--ink); font-family: var(--serif); font-size: 14px; line-height: 1.2;
+  font-variant-numeric: lining-nums; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color 150ms ease;
+}
+.app-chip span { color: var(--muted); font-size: 15px; line-height: 1; }
+.app-chip:hover span { color: var(--ink); }
+.app-chip-add { background: var(--bar-hover); color: var(--link); }
+.app-picker { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease; }
+.app-picker.open { max-height: 52vh; opacity: 1; }
+.app-picker .app-field { margin: 2px 10px 6px; width: calc(100% - 20px); font-size: 16px; }
+.app-picker-list { max-height: calc(52vh - 52px); overflow-y: auto; overscroll-behavior: contain; margin-bottom: 10px; }
+.app-picker-list .opt { align-items: baseline; }
+.app-picker-list .opt[aria-checked="true"] { background: var(--bar-current); }
+.app-picker-list .opt-name { font-family: var(--serif); font-size: 15px; white-space: nowrap; font-variant-numeric: lining-nums; }
+.app-picker-list .opt-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.app-group { margin: 8px 0 2px; padding: 0 10px; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.app-group[hidden] { display: none; }
+.l2m-app-lists main { touch-action: pan-y; }   /* Library / New only: sideways swipes change tab */
+@media (prefers-reduced-motion: reduce) { .app-picker { transition-duration: 0.01s; } }
