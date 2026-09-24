@@ -1083,14 +1083,19 @@ a.lib-title { color: var(--ink); }
 }
 .l2m-fnsheet::before, .app-toast::before { background-position: -300px -520px; }
 /* as on a bubble, the colours grow toward the rim (light meets it at a glancing angle there): faint across the
-   glass, rising gradually to the edge it ends at (the bottom of the bar and of a panel, the top of a sheet) */
+   glass, rising gradually to the edge it ends at (the bottom of the bar and of a panel, the top of a sheet), and
+   quickly in the last few pixels at the sides (the two masks add up) */
 .l2m-bar::before, .l2m-menu::before {
-  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
-  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%),
+    linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 6px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px), rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 6px), #000 100%);
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%),
+    linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 6px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px), rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 6px), #000 100%);
 }
 .l2m-fnsheet::before, .app-toast::before {
-  -webkit-mask-image: linear-gradient(to top, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
-  mask-image: linear-gradient(to top, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%);
+  -webkit-mask-image: linear-gradient(to top, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%),
+    linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 6px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px), rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 6px), #000 100%);
+  mask-image: linear-gradient(to top, rgb(0 0 0 / 0.12) 0, rgb(0 0 0 / 0.16) 35%, rgb(0 0 0 / 0.3) 60%, rgb(0 0 0 / 0.58) 82%, #000 100%),
+    linear-gradient(to right, #000 0, rgb(0 0 0 / 0.55) 6px, rgb(0 0 0 / 0.22) 18px, transparent 44px, transparent calc(100% - 44px), rgb(0 0 0 / 0.22) calc(100% - 18px), rgb(0 0 0 / 0.55) calc(100% - 6px), #000 100%);
 }
 .l2m-bar::before { transition: opacity 0s 300ms; }
 .l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
@@ -1211,3 +1216,18 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 /* a paper's bar is as tall with a one-line section title as with a two-line one (it never jumps between them) */
 .l2m-bar:not(.app-bar) .bar-title { min-height: calc(2.6em + 9px); box-sizing: border-box; }
 .skel-bar .skel-bar-title { width: 62%; height: 0.95em; margin: 0; }
+
+/* the chosen option of a segmented control: a raised white pill on light glass; on dark glass a lighter raised
+   pill (the text colour, faintly, with a soft top light), never a hole darker than its track */
+:root { --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
+    --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px rgb(0 0 0 / 0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
+  --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px rgb(0 0 0 / 0.35);
+}
+.seg .sel-ind, .app-seg .seg-btn[aria-checked="true"] { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }

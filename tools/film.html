@@ -87,7 +87,7 @@ function blurred(tile, px) {
   return out;
 }
 
-var SETTINGS = {size: 400, seed: 7, warp: 0.12, d0: 150, d1: 520, blur: 4};
+var SETTINGS = {size: 400, seed: 7, warp: 0.12, d0: 150, d1: 520, blur: 6};
 var c = blurred(texture(SETTINGS.size, SETTINGS.size, SETTINGS), SETTINGS.blur);
 var url = c.toDataURL("image/webp", 0.9);
 document.getElementById("save").href = url;
