@@ -976,3 +976,18 @@ a.lib-title { color: var(--ink); }
   box-shadow: none; border-bottom-color: transparent;
 }
 @media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu .menu-inner { transition-duration: 0.01s; } }
+/* one glass layer, no seam: the panel reaches up behind the bar, and the part behind the bar is shown from
+   the first frame; in that frame the bar turns clear. Closing, the bar has its glass back when the panel goes. */
+.l2m-menu {
+  top: 0; padding-top: var(--l2m-bar-h, 64px);
+  clip-path: inset(0 0 calc(100% - var(--l2m-bar-h, 64px)) 0);
+}
+.l2m-bar.menu-open {
+  background-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none;
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s,
+              background-color 0s, -webkit-backdrop-filter 0s, backdrop-filter 0s;
+}
+.l2m-bar {
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s 300ms, border-color 0s 300ms,
+              background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms;
+}
