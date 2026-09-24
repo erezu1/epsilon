@@ -1028,3 +1028,5 @@ a.lib-title { color: var(--ink); }
 #app-search { transition: opacity 200ms ease, visibility 0s linear 0s; }
 #app-search.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
 @media (prefers-reduced-motion: reduce) { #app-search { transition-duration: 0.01s; } }
+.app-bar.joined .app-bar-day { transition: opacity 120ms linear, transform 120ms linear; }
+@media (prefers-reduced-motion: reduce) { .app-bar.joined .app-bar-day { transition: none; } }

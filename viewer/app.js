@@ -790,13 +790,17 @@
         row.style.height = (h + 8) + "px";
         row.textContent = d.textContent;
         // scroll-linked crossfade: the date fades out as the next one comes up under it, and a new one fades in
-        var op = 1;
-        if (cur + 1 < days.length) op = Math.min(op, Math.max(0, nat[cur + 1] - barH) / h);
-        if (cur > 0) op = Math.min(op, Math.max(0, barH - nat[cur]) / h);
-        row.style.opacity = String(Math.max(0, Math.min(1, op)));
+        var span = 2 * h, out = 1, inn = 1;
+        if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next date coming up
+        if (cur > 0) inn = Math.max(0, Math.min(1, (barH - nat[cur]) / span));                      // this date just arrived
+        var op = Math.min(out, inn);
+        row.style.opacity = String(op);
+        // it drifts up as it leaves and rises into place as it arrives, as if the next day pushes it out
+        row.style.transform = "translateY(" + (out < 1 ? -(1 - out) * 8 : (1 - inn) * 8) + "px)";
       } else {
         row.textContent = "";
         row.style.opacity = "";
+        row.style.transform = "";
       }
     }
     if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(joinBar); }, {passive: true}); }
