@@ -1005,3 +1005,5 @@ a.lib-title { color: var(--ink); }
 #lib-list .app-lib-text { padding: 0; }
 #lib-list .app-lib-row > .bar-btn { margin-top: -13px; }
 #lib-list .app-confirm { margin: 0.5rem 0 0; }
+/* two-line section titles: room for letters below the line (g, y, p) */
+.l2m-bar:not(.app-bar) .bar-title-inner { line-height: 1.3; padding-bottom: 1px; }
