@@ -946,3 +946,9 @@ a.lib-title { color: var(--ink); }
   overflow: hidden; line-height: 1.2; top: 0; text-wrap: balance;
 }
 .l2m-to-top a { color: var(--muted); }
+/* the lists run under the bar (so it is glass over them, as over a paper); their start clears it */
+.l2m-app-lists main { padding-top: 0; }
+.app-pane { height: 100vh; height: 100dvh; }
+.app-pane-in { padding-top: calc(var(--l2m-bar-h, 64px) + 14px); }
+.app-pane .app-day { top: var(--l2m-bar-h, 64px); }
+.app-pane .app-day { background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5); }
