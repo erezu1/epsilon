@@ -6,6 +6,7 @@
     python3 l2m_library.py add-draft path/to/paper.tex        # copy a LaTeX project in, convert it
     python3 l2m_library.py drafts                            # convert drafts whose sources changed
     python3 l2m_library.py feed                              # refresh feed.json (new papers in your categories)
+    python3 l2m_library.py remove 2609.28331 bf_any_N         # take papers out (their files and sources)
     python3 l2m_library.py list
 
 Options: --library DIR (default: the current folder), --push (commit and push the changes with git).
@@ -380,6 +381,25 @@ def fetch_feed(lib):
     say("feed: %d papers" % len(keep))
 
 
+def remove(lib, keys):
+    """Take papers out of the library: the entry, papers/<key>/ and its sources."""
+    idx = lib.index()
+    gone = []
+    for key in keys:
+        if not re.fullmatch(r"[\w.~-]+", key):
+            sys.exit("l2m_library: not a paper key: %r" % key)
+        before = len(idx["papers"])
+        idx["papers"] = [p for p in idx["papers"] if p["key"] != key]
+        for d in (lib.root / "papers" / key, lib.root / "sources" / "arxiv" / key, lib.root / "sources" / "drafts" / key):
+            if d.exists():
+                shutil.rmtree(d)
+        if len(idx["papers"]) < before:
+            gone.append(key)
+        say("%s: %s" % (key, "removed" if key in gone else "not in the library"))
+    lib.write("library.json", idx)
+    return gone
+
+
 # ---------------------------------------------------------------- git
 def push(lib, message):
     def git(*a):
@@ -409,6 +429,8 @@ def main():
     d.add_argument("--name")
     sub.add_parser("drafts", help="convert the drafts whose sources changed")
     sub.add_parser("feed", help="refresh feed.json")
+    r = sub.add_parser("remove", help="take papers out of the library")
+    r.add_argument("keys", nargs="+")
     sub.add_parser("list", help="list the papers")
     argv = sys.argv[1:]
     push_too = "--push" in argv                    # accepted anywhere on the line
@@ -444,6 +466,9 @@ def main():
         for n in names:
             convert_draft(lib, n)
         msg = "Convert drafts: " + (", ".join(names) or "none")
+    elif a.cmd == "remove":
+        gone = remove(lib, " ".join(a.keys).replace(",", " ").split())
+        msg = "Remove " + (", ".join(gone) or "nothing")
     elif a.cmd == "feed":
         fetch_feed(lib)
         msg = "Feed " + now()[:10]

@@ -766,3 +766,17 @@ a.lib-title { color: var(--ink); }
 .app-day { font-size: 0.72em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 1.8em 0 0.2em; }
 .app-small { font-size: 0.85em; }
 .lib-title mjx-container, .app-abs mjx-container { font-size: 100%; }
+/* removing a paper from the library */
+.app-lib-row { display: flex; align-items: center; gap: 6px; }
+.app-lib-row > a { flex: 1 1 auto; min-width: 0; display: block; padding: 0.85rem 0; color: var(--ink); text-decoration: none; }
+.app-lib-row > a:hover .lib-title { color: var(--link); }
+.app-trash { color: var(--muted); opacity: 0.75; }
+.app-trash:hover { opacity: 1; }
+.app-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: -0.3rem 0 0.85rem; font-size: 0.92em; color: var(--muted); }
+.app-confirm[hidden] { display: none; }
+/* the arXiv categories: a checklist like the font list */
+.app-cats .opt[aria-checked="true"] { background: var(--bar-current); }
+.app-cats .opt-name { font-size: 16px; font-variant-numeric: lining-nums; }
+.app-more { margin: 0 0 10px; }
+.app-more summary { cursor: pointer; padding: 6px 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--link); }
+.app-cats .opt-name { font-family: var(--serif); white-space: nowrap; }

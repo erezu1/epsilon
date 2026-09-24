@@ -166,9 +166,28 @@
       refresh();
     }, function (e) { toast("Could not start the conversion: " + esc(e.message), 7000); });
   }
+  function removing() { return store("removing") || {}; }
+  function removePaper(key, button) {
+    button.disabled = true;
+    button.textContent = "Removing\u2026";
+    var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === key; })[0];
+    src.run("remove.yml", {keys: key}).then(function () {
+      var r = removing();
+      r[key] = Date.now();
+      store("removing", r);
+      if (entry && isOffline(key)) keepOffline(entry, false);
+      toast("Removed <em>" + esc(entry ? entry.title : key) + "</em>.");
+      watch();
+      refresh();
+    }, function (e) {
+      button.disabled = false;
+      button.textContent = "Remove";
+      toast("Could not remove it: " + esc(e.message), 7000);
+    });
+  }
   var watching = null;
   function watch() {
-    if (watching || !Object.keys(pending()).length) return;
+    if (watching || !(Object.keys(pending()).length || Object.keys(removing()).length)) return;
     watching = setInterval(function () {
       getJSON("library.json", true).then(function (l) {
         lib = l;
@@ -187,8 +206,13 @@
           }
         });
         store("pending", p);
+        var r = removing();
+        Object.keys(r).forEach(function (k) {         // gone from the library, or given up on after half an hour
+          if (!(l.papers || []).some(function (x) { return keyOf(x) === k; }) || Date.now() - r[k] > 30 * 60000) delete r[k];
+        });
+        store("removing", r);
         if (changed && isPage(current)) refresh();
-        if (!Object.keys(p).length) { clearInterval(watching); watching = null; }
+        if (!Object.keys(p).length && !Object.keys(r).length) { clearInterval(watching); watching = null; }
       }).catch(function () {});
     }, 20000);
   }
@@ -239,19 +263,45 @@
     slide(tabs);
   }
 
+  // the arXiv categories to choose from (the first eight are shown, the rest under "More categories")
+  var CATEGORIES = [
+    ["hep-th", "High energy physics, theory"], ["hep-ph", "High energy physics, phenomenology"],
+    ["gr-qc", "General relativity and quantum cosmology"], ["quant-ph", "Quantum physics"],
+    ["math-ph", "Mathematical physics"], ["hep-lat", "High energy physics, lattice"],
+    ["cond-mat.str-el", "Strongly correlated electrons"], ["astro-ph.CO", "Cosmology and nongalactic astrophysics"],
+    ["hep-ex", "High energy physics, experiment"], ["nucl-th", "Nuclear theory"],
+    ["cond-mat.stat-mech", "Statistical mechanics"], ["cond-mat.mes-hall", "Mesoscale and nanoscale physics"],
+    ["cond-mat.supr-con", "Superconductivity"], ["cond-mat.quant-gas", "Quantum gases"],
+    ["astro-ph.HE", "High energy astrophysics"], ["astro-ph.GA", "Astrophysics of galaxies"],
+    ["nlin.SI", "Exactly solvable and integrable systems"], ["physics.hist-ph", "History and philosophy of physics"],
+    ["math.AG", "Algebraic geometry"], ["math.DG", "Differential geometry"], ["math.GT", "Geometric topology"],
+    ["math.QA", "Quantum algebra"], ["math.RT", "Representation theory"], ["math.SG", "Symplectic geometry"],
+    ["math.PR", "Probability"], ["math.CO", "Combinatorics"], ["math.NT", "Number theory"],
+    ["cs.LG", "Machine learning"], ["cs.IT", "Information theory"]
+  ];
   function panelHTML() {
     var off = offlineSet(), n = Object.keys(off).length, mb = 0;
     Object.keys(off).forEach(function (k) { mb += off[k].bytes || 0; });
     var cfg = config || {categories: ["hep-th"], crossLists: false};
     var h = "";
     if (src && src.writeJSON) {
-      h += '<p class="menu-head">New papers</p><form class="app-form" id="feed-form">' +
-        '<input class="app-field" id="feed-cats" aria-label="arXiv categories" autocomplete="off" autocapitalize="off" spellcheck="false" value="' +
-        esc(cfg.categories.join(", ")) + '" placeholder="arXiv categories, e.g. hep-th, math-ph">' +
+      var chosen = {};
+      cfg.categories.forEach(function (c) { chosen[c] = 1; });
+      var row = function (c) {
+        return '<button type="button" class="opt" role="checkbox" data-cat="' + esc(c[0]) + '" aria-checked="' + !!chosen[c[0]] + '">' +
+          '<span class="opt-name">' + esc(c[0]) + '</span><span class="opt-note">' + esc(c[1]) + '</span><span class="opt-check">' +
+          ((theme.icons || {}).check || "") + "</span></button>";
+      };
+      var main8 = CATEGORIES.slice(0, 8), rest = CATEGORIES.slice(8);
+      var extra = cfg.categories.filter(function (c) { return !CATEGORIES.some(function (x) { return x[0] === c; }); });
+      h += '<p class="menu-head">New papers</p><div class="opt-list app-cats" role="group" aria-label="arXiv categories">' +
+        main8.concat(rest.filter(function (c) { return chosen[c[0]]; })).concat(extra.map(function (c) { return [c, ""]; })).map(row).join("") + "</div>" +
+        '<details class="app-more"><summary>More categories</summary><div class="opt-list app-cats">' +
+        rest.filter(function (c) { return !chosen[c[0]]; }).map(row).join("") + "</div></details>" +
         '<div class="seg" role="radiogroup" aria-label="Cross-lists"><span class="sel-ind" aria-hidden="true"></span>' +
         '<button type="button" class="seg-btn" role="radio" data-cross="0" aria-checked="' + !cfg.crossLists + '"><span>Primary only</span></button>' +
         '<button type="button" class="seg-btn" role="radio" data-cross="1" aria-checked="' + !!cfg.crossLists + '"><span>With cross-lists</span></button></div>' +
-        '<p class="app-row"><button type="submit" class="app-pill">Save</button><span class="app-help">Refreshed every weekday after arXiv&rsquo;s announcement.</span></p></form>';
+        '<p class="app-help app-pad" id="feed-status">Changes are saved as you make them; new papers come every weekday after arXiv&rsquo;s announcement.</p>';
     }
     h += window.L2M_readingSettings ? L2M_readingSettings(theme) : "";
     h += '<p class="menu-head">Library</p><form class="app-form" id="gh-form"><p class="app-help">' +
@@ -317,18 +367,34 @@
       root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px");
       requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
     });
-    var ff = inner.querySelector("#feed-form");
-    if (ff) ff.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var cats = inner.querySelector("#feed-cats").value.split(/[\s,]+/).filter(Boolean);
-      if (!cats.length || cats.some(function (c) { return !/^[a-z-]+(\.[A-Za-z-]+)?$/.test(c); })) { toast("Categories look like hep-th, math-ph or cond-mat.str-el."); return; }
-      var next = {categories: cats, crossLists: !!inner.querySelector('[data-cross="1"][aria-checked="true"]')};
-      src.writeJSON("config.json", next, "Feed: " + cats.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
-        config = next;
-        return src.run("feed.yml", {});
-      }).then(function () { toast("Saved. The new papers are being fetched again; it takes a minute."); },
-              function (err) { toast("Could not save: " + esc(err.message), 7000); });
+    var saveTimer = null;
+    function feedChoice() {
+      return {categories: Array.prototype.map.call(inner.querySelectorAll('[data-cat][aria-checked="true"]'), function (b) { return b.getAttribute("data-cat"); }),
+              crossLists: !!inner.querySelector('[data-cross="1"][aria-checked="true"]')};
+    }
+    function saveFeedSoon() {
+      var status = inner.querySelector("#feed-status");
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(function () {
+        var next = feedChoice(), cfg = config || {categories: ["hep-th"], crossLists: false};
+        if (next.categories.join(",") === cfg.categories.join(",") && next.crossLists === !!cfg.crossLists) return;
+        status.textContent = "Saving\u2026";
+        src.writeJSON("config.json", next, "Feed: " + next.categories.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
+          config = next;
+          return src.run("feed.yml", {});
+        }).then(function () { status.textContent = "Saved. The new papers are being fetched again; it takes a minute."; },
+                function (err) { status.textContent = "Could not save: " + err.message; });
+      }, 1200);
+    }
+    Array.prototype.forEach.call(inner.querySelectorAll("[data-cat]"), function (b) {
+      b.addEventListener("click", function () {
+        var on = b.getAttribute("aria-checked") !== "true";
+        if (!on && inner.querySelectorAll('[data-cat][aria-checked="true"]').length === 1) { toast("Keep at least one category."); return; }
+        b.setAttribute("aria-checked", on ? "true" : "false");
+        saveFeedSoon();
+      });
     });
+    Array.prototype.forEach.call(inner.querySelectorAll("[data-cross]"), function (b) { b.addEventListener("click", saveFeedSoon); });
     inner.querySelector("#gh-form").addEventListener("submit", function (e) {
       e.preventDefault();
       var repo = inner.querySelector("#gh-repo").value.trim(), tok = inner.querySelector("#gh-token").value.trim() || store("token");
@@ -379,7 +445,8 @@
     document.title = (lib && lib.name) || "Papers";
     buildShell(); setTab("library");
     feedMath();
-    var papers = (lib && lib.papers) || [], p = pending(), off = offlineSet();
+    var rm = removing(), I = theme.icons || {};
+    var papers = ((lib && lib.papers) || []).filter(function (x) { return !rm[keyOf(x)]; }), p = pending(), off = offlineSet();
     var waiting = Object.keys(p).filter(function (k) {
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
     });
@@ -390,14 +457,29 @@
       if (off[k]) meta.push("saved on this device");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
-      return '<li data-hay="' + esc(hay) + '"><a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '"><span class="lib-title">' +
+      return '<li data-hay="' + esc(hay) + '"><div class="app-lib-row"><a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '"><span class="lib-title">' +
         (x.titleHtml || esc(x.title || k)) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
-        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</a></li>";
+        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</a>" +
+        (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
+        '</div><p class="app-confirm" hidden>Remove it from the library?<button type="button" class="app-pill" data-remove-yes="' + esc(k) + '">Remove</button>' +
+        '<button type="button" class="app-link" data-remove-no>Keep</button></p></li>';
     }).join("");
     main.innerHTML = (waiting.length ? '<p class="app-note">Converting ' + waiting.map(function (k) { return esc(p[k].id); }).join(", ") + "&hellip;</p>" : "") +
       (papers.length ? '<input class="app-field app-search" id="lib-q" type="search" placeholder="Search by title, author or arXiv id" aria-label="Search your papers" autocomplete="off">' +
                        '<ol class="l2m-library" id="lib-list">' + items + "</ol>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
+    Array.prototype.forEach.call(main.querySelectorAll("[data-remove]"), function (b) {
+      b.addEventListener("click", function () {
+        var c = b.closest("li").querySelector(".app-confirm");
+        c.hidden = !c.hidden;
+      });
+    });
+    Array.prototype.forEach.call(main.querySelectorAll("[data-remove-no]"), function (b) {
+      b.addEventListener("click", function () { b.closest(".app-confirm").hidden = true; });
+    });
+    Array.prototype.forEach.call(main.querySelectorAll("[data-remove-yes]"), function (b) {
+      b.addEventListener("click", function () { removePaper(b.getAttribute("data-remove-yes"), b); });
+    });
     var q = document.getElementById("lib-q");
     if (q) q.addEventListener("input", function () {
       var s = q.value.trim().toLowerCase();
