@@ -1067,3 +1067,46 @@ a.lib-title { color: var(--ink); }
   .app-pill:active, .app-add-btn:active, .l2m-action:active, .viewer-goto:active, .cap-more:active { background: var(--bar-current); }
   .app-busy-btn:active { background: transparent; }
 }
+
+/* glass with a soap film: mostly clear, with a soft glint of light across it whose edges catch a thin fringe of
+   colour (rose on one side, sky and gold on the other), as a bubble reflects. The film is one strip the height of
+   the screen, laid from the top, so the bar and a panel opened under it continue each other; the glint slides
+   sideways a little as the page scrolls. */
+:root { --iris-a: 0.16; --sheen-a: 0.75; --tint-a: 0.07; --iris-x: 0px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --iris-a: 0.1; --sheen-a: 0.08; --tint-a: 0.03; } }
+:root[data-theme="dark"] { --iris-a: 0.1; --sheen-a: 0.08; --tint-a: 0.03; }
+.l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast, .fig-open {
+  background-image:
+    linear-gradient(112deg, transparent 22%, rgb(255 255 255 / calc(var(--sheen-a) * 0.5)) 34%, rgb(255 255 255 / var(--sheen-a)) 40%,
+      rgb(255 255 255 / calc(var(--sheen-a) * 0.5)) 46%, transparent 58%),
+    linear-gradient(112deg, transparent 18%, rgb(255 150 205 / var(--iris-a)) 27%, transparent 35%,
+      transparent 47%, rgb(140 205 255 / var(--iris-a)) 53%, rgb(255 214 150 / calc(var(--iris-a) * 0.8)) 59%, transparent 67%),
+    linear-gradient(rgb(120 150 190 / var(--tint-a)), rgb(120 150 190 / var(--tint-a)));
+  background-size: 220vw 100vh, 220vw 100vh, 100% 100%;
+  background-repeat: repeat-x, repeat-x, no-repeat;
+  background-position: calc(-30vw - var(--iris-x)) 0, calc(-30vw - var(--iris-x)) 0, 0 0;
+}
+.app-toast, .l2m-fnsheet { background-position: calc(-110vw - var(--iris-x)) 0, calc(-110vw - var(--iris-x)) 0, 0 0; }
+.fig-open { background-size: 400% 100%, 400% 100%, 100% 100%; background-position: 30% 0, 30% 0, 0 0; }
+/* a panel open: its film shows behind the clear bar (one film, not two); closing, the bar takes its film back
+   in the same step as its glass */
+.l2m-bar.menu-open { background-image: none; }
+.l2m-bar {
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
+              background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms, background-image 0s 300ms;
+  transition-behavior: allow-discrete;
+}
+.l2m-bar.menu-open {
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s,
+              background-color 0s, -webkit-backdrop-filter 0s, backdrop-filter 0s, background-image 0s;
+  transition-behavior: allow-discrete;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --iris-a: 0.07; }
+}
+/* a panel open over New: the pinned date steps aside (the panel starts right under the bar's first row) */
+.app-bar.menu-open .app-bar-day { height: 0 !important; padding-top: 0 !important; opacity: 0 !important; }
+/* the gear turns as its panel opens, and turns back as it closes */
+#app-gear svg { transition: transform 480ms cubic-bezier(0.3, 0.9, 0.25, 1); }
+#app-gear[aria-expanded="true"] svg { transform: rotate(120deg); }
+@media (prefers-reduced-motion: reduce) { #app-gear svg { transition: none; } }

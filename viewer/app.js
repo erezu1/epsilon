@@ -349,8 +349,8 @@
       '<div class="menu-inner"></div></div>';
     main.parentNode.insertBefore(holder, main);
     root.classList.add("l2m-bar-always");
-    root.style.setProperty("--l2m-bar-h", holder.querySelector("#app-bar").getBoundingClientRect().height + "px");
     shell = holder;
+    setBarH();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { if (shell) slide(shell.querySelector(".app-tabs")); });
     holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
@@ -358,6 +358,12 @@
     holder.querySelector("#search-close").addEventListener("click", function () { searching(false); });
     holder.querySelector("#lib-q").addEventListener("input", filterLibrary);
     return holder;
+  }
+  // the bar's own height, without a pinned date it may have taken in (lists and panels start below it)
+  function setBarH() {
+    var bar = shell && shell.querySelector("#app-bar"), row = bar && bar.querySelector(".app-bar-day");
+    if (!bar) return;
+    root.style.setProperty("--l2m-bar-h", (bar.getBoundingClientRect().height - (row ? row.getBoundingClientRect().height : 0)) + "px");
   }
   function dropShell() {
     closePanel();
@@ -535,7 +541,7 @@
       if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); L2M_applyTheme(p.theme); }
       if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); L2M_applyTone(p.tone); }
       if (window.L2M_savePrefs) L2M_savePrefs(p);
-      root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px");
+      setBarH();
       requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
     });
     var saveTimer = null;
@@ -1171,7 +1177,7 @@
   main.addEventListener("touchcancel", endSwipe);
 
   window.addEventListener("resize", function () {
-    if (shell && !shell.querySelector("#app-bar").classList.contains("joined")) { root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px"); slide(shell.querySelector(".app-tabs")); }
+    if (shell) { setBarH(); slide(shell.querySelector(".app-tabs")); }
   });
 
   // ---------------------------------------------------------------- start
