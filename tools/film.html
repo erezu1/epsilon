@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Soap film texture</title>
+<!-- Makes viewer/film.webp: open this page in a browser, check the preview, and save the image with the link.
+     The colours are computed from thin-film interference (see the script); the settings used for the app are below. -->
+<body style="font: 15px sans-serif; background: #e9edf1; margin: 20px">
+<p><a id="save" download="film.webp">Save film.webp</a></p>
+<div id="show"></div>
+<script>
+// A soap film's colours, computed: reflectance of a water film (n = 1.33) in air, at near-normal incidence, over the
+// visible spectrum under daylight, seen through the CIE 1931 observer; the film's thickness flows in swirls.
+function cmf(l) {            // CIE 1931 colour matching functions, multi-lobe Gaussian fit (Wyman, Sloan & Shirley 2013)
+  const g = (x, m, s1, s2) => { const t = (x - m) / (x < m ? s1 : s2); return Math.exp(-0.5 * t * t); };
+  return [1.056 * g(l, 599.8, 37.9, 31.0) + 0.362 * g(l, 442.0, 16.0, 26.7) - 0.065 * g(l, 501.1, 20.4, 26.2),
+          0.821 * g(l, 568.8, 46.9, 40.5) + 0.286 * g(l, 530.9, 16.3, 31.1),
+          1.217 * g(l, 437.0, 11.8, 36.0) + 0.681 * g(l, 459.0, 26.0, 13.8)];
+}
+function d65(l) {            // daylight, as a 6504 K black body (close enough for the film's hues)
+  const c2 = 1.4388e7, T = 6504; return 1 / (Math.pow(l / 560, 5) * (Math.exp(c2 / (l * T)) - 1)) * (Math.exp(c2 / (560 * T)) - 1);
+}
+const n = 1.33, r = (n - 1) / (n + 1), r2 = r * r;
+function reflect(d, l) {     // Airy reflectance of the film (phase flip at the front face)
+  const c = Math.cos(4 * Math.PI * n * d / l);
+  return 2 * r2 * (1 - c) / (1 + r2 * r2 - 2 * r2 * c);
+}
+function xyz(d) {
+  let X = 0, Y = 0, Z = 0;
+  for (let l = 380; l <= 780; l += 4) { const [x, y, z] = cmf(l), s = d65(l), R = d < 0 ? 2 * r2 / (1 + r2) : reflect(d, l); X += x * s * R; Y += y * s * R; Z += z * s * R; }
+  return [X, Y, Z];
+}
+const white = xyz(-1)[1];    // a thick film's mean reflectance: plain white
+function toRGB(d) {
+  const [X, Y, Z] = xyz(d).map(v => v / white);
+  let R = 3.2406 * X - 1.5372 * Y - 0.4986 * Z, G = -0.9689 * X + 1.8758 * Y + 0.0415 * Z, B = 0.0557 * X - 0.2040 * Y + 1.0570 * Z;
+  return [R, G, B, Y];
+}
+// thickness in nm → colour and opacity (a table, then looked up per pixel)
+const LUT = [], D0 = 0, D1 = 900;
+for (let i = 0; i < 1024; i++) LUT.push(toRGB(D0 + (D1 - D0) * i / 1023));
+function look(d) { return LUT[Math.max(0, Math.min(1023, Math.round((d - D0) / (D1 - D0) * 1023)))]; }
+// a flowing thickness: periodic (the tile repeats seamlessly), warped into swirls, stretched sideways like a draining film
+function waves(seed, count, kmax) {
+  let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const w = [];
+  for (let i = 0; i < count; i++) {
+    const kx = Math.floor(rnd() * (kmax + 1)) * (rnd() < 0.5 ? -1 : 1), ky = Math.floor(rnd() * (kmax / 2 + 1)) * (rnd() < 0.5 ? -1 : 1);
+    if (!kx && !ky) { i--; continue; }
+    w.push([kx, ky, rnd() * 2 * Math.PI, 1 / Math.hypot(kx, 2 * ky)]);
+  }
+  return (u, v) => { let t = 0; for (const [kx, ky, p, a] of w) t += a * Math.sin(2 * Math.PI * (kx * u + ky * v) + p); return t; };
+}
+function texture(W, H, opts) {
+  const f = waves(opts.seed, 10, 3), gx = waves(opts.seed + 7, 6, 2), gy = waves(opts.seed + 13, 6, 2);
+  const data = new Uint8ClampedArray(W * H * 4);
+  let lo = 1e9, hi = -1e9; const raw = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const u = x / W, v = y / H;
+    const t = f(v + opts.warp * gx(v, u), u + opts.warp * gy(v, u));      // (bands lying across, as a film drains)
+    raw[y * W + x] = t; lo = Math.min(lo, t); hi = Math.max(hi, t);
+  }
+  for (let i = 0; i < W * H; i++) {
+    const d = opts.d0 + (opts.d1 - opts.d0) * (raw[i] - lo) / (hi - lo);
+    let [R, G, B, Y] = look(d);
+    const m = Math.max(R, G, B, 1e-6);
+    const sat = 1 - Math.min(R, G, B) / m;                     // how coloured it is
+    const a = Math.min(1, Math.pow(Math.max(0, Y), 0.85)) * (0.25 + 0.75 * sat);   // clear where it is dark or grey
+    const gam = c => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+    const k = 1 / Math.max(1.35, m);                            // the reflected colour itself, brightest parts kept in range
+    data[i * 4] = gam(Math.min(1, Math.max(0, R * k))); data[i * 4 + 1] = gam(Math.min(1, Math.max(0, G * k))); data[i * 4 + 2] = gam(Math.min(1, Math.max(0, B * k)));
+    data[i * 4 + 3] = 255 * a;
+  }
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  c.getContext("2d").putImageData(new ImageData(data, W, H), 0, 0);
+  return c;
+}
+
+// the film softened, as it is seen through frosted glass: blurred with the tile wrapped round (it still repeats seamlessly)
+function blurred(tile, px) {
+  const W = tile.width, H = tile.height, big = document.createElement("canvas");
+  big.width = 3 * W; big.height = 3 * H;
+  const b = big.getContext("2d");
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) b.drawImage(tile, i * W, j * H);
+  const soft = document.createElement("canvas"); soft.width = 3 * W; soft.height = 3 * H;
+  const s = soft.getContext("2d"); s.filter = "blur(" + px + "px)"; s.drawImage(big, 0, 0);
+  const out = document.createElement("canvas"); out.width = W; out.height = H;
+  out.getContext("2d").drawImage(soft, W, H, W, H, 0, 0, W, H);
+  return out;
+}
+
+var SETTINGS = {size: 400, seed: 7, warp: 0.12, d0: 150, d1: 520, blur: 4};
+var c = blurred(texture(SETTINGS.size, SETTINGS.size, SETTINGS), SETTINGS.blur);
+var url = c.toDataURL("image/webp", 0.9);
+document.getElementById("save").href = url;
+["#fafbfc", "#14171b"].forEach(function (bg) {
+  var d = document.createElement("div"); d.style.cssText = "display:inline-block;padding:12px;background:" + bg;
+  var i = new Image(); i.src = url; i.width = 400; d.appendChild(i); document.getElementById("show").appendChild(d);
+});
+</script>

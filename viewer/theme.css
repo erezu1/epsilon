@@ -1073,9 +1073,9 @@ a.lib-title { color: var(--ink); }
    thickness that flows in swirls. It lies faintly over the glass, clear where the film reflects little. One still
    image, drawn once: nothing moves or is worked out while scrolling. Laid from the top of the screen, the bar's and
    an open panel's film continue each other. */
-:root { --film-o: 0.3; --film-blend: normal; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.34; --film-blend: screen; } }
-:root[data-theme="dark"] { --film-o: 0.34; --film-blend: screen; }
+:root { --film-o: 0.22; --film-blend: normal; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.26; --film-blend: screen; } }
+:root[data-theme="dark"] { --film-o: 0.26; --film-blend: screen; }
 .l2m-bar::before, .l2m-menu::before, .l2m-fnsheet::before, .app-toast::before {
   content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
   background: url(film.webp) 0 0 / 900px 900px repeat; opacity: var(--film-o);
