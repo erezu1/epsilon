@@ -5,7 +5,7 @@
 //   - the private GitHub repo made for the library (erezu1/l2m-library), read through GitHub's API with a
 //     token the reader types into Settings; it is stored on this device only. Converting a paper starts
 //     the repo's "convert" workflow; the paper appears in the library a few minutes later.
-// Addresses: ./ (library), ?v=new (new papers), ?v=settings, ?p=<key> (a paper, #id for a place in it).
+// Addresses: ./ (library), ?v=new (new papers), ?p=<key> (a paper, #id for a place in it).
 (function () {
   "use strict";
   var main = document.querySelector("main");
@@ -193,26 +193,192 @@
     }, 20000);
   }
 
-  // ---------------------------------------------------------------- pages of the app
-  // Every page is drawn by the viewer, as a small document: the same reading bar, title block,
-  // contents panel (the app's pages, then this page's sections) and reading settings as a paper.
-  var PAGES = [["library", "Library", "./"], ["new", "New papers", "?v=new"], ["settings", "Settings", "?v=settings"]];
-  function page(name, o) {
-    var menu = PAGES.map(function (t) {
-      return '<li class="lvl1"><a href="' + t[2] + '" data-go="' + t[0] + '"' + (t[0] === name ? ' class="here" aria-current="page"' : "") +
-        '><span class="tocnum"></span><span>' + t[1] + "</span></a></li>";
-    }).join("");
-    var body = '<header class="titleblock">' + (o.kicker ? '<p class="kicker">' + o.kicker + "</p>" : "") + "<h1>" + esc(o.title) + "</h1>" +
-      (o.meta ? '<div class="titlemeta"><p class="date">' + o.meta + "</p></div>" : "") + "</header>\n" + o.body;
-    var doc = {format: "l2m-doc", version: 1, title: o.title, lang: "en", body: body, footnotes: [], math: {items: []},
-               headings: (o.sections || []).map(function (h) { return {level: 2, number: "", html: esc(h[1]), id: h[0]}; })};
-    view = L2M_open({doc: doc, theme: theme, key: "app:" + name, menuItems: menu, menuHead: "Go to",
-                     onLibrary: name === "library" ? null : function () { go("library"); }, libraryHref: "./"});
-    if (o.after) o.after();
+  // ---------------------------------------------------------------- the app's own pages
+  // Not papers: a bar of their own (Library | New, and Settings) built from the viewer's parts, a
+  // settings panel with the app's settings and the reading settings, and plain lists below.
+  var shell = null, panelOpen = false;
+  function buildShell() {
+    if (shell) return shell;
+    var I = theme.icons || {};
+    var holder = document.createElement("div");
+    holder.className = "l2m-chrome app-chrome";
+    holder.innerHTML =
+      '<header class="l2m-bar show app-bar" id="app-bar"><div class="bar-inner">' +
+      '<div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
+      '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
+      '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>New</span></button></div>' +
+      '<span class="app-spacer"></span>' +
+      '<button type="button" class="bar-btn" data-act="settings" id="app-gear" aria-label="Settings" aria-expanded="false" aria-controls="app-settings">' +
+      (I.settings || "") + "</button></div></header>" +
+      '<div class="l2m-menu l2m-settings app-settings" id="app-settings" role="dialog" aria-label="Settings" aria-hidden="true">' +
+      '<div class="menu-inner"></div></div>';
+    main.parentNode.insertBefore(holder, main);
+    root.classList.add("l2m-bar-always");
+    root.style.setProperty("--l2m-bar-h", holder.querySelector("#app-bar").getBoundingClientRect().height + "px");
+    shell = holder;
+    holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen ? closePanel() : openPanel(); });
+    return holder;
   }
-  function pill(label, attrs) { return '<button type="button" class="app-pill" ' + (attrs || "") + ">" + label + "</button>"; }
+  function dropShell() {
+    closePanel();
+    if (shell) { shell.remove(); shell = null; }
+    root.classList.remove("l2m-bar-always");
+  }
+  function slide(group) {                  // the highlight of a segmented control or option list
+    var ind = group.querySelector(".sel-ind"), on = group.querySelector('[aria-checked="true"]');
+    if (!ind || !on) return;
+    ind.style.width = on.offsetWidth + "px";
+    ind.style.height = on.offsetHeight + "px";
+    ind.style.transform = "translate(" + on.offsetLeft + "px," + on.offsetTop + "px)";
+  }
+  function setTab(name) {
+    var tabs = shell.querySelector(".app-tabs");
+    Array.prototype.forEach.call(tabs.querySelectorAll(".seg-btn"), function (b) {
+      b.setAttribute("aria-checked", b.getAttribute("data-go") === name ? "true" : "false");
+    });
+    slide(tabs);
+  }
+
+  function panelHTML() {
+    var off = offlineSet(), n = Object.keys(off).length, mb = 0;
+    Object.keys(off).forEach(function (k) { mb += off[k].bytes || 0; });
+    var cfg = config || {categories: ["hep-th"], crossLists: false};
+    var h = "";
+    if (src && src.writeJSON) {
+      h += '<p class="menu-head">New papers</p><form class="app-form" id="feed-form">' +
+        '<input class="app-field" id="feed-cats" aria-label="arXiv categories" autocomplete="off" autocapitalize="off" spellcheck="false" value="' +
+        esc(cfg.categories.join(", ")) + '" placeholder="arXiv categories, e.g. hep-th, math-ph">' +
+        '<div class="seg" role="radiogroup" aria-label="Cross-lists"><span class="sel-ind" aria-hidden="true"></span>' +
+        '<button type="button" class="seg-btn" role="radio" data-cross="0" aria-checked="' + !cfg.crossLists + '"><span>Primary only</span></button>' +
+        '<button type="button" class="seg-btn" role="radio" data-cross="1" aria-checked="' + !!cfg.crossLists + '"><span>With cross-lists</span></button></div>' +
+        '<p class="app-row"><button type="submit" class="app-pill">Save</button><span class="app-help">Refreshed every weekday after arXiv&rsquo;s announcement.</span></p></form>';
+    }
+    h += window.L2M_readingSettings ? L2M_readingSettings(theme) : "";
+    h += '<p class="menu-head">Library</p><form class="app-form" id="gh-form"><p class="app-help">' +
+      (src && src.kind === "github" ? "Reading " + esc(src.repo) + " on GitHub." : src && src.kind === "site" ? "Reading the papers of this site." : "Not connected yet.") + "</p>" +
+      '<input class="app-field" id="gh-repo" aria-label="GitHub repo" autocomplete="off" autocapitalize="off" spellcheck="false" value="' +
+      esc(store("repo") || "erezu1/l2m-library") + '">' +
+      '<input class="app-field" id="gh-token" type="password" aria-label="Access token" autocomplete="off" placeholder="' +
+      (store("token") ? "Access token: saved on this device" : "Access token (github_pat_&hellip;)") + '">' +
+      '<p class="app-row"><button type="submit" class="app-pill">Connect</button>' +
+      (store("token") ? '<button type="button" class="app-link" id="gh-forget">Forget the token</button>' : "") + "</p></form>" +
+      '<p class="menu-head">On this device</p><p class="app-help app-pad">' +
+      (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
+           "No papers saved offline yet. In a paper, tap <em>Keep offline</em>.") + "</p>" +
+      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill" id="off-clear">Remove offline copies</button></p>' : "");
+    return h;
+  }
+  function openPanel() {
+    var el = shell.querySelector("#app-settings"), inner = el.querySelector(".menu-inner");
+    inner.innerHTML = panelHTML();
+    bindPanel(inner);
+    el.classList.add("open");
+    el.setAttribute("aria-hidden", "false");
+    shell.querySelector("#app-bar").classList.add("menu-open");
+    shell.querySelector("#app-gear").setAttribute("aria-expanded", "true");
+    root.classList.add("l2m-settings-open");
+    for (var key in (theme.fonts || [])) if (window.L2M_loadFont) L2M_loadFont(theme.fonts[key].key);
+    panelOpen = true;
+    requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
+  }
+  function closePanel() {
+    if (!panelOpen || !shell) { panelOpen = false; return; }
+    var el = shell.querySelector("#app-settings");
+    el.classList.remove("open");
+    el.setAttribute("aria-hidden", "true");
+    shell.querySelector("#app-bar").classList.remove("menu-open");
+    shell.querySelector("#app-gear").setAttribute("aria-expanded", "false");
+    root.classList.remove("l2m-settings-open");
+    panelOpen = false;
+  }
+  function bindPanel(inner) {
+    var prefs = window.L2M_prefs ? L2M_prefs() : {};
+    var D = theme.defaults || {};
+    var want = {"data-font": prefs.font || D.font, "data-size-opt": prefs.size || D.size,
+                "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone};
+    Object.keys(want).forEach(function (attr) {
+      Array.prototype.forEach.call(inner.querySelectorAll("[" + attr + "]"), function (b) {
+        b.setAttribute("aria-checked", b.getAttribute(attr) === want[attr] ? "true" : "false");
+      });
+    });
+    inner.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-cross]");
+      if (!b) return;
+      var group = b.closest(".seg, .opt-list");
+      Array.prototype.forEach.call(group.querySelectorAll('[role="radio"]'), function (x) { x.setAttribute("aria-checked", x === b ? "true" : "false"); });
+      slide(group);
+      if (b.hasAttribute("data-cross")) return;
+      var p = window.L2M_prefs ? L2M_prefs() : {};
+      if (b.hasAttribute("data-font")) { p.font = b.getAttribute("data-font"); L2M_applyFont(p.font); }
+      if (b.hasAttribute("data-size-opt")) { p.size = b.getAttribute("data-size-opt"); L2M_applySize(p.size); }
+      if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); L2M_applyTheme(p.theme); }
+      if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); L2M_applyTone(p.tone); }
+      if (window.L2M_savePrefs) L2M_savePrefs(p);
+      root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px");
+      requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
+    });
+    var ff = inner.querySelector("#feed-form");
+    if (ff) ff.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var cats = inner.querySelector("#feed-cats").value.split(/[\s,]+/).filter(Boolean);
+      if (!cats.length || cats.some(function (c) { return !/^[a-z-]+(\.[A-Za-z-]+)?$/.test(c); })) { toast("Categories look like hep-th, math-ph or cond-mat.str-el."); return; }
+      var next = {categories: cats, crossLists: !!inner.querySelector('[data-cross="1"][aria-checked="true"]')};
+      src.writeJSON("config.json", next, "Feed: " + cats.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
+        config = next;
+        return src.run("feed.yml", {});
+      }).then(function () { toast("Saved. The new papers are being fetched again; it takes a minute."); },
+              function (err) { toast("Could not save: " + esc(err.message), 7000); });
+    });
+    inner.querySelector("#gh-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var repo = inner.querySelector("#gh-repo").value.trim(), tok = inner.querySelector("#gh-token").value.trim() || store("token");
+      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("The repo is owner/name, for example erezu1/l2m-library."); return; }
+      if (!tok) { toast("Paste the access token first."); return; }
+      var s = githubSource(repo, tok);
+      s.json("library.json").catch(function (err) { if (/not found/.test(err.message)) return {papers: []}; throw err; }).then(function () {
+        store("repo", repo); store("token", tok);
+        src = s;
+        toast("Connected to " + esc(repo) + ".");
+        closePanel();
+        load().then(function () { go("library"); });
+      }, function (err) { toast("Could not connect: " + esc(err.message), 7000); });
+    });
+    var fg = inner.querySelector("#gh-forget");
+    if (fg) fg.addEventListener("click", function () {
+      store("token", null);
+      if (src && src.kind === "github") src = null;
+      toast("The token is removed from this device.");
+      closePanel();
+      show(current);
+    });
+    var oc = inner.querySelector("#off-clear");
+    if (oc) oc.addEventListener("click", function () {
+      (window.caches ? caches.delete(OFFLINE_CACHE) : Promise.resolve()).then(function () {
+        store("offline", {}); closePanel(); toast("Offline copies removed."); show(current);
+      });
+    });
+  }
+  document.addEventListener("click", function (e) {
+    if (panelOpen && shell && !shell.contains(e.target)) closePanel();
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
+
+  var mathIn = false;
+  function feedMath() {                   // the glyphs and styles of the formulas drawn into feed.json
+    if (mathIn || !feed || !feed.math || !feed.math.cache) return;
+    mathIn = true;
+    var st = document.createElement("style");
+    st.textContent = feed.math.css || "";
+    document.head.appendChild(st);
+    var d = document.createElement("div");
+    d.innerHTML = feed.math.cache;
+    if (d.firstChild) document.body.appendChild(d.firstChild);
+  }
 
   function showLibrary() {
+    document.title = (lib && lib.name) || "Papers";
+    buildShell(); setTab("library");
+    feedMath();
     var papers = (lib && lib.papers) || [], p = pending(), off = offlineSet();
     var waiting = Object.keys(p).filter(function (k) {
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
@@ -220,161 +386,87 @@
     var items = papers.map(function (x) {
       var k = keyOf(x), meta = [];
       if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : ""));
-      else if (x.kind === "draft") meta.push("Draft");
+      else if (x.kind === "draft") meta.push("your draft");
       if (off[k]) meta.push("saved on this device");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
       return '<li data-hay="' + esc(hay) + '"><a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '"><span class="lib-title">' +
-        esc(x.title || k) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + '</span><span class="lib-meta">' +
-        meta.join(" &middot; ") + "</span></a></li>";
+        (x.titleHtml || esc(x.title || k)) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
+        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</a></li>";
     }).join("");
-    var n = papers.length, saved = Object.keys(off).length;
-    page("library", {
-      kicker: esc((lib && lib.name) || "Papers"), title: "Library",
-      meta: n + " paper" + (n === 1 ? "" : "s") + (saved ? " &middot; " + saved + " saved on this device" : ""),
-      body: (waiting.length ? '<p class="app-note">Converting ' + waiting.map(function (k) { return esc(p[k].id); }).join(", ") + "&hellip;</p>" : "") +
-        (n ? '<input class="app-field app-search" id="lib-q" type="search" placeholder="Search by title, author or arXiv id" aria-label="Search your papers" autocomplete="off">' +
-             '<ol class="l2m-library" id="lib-list">' + items + "</ol>" :
-             '<p class="app-note">No papers yet.' + (src.run ? ' Add some from <a href="?v=new" data-go="new">New papers</a>.' : "") + "</p>"),
-      after: function () {
-        var q = document.getElementById("lib-q");
-        if (q) q.addEventListener("input", function () {
-          var s = q.value.trim().toLowerCase();
-          Array.prototype.forEach.call(document.querySelectorAll("#lib-list li"), function (li) {
-            li.hidden = !!s && li.getAttribute("data-hay").indexOf(s) < 0;
-          });
-        });
-      }
+    main.innerHTML = (waiting.length ? '<p class="app-note">Converting ' + waiting.map(function (k) { return esc(p[k].id); }).join(", ") + "&hellip;</p>" : "") +
+      (papers.length ? '<input class="app-field app-search" id="lib-q" type="search" placeholder="Search by title, author or arXiv id" aria-label="Search your papers" autocomplete="off">' +
+                       '<ol class="l2m-library" id="lib-list">' + items + "</ol>" :
+                       '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
+    var q = document.getElementById("lib-q");
+    if (q) q.addEventListener("input", function () {
+      var s = q.value.trim().toLowerCase();
+      Array.prototype.forEach.call(document.querySelectorAll("#lib-list li"), function (li) {
+        li.hidden = !!s && li.getAttribute("data-hay").indexOf(s) < 0;
+      });
     });
   }
 
   function showNew() {
+    document.title = "New papers";
+    buildShell(); setTab("new");
+    feedMath();
     var have = {}, p = pending();
     ((lib && lib.papers) || []).forEach(function (x) { if (x.arxiv) have[arxivKey(x.arxiv.id)] = x; });
-    var cats = ((feed && feed.categories) || (config && config.categories) || ["hep-th"]);
-    var byDay = {}, sections = [];
+    var cats = (feed && feed.categories) || (config && config.categories) || ["hep-th"];
+    var byDay = {};
     ((feed && feed.items) || []).forEach(function (i) { (byDay[i.announced] = byDay[i.announced] || []).push(i); });
     var days = Object.keys(byDay).sort().reverse().map(function (d) {
-      var id = "day-" + d, label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
-      sections.push([id, label]);
-      return '<h2 id="' + id + '">' + esc(label) + '</h2><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
+      var label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
+      return '<p class="app-day">' + esc(label) + '</p><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
         var k = arxivKey(i.id), got = have[k] && have[k].status === "ok", act;
         if (got) act = '<a class="app-pill" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">Open</a>';
         else if (p[k]) act = '<span class="app-pill app-busy">Converting&hellip;</span>';
-        else if (src.run) act = pill("Convert", 'data-convert="' + esc(i.id) + '"');
+        else if (src && src.run) act = '<button type="button" class="app-pill" data-convert="' + esc(i.id) + '">Convert</button>';
         else act = '<a class="app-pill" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener">arXiv</a>';
-        var title = got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + esc(i.title) + "</a>" :
-          '<span class="lib-title">' + esc(i.title) + "</span>";
-        return '<li class="app-paper"><div class="app-paper-text">' + title + '<span class="lib-authors">' + esc(authorsLine(i.authors)) +
-          '</span><span class="lib-meta">' + esc(i.id) + (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) +
-          '</span><details class="app-abs"><summary>Abstract</summary><p>' + esc(i.abstract) + "</p></details></div>" +
+        var t = i.titleHtml || esc(i.title);
+        return '<li class="app-paper"><div class="app-paper-text">' +
+          (got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + t + "</a>" : '<span class="lib-title">' + t + "</span>") +
+          '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) +
+          (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + "</span>" +
+          '<details class="app-abs"><summary>Abstract</summary><p>' + (i.abstractHtml || esc(i.abstract)) + "</p></details></div>" +
           '<div class="app-paper-act">' + act + "</div></li>";
       }).join("") + "</ol>";
     }).join("");
-    var meta = feed && feed.updated ? "Updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "Not fetched yet";
-    if (feed && feed.crossLists) meta += " &middot; with cross-lists";
-    if (src.run) meta += ' &middot; <button type="button" class="app-link" id="feed-now">Refresh now</button>';
-    page("new", {
-      kicker: "arXiv &middot; " + esc(cats.join(", ")), title: "New papers", meta: meta, sections: sections,
-      body: (src.run ? '<form class="app-add" id="app-add"><input class="app-field" id="add-id" placeholder="Convert any paper: arXiv id or link" ' +
+    var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
+      (feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "") +
+      (src && src.run ? ' &middot; <button type="button" class="app-link" id="feed-now">refresh</button>' : "");
+    main.innerHTML = (src && src.run ? '<form class="app-add" id="app-add"><input class="app-field" id="add-id" placeholder="Any paper: arXiv id or link" ' +
                        'aria-label="arXiv id or link" autocomplete="off" autocapitalize="off" spellcheck="false">' +
                        '<button type="submit" class="app-pill">Convert</button></form>' : "") +
-        (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The list of new papers has not been made yet.") + "</p>"),
-      after: function () {
-        var f = document.getElementById("app-add");
-        if (f) f.addEventListener("submit", function (e) { e.preventDefault(); convert(document.getElementById("add-id").value.split(/[\s,]+/)); });
-        var r = document.getElementById("feed-now");
-        if (r) r.addEventListener("click", function () {
-          src.run("feed.yml", {}).then(function () { toast("Fetching the new papers. Come back in a minute."); },
-                                       function (e) { toast("Could not start it: " + esc(e.message)); });
-        });
-      }
+      '<p class="app-note app-small">' + meta + "</p>" +
+      (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>");
+    var f = document.getElementById("app-add");
+    if (f) f.addEventListener("submit", function (e) { e.preventDefault(); convert(document.getElementById("add-id").value.split(/[\s,]+/)); });
+    var r = document.getElementById("feed-now");
+    if (r) r.addEventListener("click", function () {
+      src.run("feed.yml", {}).then(function () { toast("Fetching the new papers. Come back in a minute."); },
+                                   function (e) { toast("Could not start it: " + esc(e.message)); });
     });
   }
 
-  function showSettings() {
-    var off = offlineSet(), n = Object.keys(off).length, mb = 0;
-    Object.keys(off).forEach(function (k) { mb += off[k].bytes || 0; });
-    var cfg = config || {categories: ["hep-th"], crossLists: false};
-    var connected = src && src.kind === "github" ? "Reading " + esc(src.repo) + " on GitHub." : src && src.kind === "site" ? "Reading the papers of this site." : "Not connected yet.";
-    var sections = [["set-library", "Library"]];
-    var body = '<h2 id="set-library">Library</h2><p class="app-note">' + connected + "</p>" +
-      '<form id="gh-form" class="app-form"><label class="app-label" for="gh-repo">GitHub repo</label>' +
-      '<input class="app-field" id="gh-repo" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(store("repo") || "erezu1/l2m-library") + '">' +
-      '<label class="app-label" for="gh-token">Access token</label><input class="app-field" id="gh-token" type="password" autocomplete="off" placeholder="' +
-      (store("token") ? "saved on this device" : "github_pat_&hellip;") + '"><p class="app-help">A fine-grained token for this repo only, with ' +
-      "<em>Contents</em> and <em>Actions</em> set to read and write. It stays on this device.</p>" +
-      '<p class="app-row"><button type="submit" class="app-pill">Save and connect</button>' +
-      (store("token") ? '<button type="button" class="app-link" id="gh-forget">Forget the token</button>' : "") + "</p></form>";
-    if (src && src.writeJSON) {
-      sections.push(["set-new", "New papers"]);
-      body += '<h2 id="set-new">New papers</h2><form id="feed-form" class="app-form"><label class="app-label" for="feed-cats">arXiv categories</label>' +
-        '<input class="app-field" id="feed-cats" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(cfg.categories.join(", ")) + '">' +
-        '<p class="app-label">Cross-lists</p><div class="seg app-seg" role="radiogroup" aria-label="Cross-lists">' +
-        ['<button type="button" class="seg-btn" role="radio" data-cross="0" aria-checked="' + (!cfg.crossLists) + '"><span>Primary only</span></button>',
-         '<button type="button" class="seg-btn" role="radio" data-cross="1" aria-checked="' + (!!cfg.crossLists) + '"><span>Include cross-lists</span></button>'].join("") +
-        '</div><p class="app-help">The list is refreshed every weekday after arXiv&rsquo;s announcement.</p>' +
-        '<p class="app-row"><button type="submit" class="app-pill">Save</button></p></form>';
-    }
-    sections.push(["set-device", "On this device"], ["set-reading", "Reading"]);
-    body += '<h2 id="set-device">On this device</h2><p class="app-note">' +
-      (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
-           "No papers saved for offline reading. Open a paper and tap <em>Keep offline</em>.") + "</p>" +
-      (n ? '<p class="app-row">' + pill("Remove all offline copies", 'id="off-clear"') + "</p>" : "") +
-      '<h2 id="set-reading">Reading</h2><p class="app-note">Font, text size, appearance and tone are in the settings menu at the top of every page.</p>' +
-      '<p class="app-row">' + pill("Reading settings", 'data-act="settings" aria-controls="l2m-settings"') + "</p>";
-    page("settings", {kicker: "Papers", title: "Settings", sections: sections, body: body, after: function () {
-      document.getElementById("gh-form").addEventListener("submit", function (e) {
-        e.preventDefault();
-        var repo = document.getElementById("gh-repo").value.trim(), tok = document.getElementById("gh-token").value.trim() || store("token");
-        if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("The repo is owner/name, for example erezu1/l2m-library."); return; }
-        if (!tok) { toast("Paste the access token first."); return; }
-        var s = githubSource(repo, tok);
-        s.json("library.json").catch(function (err) { if (/not found/.test(err.message)) return {papers: []}; throw err; }).then(function () {
-          store("repo", repo); store("token", tok);
-          src = s;
-          toast("Connected to " + esc(repo) + ".");
-          load().then(function () { go("library"); });
-        }, function (err) { toast("Could not connect: " + esc(err.message), 7000); });
-      });
-      var fg = document.getElementById("gh-forget");
-      if (fg) fg.addEventListener("click", function () { store("token", null); src = null; toast("The token is removed from this device."); show("app:settings"); });
-      Array.prototype.forEach.call(document.querySelectorAll(".app-seg .seg-btn"), function (b, k, all) {
-        b.addEventListener("click", function () {
-          Array.prototype.forEach.call(all, function (x) { x.setAttribute("aria-checked", x === b ? "true" : "false"); });
-        });
-      });
-      var ff = document.getElementById("feed-form");
-      if (ff) ff.addEventListener("submit", function (e) {
-        e.preventDefault();
-        var cats = document.getElementById("feed-cats").value.split(/[\s,]+/).filter(Boolean);
-        if (!cats.length || cats.some(function (c) { return !/^[a-z-]+(\.[A-Za-z-]+)?$/.test(c); })) { toast("Categories look like hep-th, math-ph or cond-mat.str-el."); return; }
-        var next = {categories: cats, crossLists: !!document.querySelector('.app-seg [data-cross="1"][aria-checked="true"]')};
-        src.writeJSON("config.json", next, "Feed: " + cats.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
-          config = next;
-          return src.run("feed.yml", {});
-        }).then(function () { toast("Saved. The list of new papers is being refreshed; it takes a minute."); },
-                function (err) { toast("Could not save: " + esc(err.message), 7000); });
-      });
-      var oc = document.getElementById("off-clear");
-      if (oc) oc.addEventListener("click", function () {
-        (window.caches ? caches.delete(OFFLINE_CACHE) : Promise.resolve()).then(function () { store("offline", {}); show("app:settings"); });
-      });
-    }});
-  }
-
   function showConnect() {
-    page("library", {kicker: "Papers", title: "Library", body: '<p class="app-note">Your papers are kept in a private GitHub repo. ' +
-      'To read them here, open <a href="?v=settings" data-go="settings">Settings</a> and paste an access token for it.</p>'});
+    document.title = "Papers";
+    buildShell(); setTab("library");
+    main.innerHTML = '<p class="app-note">Your papers are kept in a private GitHub repo. To read them here, open the settings ' +
+      '(the button at the top right) and paste an access token under <em>Library</em>.</p>' +
+      '<p class="app-row"><button type="button" class="app-pill" id="open-settings">Open settings</button></p>';
+    document.getElementById("open-settings").addEventListener("click", function (e) { e.stopPropagation(); openPanel(); });
   }
 
   function showPaper(key) {
+    dropShell();
     var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === key; })[0] || {key: key, path: "papers/" + key};
     if (entry.status === "failed") {
-      page("failed", {kicker: entry.arxiv ? "arXiv:" + esc(entry.arxiv.id) : "Draft", title: entry.title || key,
-        meta: "This paper could not be converted.",
-        body: '<pre class="app-log">' + esc(entry.error || "") + "</pre>" +
-          (entry.arxiv ? '<p class="app-row"><a class="app-pill" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "")});
+      buildShell(); setTab("library");
+      main.innerHTML = '<p class="app-note"><strong>' + esc(entry.title || key) + "</strong> could not be converted.</p>" +
+        '<pre class="app-log">' + esc(entry.error || "") + "</pre>" +
+        (entry.arxiv ? '<p class="app-row"><a class="app-pill" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "");
       return;
     }
     main.innerHTML = '<p class="app-note">Loading&hellip;</p>';
@@ -383,6 +475,7 @@
     docP.then(function (doc) {
       return mathP.then(function (cache) {
         if (current !== key) return;
+        doc.kicker = null;                  // no label above the title in the app
         var actions = [];
         if (entry.arxiv) {
           actions.push({label: "arXiv", href: "https://arxiv.org/abs/" + entry.arxiv.id});
@@ -398,7 +491,7 @@
           }, function (e) { toast("Could not save it: " + esc(e.message)); b.textContent = "Keep offline"; })
             .then(function () { b.disabled = false; });
         }});
-        view = L2M_open({doc: doc, theme: theme, cache: cache, key: key, kicker: null,
+        view = L2M_open({doc: doc, theme: Object.assign({}, theme, {titleblock: []}), cache: cache, key: key, kicker: null,
           base: src.kind === "site" ? (entry.path || "papers/" + key) + "/" : "",
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
             return paperFile(key, entry, "images/" + name).then(function (b) { var u = URL.createObjectURL(b); urls.push(u); return u; });
@@ -406,18 +499,19 @@
           mathjax: lib && lib.mathjax, onLibrary: function () { go("library"); }, libraryHref: "./", actions: actions});
       });
     }).catch(function (e) {
-      page("failed", {kicker: "Papers", title: "Cannot open this paper", body: '<p class="app-note">' + esc(e.message) + "</p>"});
+      buildShell(); setTab("library");
+      main.innerHTML = '<p class="app-note">Cannot open this paper: ' + esc(e.message) + "</p>";
     });
   }
 
   // ---------------------------------------------------------------- moving around
-  // A history entry names what it shows: a paper's key, or "app:<page>" for the app's own pages.
+  // A history entry names what it shows: a paper's key, or "app:library" / "app:new".
   function isPage(k) { return !k || String(k).indexOf("app:") === 0; }
   function wanted() {
     var q = new URLSearchParams(location.search);
     var p = q.get("p") || (q.get("doc") || "").replace(/^papers\//, "").replace(/\/(paper\.json)?$/, "");
     if (p) return p;
-    if (q.get("v")) return "app:" + q.get("v");
+    if (q.get("v") === "new") return "app:new";
     return (history.state || {}).l2mPaper || "app:library";     // an artifact's address cannot carry ?p
   }
   function close(save) {
@@ -428,24 +522,29 @@
   function show(k, save) {
     close(save);
     current = k;
-    window.scrollTo(0, 0);                // the viewer puts a page back where it was left
-    if (!isPage(k)) {
-      if (!/^[\w.~-]+$/.test(k)) { page("failed", {kicker: "Papers", title: "Not a paper here", body: ""}); return; }
-      if (!src) { showConnect(); return; }
-      showPaper(k);
+    if (isPage(k)) {
+      var st = history.state || {};
+      requestAnimationFrame(function () { window.scrollTo(0, st.l2mPaper === k && st.l2mY ? st.l2mY : 0); });
+      if (!src) showConnect();
+      else if (k === "app:new") showNew();
+      else showLibrary();
       return;
     }
-    var name = k.slice(4);
-    if (name === "settings") showSettings();
-    else if (!src) showConnect();
-    else if (name === "new") showNew();
-    else showLibrary();
+    window.scrollTo(0, 0);                  // the viewer puts a paper back where it was left
+    if (!/^[\w.~-]+$/.test(k)) { buildShell(); setTab("library"); main.innerHTML = '<p class="app-note">That is not a paper in this library.</p>'; return; }
+    if (!src) { showConnect(); return; }
+    showPaper(k);
   }
   function refresh() { if (isPage(current)) show(current); }
   function go(pageName, key) {
-    close();                              // saves the reading place in the entry being left
+    closePanel();
+    if (isPage(current)) {                  // remember where the list was
+      try { history.replaceState(Object.assign({}, history.state || {}, {l2mPaper: current, l2mY: window.pageYOffset}), ""); } catch (e) {}
+    }
+    close();                                // saves the reading place in the entry being left
     var k = key || "app:" + pageName;
-    var url = key ? "?p=" + encodeURIComponent(key) : pageName === "library" ? location.pathname : "?v=" + pageName;
+    if (k === current) { show(k); return; }
+    var url = key ? "?p=" + encodeURIComponent(key) : pageName === "new" ? "?v=new" : location.pathname;
     try { history.pushState({l2mPaper: k}, "", url); } catch (e) {}
     show(k);
   }
@@ -460,8 +559,11 @@
   });
   window.addEventListener("popstate", function (e) {
     var k = (e.state && e.state.l2mPaper) || wanted();
-    if (k === current) return;            // a step inside the open page: nav.js handles it
-    show(k, false);                       // the entry has already changed: nothing to save into it
+    if (k === current) return;              // a step inside the open paper: nav.js handles it
+    show(k, false);                         // the entry has already changed: nothing to save into it
+  });
+  window.addEventListener("resize", function () {
+    if (shell) { root.style.setProperty("--l2m-bar-h", shell.querySelector("#app-bar").getBoundingClientRect().height + "px"); slide(shell.querySelector(".app-tabs")); }
   });
 
   // ---------------------------------------------------------------- start

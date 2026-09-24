@@ -169,6 +169,7 @@ def convert_arxiv(lib, aid, refetch=True):
         src_dir.mkdir(parents=True, exist_ok=True)
         (src_dir / "src.bin").write_bytes(raw)
     entry = {"key": key, "path": "papers/" + key, "kind": "arxiv", "title": meta["title"],
+             "titleHtml": math_html([meta["title"]])[0][0] if "$" in meta["title"] else None,
              "authors": meta["authors"], "arxiv": meta, "added": (lib.entry(key) or {}).get("added") or now()}
     with tempfile.TemporaryDirectory(prefix="l2m-src-") as tmp:
         unpack((src_dir / "src.bin").read_bytes(), Path(tmp))
@@ -179,7 +180,7 @@ def convert_arxiv(lib, aid, refetch=True):
             out = lib.root / "papers" / key
             if out.exists():
                 shutil.rmtree(out)
-            ok, log = run_converter(tex, out, "arXiv:" + meta["id"])
+            ok, log = run_converter(tex, out, None)
             entry.update(status="ok" if ok else "failed", source=tex.name)
             if not ok:
                 entry["error"] = log[-800:]
@@ -262,7 +263,7 @@ def convert_draft(lib, name):
         with tempfile.TemporaryDirectory(prefix="l2m-draft-") as tmp:
             work = Path(tmp) / "src"
             shutil.copytree(folder, work)           # LaTeX writes nothing into the library
-            ok, log = run_converter(work / tex.relative_to(folder), out, "Draft")
+            ok, log = run_converter(work / tex.relative_to(folder), out, None)
         entry.update(status="ok" if ok else "failed", source=tex.name)
         if ok:
             doc = json.loads((out / "paper.json").read_text())
@@ -289,6 +290,50 @@ def outdated(lib):
     def ver(v):
         return tuple(int(x) for x in re.findall(r"\d+", v or "0"))
     return [p for p in lib.index()["papers"] if ver(p.get("converter")) < ver(CONVERTER)]
+
+
+# ---------------------------------------------------------------- math in titles and abstracts
+MATH_PACKAGES = ["base", "ams", "newcommand", "noundefined", "configmacros", "boldsymbol", "upgreek", "textmacros",
+                 "physics", "braket"]
+MATH_SPLIT = re.compile(r"(\$\$.+?\$\$|\$[^$]+\$|\\\(.+?\\\)|\\\[.+?\\\])", re.S)
+
+
+def math_html(texts):
+    """Plain text with $...$ math (arXiv titles and abstracts) as HTML, the math drawn to SVG once with
+    MathJax in node. Returns (htmls, glyph cache, stylesheet); without node, the text is returned escaped."""
+    import html as H
+    items, parts = [], []
+    for t in texts:
+        segs = []
+        for k, seg in enumerate(MATH_SPLIT.split(t or "")):
+            if k % 2 == 0:
+                segs.append(H.escape(seg))
+            else:
+                tex = seg[2:-2] if seg[:2] in ("$$", "\\(", "\\[") else seg[1:-1]
+                segs.append(len(items))
+                items.append({"tex": tex.strip(), "display": False, "src": seg})
+        parts.append(segs)
+    svgs, cache, css = [], "", ""
+    if items:
+        tmp = Path(tempfile.mkdtemp(prefix="l2m-feedmath-"))
+        try:
+            (tmp / "job.json").write_text(json.dumps({"items": items, "macros": {}, "packages": MATH_PACKAGES}))
+            r = subprocess.run(["node", str(HERE / "render_math.js"), str(tmp / "job.json"), str(tmp / "out.json")],
+                               capture_output=True, text=True, timeout=600)
+            if r.returncode == 0:
+                out = json.loads((tmp / "out.json").read_text())
+                bad = set(e["index"] for e in out["errors"]) | set(out["undefined"])
+                svgs = [None if k in bad else v for k, v in enumerate(out["out"])]
+                cache, css = out["cache"], out["css"]
+        except (OSError, subprocess.SubprocessError, ValueError):
+            pass
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    def piece(x):
+        if isinstance(x, str):
+            return x
+        return svgs[x] if x < len(svgs) and svgs[x] else H.escape(items[x]["src"])
+    return ["".join(piece(x) for x in segs) for segs in parts], cache, css
 
 
 # ---------------------------------------------------------------- the feed
@@ -327,8 +372,11 @@ def fetch_feed(lib):
     keep = [i for i in items.values() if i["announced"] >= cutoff and i["category"] in cfg["categories"]
             and i["type"] in kinds]
     keep.sort(key=lambda i: (i["announced"], i["id"]), reverse=True)
+    htmls, cache, css = math_html([i["title"] for i in keep] + [i["abstract"] for i in keep])
+    for k, i in enumerate(keep):
+        i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]
     lib.write("feed.json", {"updated": now(), "categories": cfg["categories"], "crossLists": cfg.get("crossLists", False),
-                            "items": keep})
+                            "items": keep, "math": {"cache": cache, "css": css}})
     say("feed: %d papers" % len(keep))
 
 

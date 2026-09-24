@@ -24,24 +24,9 @@
       function (m, pre, f, post) { return pre || post ? '<span class="mw">' + pre + f + post + "</span>" : f; });
   }
 
-  // ------------------------------------------------------------------ the chrome, from the theme
-  function chrome(theme, title, hasNotes, o) {
+  // the reading settings (font, text size, appearance, tone), also used by the app's own settings panel
+  function readingSettings(theme) {
     var I = theme.icons || {};
-    var buttons = {
-      back: '<button type="button" class="bar-btn swap" data-act="back" aria-label="Back to where you were" disabled>' +
-        '<span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' + (I.close || "") + "</span></button>",
-      title: '<button type="button" class="bar-title" aria-label="Show contents" aria-expanded="false" aria-controls="l2m-menu">' +
-        '<span class="bar-title-ico" aria-hidden="true">' + (I.menu || "") + '</span><span class="bar-title-inner">' + esc(title) + "</span></button>",
-      top: '<button type="button" class="bar-btn" data-act="top" aria-label="Go to the top">' + (I.top || "") + "</button>",
-      settings: '<button type="button" class="bar-btn" data-act="settings" aria-label="Reading settings" aria-controls="l2m-settings">' +
-        (I.settings || "") + "</button>",
-      library: o.onLibrary ? '<button type="button" class="bar-btn" data-act="library" aria-label="All papers">' + (I.library || "") + "</button>" : ""
-    };
-    var always = theme.barShows !== "afterTitle";
-    var bar = '<header class="l2m-bar' + (always ? ' show" aria-hidden="false"' : '" aria-hidden="true"') + ' id="l2m-bar"><div class="bar-inner">' +
-      (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") + "</div></header>\n";
-    var menu = '<nav class="l2m-menu" id="l2m-menu" aria-label="Contents" aria-hidden="true"><div class="menu-inner">' +
-      '<p class="menu-head">Contents</p><ol></ol></div></nav>\n';
     var D = theme.defaults || {};
     function checked(v, d) { return v === d ? "true" : "false"; }
     var fonts = (theme.fonts || []).map(function (f) {
@@ -65,9 +50,30 @@
       return inner ? '<p class="menu-head">' + head + '</p><div class="' + cls + '" role="radiogroup" aria-label="' + head + '">' +
         '<span class="sel-ind" aria-hidden="true"></span>' + inner + "</div>" : "";
     }
+    return group("Font", "opt-list", fonts) + group("Text size", "seg", sizes) + group("Appearance", "seg", looks) + group("Tone", "seg", tones);
+  }
+  window.L2M_readingSettings = readingSettings;
+
+  // ------------------------------------------------------------------ the chrome, from the theme
+  function chrome(theme, title, hasNotes, o) {
+    var I = theme.icons || {};
+    var buttons = {
+      back: '<button type="button" class="bar-btn swap" data-act="back" aria-label="Back to where you were" disabled>' +
+        '<span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' + (I.close || "") + "</span></button>",
+      title: '<button type="button" class="bar-title" aria-label="Show contents" aria-expanded="false" aria-controls="l2m-menu">' +
+        '<span class="bar-title-ico" aria-hidden="true">' + (I.menu || "") + '</span><span class="bar-title-inner">' + esc(title) + "</span></button>",
+      top: '<button type="button" class="bar-btn" data-act="top" aria-label="Go to the top">' + (I.top || "") + "</button>",
+      settings: '<button type="button" class="bar-btn" data-act="settings" aria-label="Reading settings" aria-controls="l2m-settings">' +
+        (I.settings || "") + "</button>",
+      library: o.onLibrary ? '<button type="button" class="bar-btn" data-act="library" aria-label="All papers">' + (I.library || "") + "</button>" : ""
+    };
+    var always = theme.barShows !== "afterTitle";
+    var bar = '<header class="l2m-bar' + (always ? ' show" aria-hidden="false"' : '" aria-hidden="true"') + ' id="l2m-bar"><div class="bar-inner">' +
+      (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") + "</div></header>\n";
+    var menu = '<nav class="l2m-menu" id="l2m-menu" aria-label="Contents" aria-hidden="true"><div class="menu-inner">' +
+      '<p class="menu-head">Contents</p><ol></ol></div></nav>\n';
     var settings = '<div class="l2m-menu l2m-settings" id="l2m-settings" role="dialog" aria-label="Reading settings" aria-hidden="true">' +
-      '<div class="menu-inner">' + group("Font", "opt-list", fonts) + group("Text size", "seg", sizes) +
-      group("Appearance", "seg", looks) + group("Tone", "seg", tones) + "</div></div>\n";
+      '<div class="menu-inner">' + readingSettings(theme) + "</div></div>\n";
     var sheet = hasNotes ? '<div class="l2m-fnsheet" id="l2m-fnsheet" role="dialog" aria-label="Footnote" aria-hidden="true">' +
       '<div class="sheet-inner"><div class="sheet-head"><span class="sheet-title">Note <span class="sheet-num"></span></span>' +
       '<button type="button" class="bar-btn" data-act="fnclose" aria-label="Close note">' + (I.close || "") + "</button></div>" +

@@ -753,3 +753,16 @@ a.lib-title { color: var(--ink); }
 .l2m-action:disabled { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .app-toast, .app-pill, .app-field { transition-duration: 0.01s; } }
 .app-search + .l2m-library > li:first-child { border-top: 0; }
+/* the app's own bar and settings panel (the same parts as a paper's) */
+.app-bar .bar-inner { gap: 6px; }
+.app-bar .app-tabs { margin: 0; flex: 0 0 auto; }
+.app-bar .app-tabs .seg-btn { padding: 6px 16px; }
+.app-spacer { flex: 1 1 auto; }
+.app-settings .app-form, .app-settings .app-pad { padding: 0 10px; }
+.app-settings .app-form .seg { margin: 0 0 12px; }
+.app-settings .app-field { margin-bottom: 12px; font-size: 16px; }
+.app-settings .app-help { margin: 0 0 10px; }
+.app-settings .app-row { margin: 0 0 10px; }
+.app-day { font-size: 0.72em; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 1.8em 0 0.2em; }
+.app-small { font-size: 0.85em; }
+.lib-title mjx-container, .app-abs mjx-container { font-size: 100%; }
