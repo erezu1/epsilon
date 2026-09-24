@@ -317,6 +317,8 @@
   function setTab(name) {
     shell.querySelector("#app-plus").hidden = !(src && src.run);
     shell.querySelector("#app-search").hidden = name !== "library";
+    if (name !== "new") shell.querySelector("#app-bar").classList.remove("joined");
+    else { var dd = document.querySelector('[data-pane="app:new"] .app-day.stuck'); shell.querySelector("#app-bar").classList.toggle("joined", !!dd); }
     if (name !== "library" && shell.querySelector("#app-bar").classList.contains("searching")) searching(false);
     var tabs = shell.querySelector(".app-tabs");
     Array.prototype.forEach.call(tabs.querySelectorAll(".seg-btn"), function (b) {
@@ -741,6 +743,20 @@
       });
       p.parentNode.insertBefore(b, p.nextSibling);
     });
+    // a date pinned under the bar joins it: one glass block, the shadow under the date
+    var paneEl = box.parentNode;
+    function joinBar() {
+      if (!shell) return;
+      var barH = shell.querySelector("#app-bar").getBoundingClientRect().height, stuck = null;
+      Array.prototype.forEach.call(box.querySelectorAll(".app-day"), function (d) {
+        var on = paneEl.scrollTop > 0 && Math.abs(d.getBoundingClientRect().top - barH) < 1;
+        d.classList.toggle("stuck", on);
+        if (on) stuck = d;
+      });
+      shell.querySelector("#app-bar").classList.toggle("joined", !!stuck && current === "app:new");
+    }
+    if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(joinBar); }, {passive: true}); }
+    joinBar();
     var r = document.getElementById("feed-now");
     if (r) r.addEventListener("click", function () {
       src.run("feed.yml", {}).then(function () { toast("Fetching the new papers. Come back in a minute."); },

@@ -952,3 +952,7 @@ a.lib-title { color: var(--ink); }
 .app-pane-in { padding-top: calc(var(--l2m-bar-h, 64px) + 14px); }
 .app-pane .app-day { top: var(--l2m-bar-h, 64px); }
 .app-pane .app-day { background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5); }
+/* a pinned date and the bar are one block: no shadow or line between them */
+.app-bar.joined { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 160ms ease, border-color 160ms ease; }
+.app-pane .app-day { border-bottom-color: transparent; }
+.app-pane .app-day.stuck { border-bottom: 1px solid var(--bar-line); box-shadow: 0 10px 30px -20px var(--bar-shadow); }
