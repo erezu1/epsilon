@@ -1031,9 +1031,11 @@ a.lib-title { color: var(--ink); }
 .app-bar-day {
   display: block; box-sizing: border-box; max-width: 40rem; margin: 0 auto; height: 0; overflow: hidden; opacity: 0;
   font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-family: var(--ui);
-  transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, transform 120ms linear;
+  transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, transform 120ms linear;
 }
-.app-bar-day span { display: block; padding: 19px 10px 0; }
+.app-bar-day { padding: 0 10px; }
+.app-bar.joined .app-bar-day { padding-top: 19px; }          /* on the row itself: right with any version of the script */
+.app-bar-day span { display: inline; padding: 0; }
 .app-bar.joined { box-shadow: 0 10px 30px -20px var(--bar-shadow); border-bottom-color: var(--bar-line); }
 .app-pane .app-day.stuck { transition: visibility 0s linear 220ms; }
 @media (prefers-reduced-motion: reduce) { .app-bar-day { transition: none; } }
