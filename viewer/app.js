@@ -187,155 +187,194 @@
           }
         });
         store("pending", p);
-        if (changed && current === null) refresh();
+        if (changed && isPage(current)) refresh();
         if (!Object.keys(p).length) { clearInterval(watching); watching = null; }
       }).catch(function () {});
     }, 20000);
   }
 
   // ---------------------------------------------------------------- pages of the app
-  function head(active) {
-    var tabs = [["library", "Library", "./"], ["new", "New", "?v=new"]].map(function (t) {
-      return '<a class="app-tab" href="' + t[2] + '" data-go="' + t[0] + '"' + (active === t[0] ? ' aria-current="page"' : "") + ">" + t[1] + "</a>";
+  // Every page is drawn by the viewer, as a small document: the same reading bar, title block,
+  // contents panel (the app's pages, then this page's sections) and reading settings as a paper.
+  var PAGES = [["library", "Library", "./"], ["new", "New papers", "?v=new"], ["settings", "Settings", "?v=settings"]];
+  function page(name, o) {
+    var menu = PAGES.map(function (t) {
+      return '<li class="lvl1"><a href="' + t[2] + '" data-go="' + t[0] + '"' + (t[0] === name ? ' class="here" aria-current="page"' : "") +
+        '><span class="tocnum"></span><span>' + t[1] + "</span></a></li>";
     }).join("");
-    var I = (theme && theme.icons) || {};
-    return '<header class="app-head"><nav class="app-tabs" aria-label="Sections">' + tabs + "</nav>" +
-      '<a class="bar-btn app-gear" href="?v=settings" data-go="settings" aria-label="Settings"' +
-      (active === "settings" ? ' aria-current="page"' : "") + ">" + (I.settings || "Settings") + "</a></header>";
+    var body = '<header class="titleblock">' + (o.kicker ? '<p class="kicker">' + o.kicker + "</p>" : "") + "<h1>" + esc(o.title) + "</h1>" +
+      (o.meta ? '<div class="titlemeta"><p class="date">' + o.meta + "</p></div>" : "") + "</header>\n" + o.body;
+    var doc = {format: "l2m-doc", version: 1, title: o.title, lang: "en", body: body, footnotes: [], math: {items: []},
+               headings: (o.sections || []).map(function (h) { return {level: 2, number: "", html: esc(h[1]), id: h[0]}; })};
+    view = L2M_open({doc: doc, theme: theme, key: "app:" + name, menuItems: menu, menuHead: "Go to",
+                     onLibrary: name === "library" ? null : function () { go("library"); }, libraryHref: "./"});
+    if (o.after) o.after();
   }
+  function pill(label, attrs) { return '<button type="button" class="app-pill" ' + (attrs || "") + ">" + label + "</button>"; }
 
   function showLibrary() {
-    document.title = (lib && lib.name) || "Papers";
-    var papers = (lib && lib.papers) || [];
-    var p = pending(), off = offlineSet();
-    var waiting = Object.keys(p).filter(function (k) { return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; }); });
+    var papers = (lib && lib.papers) || [], p = pending(), off = offlineSet();
+    var waiting = Object.keys(p).filter(function (k) {
+      return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
+    });
     var items = papers.map(function (x) {
       var k = keyOf(x), meta = [];
-      if (x.arxiv) meta.push("arXiv:" + esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : ""));
+      if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : ""));
       else if (x.kind === "draft") meta.push("Draft");
-      if (off[k]) meta.push('<span class="app-badge">Saved</span>');
-      if (x.status === "failed") meta.push('<span class="app-badge app-bad">Conversion failed</span>');
+      if (off[k]) meta.push("saved on this device");
+      if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
       return '<li data-hay="' + esc(hay) + '"><a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '"><span class="lib-title">' +
-        esc(x.title || k) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + '</span><span class="lib-meta">' + meta.join(" ") + "</span></a></li>";
+        esc(x.title || k) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + '</span><span class="lib-meta">' +
+        meta.join(" &middot; ") + "</span></a></li>";
     }).join("");
-    main.innerHTML = head("library") +
-      (waiting.length ? '<p class="app-note">Converting ' + waiting.map(function (k) { return esc(p[k].id); }).join(", ") + "&hellip;</p>" : "") +
-      (papers.length ? '<input class="app-input" id="lib-q" type="search" placeholder="Search your papers" aria-label="Search your papers" autocomplete="off">' +
-        '<ol class="l2m-library" id="lib-list">' + items + "</ol>" :
-        '<p class="app-note">No papers yet. ' + (src.run ? 'Add one from <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
-    var q = document.getElementById("lib-q");
-    if (q) q.addEventListener("input", function () {
-      var s = q.value.trim().toLowerCase();
-      Array.prototype.forEach.call(document.querySelectorAll("#lib-list li"), function (li) {
-        li.hidden = !!s && li.getAttribute("data-hay").indexOf(s) < 0;
-      });
+    var n = papers.length, saved = Object.keys(off).length;
+    page("library", {
+      kicker: esc((lib && lib.name) || "Papers"), title: "Library",
+      meta: n + " paper" + (n === 1 ? "" : "s") + (saved ? " &middot; " + saved + " saved on this device" : ""),
+      body: (waiting.length ? '<p class="app-note">Converting ' + waiting.map(function (k) { return esc(p[k].id); }).join(", ") + "&hellip;</p>" : "") +
+        (n ? '<input class="app-field app-search" id="lib-q" type="search" placeholder="Search by title, author or arXiv id" aria-label="Search your papers" autocomplete="off">' +
+             '<ol class="l2m-library" id="lib-list">' + items + "</ol>" :
+             '<p class="app-note">No papers yet.' + (src.run ? ' Add some from <a href="?v=new" data-go="new">New papers</a>.' : "") + "</p>"),
+      after: function () {
+        var q = document.getElementById("lib-q");
+        if (q) q.addEventListener("input", function () {
+          var s = q.value.trim().toLowerCase();
+          Array.prototype.forEach.call(document.querySelectorAll("#lib-list li"), function (li) {
+            li.hidden = !!s && li.getAttribute("data-hay").indexOf(s) < 0;
+          });
+        });
+      }
     });
   }
 
   function showNew() {
-    document.title = "New papers";
-    var have = {};
+    var have = {}, p = pending();
     ((lib && lib.papers) || []).forEach(function (x) { if (x.arxiv) have[arxivKey(x.arxiv.id)] = x; });
-    var p = pending();
-    var add = '<form class="app-add" id="app-add"><input class="app-input" id="add-id" placeholder="arXiv id or link, e.g. 2609.28331" ' +
-      'aria-label="arXiv id or link" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="app-btn" type="submit">Convert</button></form>';
-    var body = "";
-    if (!feed || !(feed.items || []).length) {
-      body = '<p class="app-note">' + (feed ? "No new papers in the last days." : "The feed has not been made yet.") + "</p>";
-    } else {
-      var byDay = {};
-      feed.items.forEach(function (i) { (byDay[i.announced] = byDay[i.announced] || []).push(i); });
-      body = Object.keys(byDay).sort().reverse().map(function (d) {
-        return '<h2 class="app-day">' + esc(day(d)) + "</h2><ol class=\"app-feed\">" + byDay[d].map(function (i) {
-          var k = arxivKey(i.id), got = have[k], btn;
-          if (got && got.status === "ok") btn = '<a class="app-btn" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">Open</a>';
-          else if (p[k]) btn = '<span class="app-btn app-busy">Converting&hellip;</span>';
-          else if (src.run) btn = '<button class="app-btn" type="button" data-convert="' + esc(i.id) + '">Convert</button>';
-          else btn = '<a class="app-btn" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener">arXiv</a>';
-          return '<li class="app-paper"><div class="app-paper-text"><span class="lib-title">' + esc(i.title) + '</span><span class="lib-authors">' +
-            esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) + (i.type === "cross" ? " &middot; cross-list from " + esc(i.category) : " &middot; " + esc(i.category)) +
-            '</span><details class="app-abs"><summary>Abstract</summary><p>' + esc(i.abstract) + "</p></details></div>" + btn + "</li>";
-        }).join("") + "</ol>";
-      }).join("");
-    }
-    main.innerHTML = head("new") + (src.run ? add : "") +
-      '<p class="app-note">' + esc(((feed && feed.categories) || (config && config.categories) || ["hep-th"]).join(", ")) +
-      (feed && feed.crossLists ? ", with cross-lists" : "") + (feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString()) : "") +
-      (src.run ? ' &middot; <button class="app-link" type="button" id="feed-now">Refresh now</button>' : "") + "</p>" + body;
-    var f = document.getElementById("app-add");
-    if (f) f.addEventListener("submit", function (e) { e.preventDefault(); convert(document.getElementById("add-id").value.split(/[\s,]+/)); });
-    var r = document.getElementById("feed-now");
-    if (r) r.addEventListener("click", function () {
-      src.run("feed.yml", {}).then(function () { toast("Fetching the new papers; reload in a minute."); },
-                                   function (e) { toast("Could not start it: " + esc(e.message)); });
+    var cats = ((feed && feed.categories) || (config && config.categories) || ["hep-th"]);
+    var byDay = {}, sections = [];
+    ((feed && feed.items) || []).forEach(function (i) { (byDay[i.announced] = byDay[i.announced] || []).push(i); });
+    var days = Object.keys(byDay).sort().reverse().map(function (d) {
+      var id = "day-" + d, label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
+      sections.push([id, label]);
+      return '<h2 id="' + id + '">' + esc(label) + '</h2><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
+        var k = arxivKey(i.id), got = have[k] && have[k].status === "ok", act;
+        if (got) act = '<a class="app-pill" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">Open</a>';
+        else if (p[k]) act = '<span class="app-pill app-busy">Converting&hellip;</span>';
+        else if (src.run) act = pill("Convert", 'data-convert="' + esc(i.id) + '"');
+        else act = '<a class="app-pill" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener">arXiv</a>';
+        var title = got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + esc(i.title) + "</a>" :
+          '<span class="lib-title">' + esc(i.title) + "</span>";
+        return '<li class="app-paper"><div class="app-paper-text">' + title + '<span class="lib-authors">' + esc(authorsLine(i.authors)) +
+          '</span><span class="lib-meta">' + esc(i.id) + (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) +
+          '</span><details class="app-abs"><summary>Abstract</summary><p>' + esc(i.abstract) + "</p></details></div>" +
+          '<div class="app-paper-act">' + act + "</div></li>";
+      }).join("") + "</ol>";
+    }).join("");
+    var meta = feed && feed.updated ? "Updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "Not fetched yet";
+    if (feed && feed.crossLists) meta += " &middot; with cross-lists";
+    if (src.run) meta += ' &middot; <button type="button" class="app-link" id="feed-now">Refresh now</button>';
+    page("new", {
+      kicker: "arXiv &middot; " + esc(cats.join(", ")), title: "New papers", meta: meta, sections: sections,
+      body: (src.run ? '<form class="app-add" id="app-add"><input class="app-field" id="add-id" placeholder="Convert any paper: arXiv id or link" ' +
+                       'aria-label="arXiv id or link" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+                       '<button type="submit" class="app-pill">Convert</button></form>' : "") +
+        (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The list of new papers has not been made yet.") + "</p>"),
+      after: function () {
+        var f = document.getElementById("app-add");
+        if (f) f.addEventListener("submit", function (e) { e.preventDefault(); convert(document.getElementById("add-id").value.split(/[\s,]+/)); });
+        var r = document.getElementById("feed-now");
+        if (r) r.addEventListener("click", function () {
+          src.run("feed.yml", {}).then(function () { toast("Fetching the new papers. Come back in a minute."); },
+                                       function (e) { toast("Could not start it: " + esc(e.message)); });
+        });
+      }
     });
   }
 
   function showSettings() {
-    document.title = "Settings";
     var off = offlineSet(), n = Object.keys(off).length, mb = 0;
     Object.keys(off).forEach(function (k) { mb += off[k].bytes || 0; });
     var cfg = config || {categories: ["hep-th"], crossLists: false};
-    main.innerHTML = head("settings") +
-      '<section class="app-section"><h2 class="app-h">Library</h2>' +
-      '<p class="app-note">' + (src && src.kind === "github" ? "Reading " + esc(src.repo) + " on GitHub." : src && src.kind === "site" ? "Reading the papers of this site." : "Not connected.") + "</p>" +
-      '<form id="gh-form" class="app-form"><label for="gh-repo">GitHub repo</label><input class="app-input" id="gh-repo" autocomplete="off" autocapitalize="off" spellcheck="false" value="' +
-      esc(store("repo") || "erezu1/l2m-library") + '"><label for="gh-token">Access token</label><input class="app-input" id="gh-token" type="password" autocomplete="off" placeholder="' +
-      (store("token") ? "saved on this device" : "github_pat_...") + '"><p class="app-help">A fine-grained token for this one repo, with <em>Contents: read and write</em> and <em>Actions: read and write</em>. It is kept on this device only.</p>' +
-      '<div class="app-row"><button class="app-btn" type="submit">Save and connect</button>' + (store("token") ? '<button class="app-link" type="button" id="gh-forget">Forget the token</button>' : "") + "</div></form></section>" +
-      (src && src.writeJSON ? '<section class="app-section"><h2 class="app-h">New papers</h2><form id="feed-form" class="app-form">' +
-        '<label for="feed-cats">arXiv categories</label><input class="app-input" id="feed-cats" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(cfg.categories.join(", ")) + '">' +
-        '<label class="app-check"><input type="checkbox" id="feed-cross"' + (cfg.crossLists ? " checked" : "") + '> Include cross-lists</label>' +
-        '<p class="app-help">The feed is refreshed every weekday after arXiv\'s announcement.</p><div class="app-row"><button class="app-btn" type="submit">Save</button></div></form></section>' : "") +
-      '<section class="app-section"><h2 class="app-h">On this device</h2><p class="app-note">' + (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." : "No papers saved for offline reading. Open a paper and tap <em>Keep offline</em>.") + "</p>" +
-      (n ? '<div class="app-row"><button class="app-link" type="button" id="off-clear">Remove all offline copies</button></div>' : "") + "</section>";
-
-    document.getElementById("gh-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      var repo = document.getElementById("gh-repo").value.trim(), tok = document.getElementById("gh-token").value.trim() || store("token");
-      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("The repo is owner/name, e.g. erezu1/l2m-library."); return; }
-      if (!tok) { toast("Paste the access token first."); return; }
-      var s = githubSource(repo, tok);
-      s.json("library.json").catch(function (err) { if (/not found/.test(err.message)) return {papers: []}; throw err; }).then(function () {
-        store("repo", repo); store("token", tok);
-        src = s;
-        toast("Connected to " + esc(repo) + ".");
-        load().then(function () { go("library"); });
-      }, function (err) { toast("Could not connect: " + esc(err.message), 7000); });
-    });
-    var fg = document.getElementById("gh-forget");
-    if (fg) fg.addEventListener("click", function () { store("token", null); toast("The token is removed from this device."); src = null; showSettings(); });
-    var ff = document.getElementById("feed-form");
-    if (ff) ff.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var cats = document.getElementById("feed-cats").value.split(/[\s,]+/).filter(Boolean);
-      if (!cats.length || cats.some(function (c) { return !/^[a-z-]+(\.[A-Za-z-]+)?$/.test(c); })) { toast("Categories look like hep-th, math-ph, cond-mat.str-el."); return; }
-      var next = {categories: cats, crossLists: document.getElementById("feed-cross").checked};
-      src.writeJSON("config.json", next, "Feed: " + cats.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
-        config = next;
-        return src.run("feed.yml", {});
-      }).then(function () { toast("Saved. The feed is being refreshed; it takes a minute."); },
-              function (err) { toast("Could not save: " + esc(err.message), 7000); });
-    });
-    var oc = document.getElementById("off-clear");
-    if (oc) oc.addEventListener("click", function () {
-      (window.caches ? caches.delete(OFFLINE_CACHE) : Promise.resolve()).then(function () { store("offline", {}); showSettings(); });
-    });
+    var connected = src && src.kind === "github" ? "Reading " + esc(src.repo) + " on GitHub." : src && src.kind === "site" ? "Reading the papers of this site." : "Not connected yet.";
+    var sections = [["set-library", "Library"]];
+    var body = '<h2 id="set-library">Library</h2><p class="app-note">' + connected + "</p>" +
+      '<form id="gh-form" class="app-form"><label class="app-label" for="gh-repo">GitHub repo</label>' +
+      '<input class="app-field" id="gh-repo" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(store("repo") || "erezu1/l2m-library") + '">' +
+      '<label class="app-label" for="gh-token">Access token</label><input class="app-field" id="gh-token" type="password" autocomplete="off" placeholder="' +
+      (store("token") ? "saved on this device" : "github_pat_&hellip;") + '"><p class="app-help">A fine-grained token for this repo only, with ' +
+      "<em>Contents</em> and <em>Actions</em> set to read and write. It stays on this device.</p>" +
+      '<p class="app-row"><button type="submit" class="app-pill">Save and connect</button>' +
+      (store("token") ? '<button type="button" class="app-link" id="gh-forget">Forget the token</button>' : "") + "</p></form>";
+    if (src && src.writeJSON) {
+      sections.push(["set-new", "New papers"]);
+      body += '<h2 id="set-new">New papers</h2><form id="feed-form" class="app-form"><label class="app-label" for="feed-cats">arXiv categories</label>' +
+        '<input class="app-field" id="feed-cats" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(cfg.categories.join(", ")) + '">' +
+        '<p class="app-label">Cross-lists</p><div class="seg app-seg" role="radiogroup" aria-label="Cross-lists">' +
+        ['<button type="button" class="seg-btn" role="radio" data-cross="0" aria-checked="' + (!cfg.crossLists) + '"><span>Primary only</span></button>',
+         '<button type="button" class="seg-btn" role="radio" data-cross="1" aria-checked="' + (!!cfg.crossLists) + '"><span>Include cross-lists</span></button>'].join("") +
+        '</div><p class="app-help">The list is refreshed every weekday after arXiv&rsquo;s announcement.</p>' +
+        '<p class="app-row"><button type="submit" class="app-pill">Save</button></p></form>';
+    }
+    sections.push(["set-device", "On this device"], ["set-reading", "Reading"]);
+    body += '<h2 id="set-device">On this device</h2><p class="app-note">' +
+      (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
+           "No papers saved for offline reading. Open a paper and tap <em>Keep offline</em>.") + "</p>" +
+      (n ? '<p class="app-row">' + pill("Remove all offline copies", 'id="off-clear"') + "</p>" : "") +
+      '<h2 id="set-reading">Reading</h2><p class="app-note">Font, text size, appearance and tone are in the settings menu at the top of every page.</p>' +
+      '<p class="app-row">' + pill("Reading settings", 'data-act="settings" aria-controls="l2m-settings"') + "</p>";
+    page("settings", {kicker: "Papers", title: "Settings", sections: sections, body: body, after: function () {
+      document.getElementById("gh-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var repo = document.getElementById("gh-repo").value.trim(), tok = document.getElementById("gh-token").value.trim() || store("token");
+        if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("The repo is owner/name, for example erezu1/l2m-library."); return; }
+        if (!tok) { toast("Paste the access token first."); return; }
+        var s = githubSource(repo, tok);
+        s.json("library.json").catch(function (err) { if (/not found/.test(err.message)) return {papers: []}; throw err; }).then(function () {
+          store("repo", repo); store("token", tok);
+          src = s;
+          toast("Connected to " + esc(repo) + ".");
+          load().then(function () { go("library"); });
+        }, function (err) { toast("Could not connect: " + esc(err.message), 7000); });
+      });
+      var fg = document.getElementById("gh-forget");
+      if (fg) fg.addEventListener("click", function () { store("token", null); src = null; toast("The token is removed from this device."); show("app:settings"); });
+      Array.prototype.forEach.call(document.querySelectorAll(".app-seg .seg-btn"), function (b, k, all) {
+        b.addEventListener("click", function () {
+          Array.prototype.forEach.call(all, function (x) { x.setAttribute("aria-checked", x === b ? "true" : "false"); });
+        });
+      });
+      var ff = document.getElementById("feed-form");
+      if (ff) ff.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var cats = document.getElementById("feed-cats").value.split(/[\s,]+/).filter(Boolean);
+        if (!cats.length || cats.some(function (c) { return !/^[a-z-]+(\.[A-Za-z-]+)?$/.test(c); })) { toast("Categories look like hep-th, math-ph or cond-mat.str-el."); return; }
+        var next = {categories: cats, crossLists: !!document.querySelector('.app-seg [data-cross="1"][aria-checked="true"]')};
+        src.writeJSON("config.json", next, "Feed: " + cats.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
+          config = next;
+          return src.run("feed.yml", {});
+        }).then(function () { toast("Saved. The list of new papers is being refreshed; it takes a minute."); },
+                function (err) { toast("Could not save: " + esc(err.message), 7000); });
+      });
+      var oc = document.getElementById("off-clear");
+      if (oc) oc.addEventListener("click", function () {
+        (window.caches ? caches.delete(OFFLINE_CACHE) : Promise.resolve()).then(function () { store("offline", {}); show("app:settings"); });
+      });
+    }});
   }
 
   function showConnect() {
-    document.title = "Papers";
-    main.innerHTML = head("library") + '<p class="app-note">This app reads your papers from the private GitHub repo made for them. ' +
-      'Open <a href="?v=settings" data-go="settings">Settings</a> and paste an access token for it.</p>';
+    page("library", {kicker: "Papers", title: "Library", body: '<p class="app-note">Your papers are kept in a private GitHub repo. ' +
+      'To read them here, open <a href="?v=settings" data-go="settings">Settings</a> and paste an access token for it.</p>'});
   }
 
   function showPaper(key) {
     var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === key; })[0] || {key: key, path: "papers/" + key};
     if (entry.status === "failed") {
-      main.innerHTML = head("library") + '<section class="app-section"><h2 class="app-h">' + esc(entry.title || key) + "</h2>" +
-        '<p class="app-note">This paper could not be converted.</p><pre class="app-log">' + esc(entry.error || "") + "</pre>" +
-        (entry.arxiv ? '<p><a class="app-btn" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "") + "</section>";
+      page("failed", {kicker: entry.arxiv ? "arXiv:" + esc(entry.arxiv.id) : "Draft", title: entry.title || key,
+        meta: "This paper could not be converted.",
+        body: '<pre class="app-log">' + esc(entry.error || "") + "</pre>" +
+          (entry.arxiv ? '<p class="app-row"><a class="app-pill" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "")});
       return;
     }
     main.innerHTML = '<p class="app-note">Loading&hellip;</p>';
@@ -367,43 +406,48 @@
           mathjax: lib && lib.mathjax, onLibrary: function () { go("library"); }, libraryHref: "./", actions: actions});
       });
     }).catch(function (e) {
-      main.innerHTML = head("library") + '<p class="app-note">Cannot open this paper: ' + esc(e.message) + "</p>";
+      page("failed", {kicker: "Papers", title: "Cannot open this paper", body: '<p class="app-note">' + esc(e.message) + "</p>"});
     });
   }
 
   // ---------------------------------------------------------------- moving around
+  // A history entry names what it shows: a paper's key, or "app:<page>" for the app's own pages.
+  function isPage(k) { return !k || String(k).indexOf("app:") === 0; }
   function wanted() {
     var q = new URLSearchParams(location.search);
     var p = q.get("p") || (q.get("doc") || "").replace(/^papers\//, "").replace(/\/(paper\.json)?$/, "");
-    if (p) return {paper: p};
-    var st = history.state || {};
-    if (st.l2mPaper) return {paper: st.l2mPaper};         // an artifact's address cannot carry ?p
-    return {page: q.get("v") || st.l2mPage || "library"};
+    if (p) return p;
+    if (q.get("v")) return "app:" + q.get("v");
+    return (history.state || {}).l2mPaper || "app:library";     // an artifact's address cannot carry ?p
   }
-  function show(w) {
-    if (view) { view.close(); view = null; }
+  function close(save) {
+    if (view) { view.close(save); view = null; }
     urls.forEach(function (u) { URL.revokeObjectURL(u); });
     urls = [];
-    current = w.paper || null;
-    if (w.paper) {
-      if (!/^[\w.~-]+$/.test(w.paper)) { main.innerHTML = head("library") + '<p class="app-note">That is not a paper in this library.</p>'; return; }
+  }
+  function show(k, save) {
+    close(save);
+    current = k;
+    window.scrollTo(0, 0);                // the viewer puts a page back where it was left
+    if (!isPage(k)) {
+      if (!/^[\w.~-]+$/.test(k)) { page("failed", {kicker: "Papers", title: "Not a paper here", body: ""}); return; }
       if (!src) { showConnect(); return; }
-      showPaper(w.paper);
+      showPaper(k);
       return;
     }
-    window.scrollTo(0, (history.state || {}).l2mY || 0);
-    if (w.page === "settings") showSettings();
+    var name = k.slice(4);
+    if (name === "settings") showSettings();
     else if (!src) showConnect();
-    else if (w.page === "new") showNew();
+    else if (name === "new") showNew();
     else showLibrary();
   }
-  function refresh() { if (current === null) show(wanted()); }
-  function go(page, key) {
-    try { history.replaceState(Object.assign({}, history.state || {}, {l2mY: window.pageYOffset}), ""); } catch (e) {}
-    var url = key ? "?p=" + encodeURIComponent(key) : page === "library" ? location.pathname : "?v=" + page;
-    try { history.pushState(key ? {l2mPaper: key} : {l2mPage: page}, "", url); } catch (e) {}
-    window.scrollTo(0, 0);
-    show(key ? {paper: key} : {page: page});
+  function refresh() { if (isPage(current)) show(current); }
+  function go(pageName, key) {
+    close();                              // saves the reading place in the entry being left
+    var k = key || "app:" + pageName;
+    var url = key ? "?p=" + encodeURIComponent(key) : pageName === "library" ? location.pathname : "?v=" + pageName;
+    try { history.pushState({l2mPaper: k}, "", url); } catch (e) {}
+    show(k);
   }
   document.addEventListener("click", function (e) {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -415,10 +459,9 @@
     else go(a.getAttribute("data-go"));
   });
   window.addEventListener("popstate", function (e) {
-    var st = e.state || {};
-    var w = st.l2mPaper ? {paper: st.l2mPaper} : st.l2mPage ? {page: st.l2mPage} : wanted();
-    if (w.paper && w.paper === current) return;       // a step inside the open paper: nav.js handles it
-    show(w);
+    var k = (e.state && e.state.l2mPaper) || wanted();
+    if (k === current) return;            // a step inside the open page: nav.js handles it
+    show(k, false);                       // the entry has already changed: nothing to save into it
   });
 
   // ---------------------------------------------------------------- start
@@ -442,7 +485,9 @@
     else if (store("repo") && store("token")) src = githubSource(store("repo"), store("token"));
     return load();
   }).then(function () {
-    show(wanted());
+    var k = wanted();
+    try { history.replaceState(Object.assign({}, history.state || {}, {l2mPaper: k}), ""); } catch (e) {}
+    show(k);
     watch();
   }).catch(function (e) {
     main.innerHTML = '<p class="app-note">Cannot start: ' + esc(e.message || e) + "</p>";

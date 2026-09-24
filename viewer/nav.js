@@ -620,9 +620,9 @@ window.L2M_nav = function (opts) {
   update();
 
   return {
-    destroy: function () {
+    destroy: function (save) {
       if (dead) return;
-      saveHere();
+      if (save !== false) saveHere();
       dead = true;
       closeViewer();
       closeSheet();

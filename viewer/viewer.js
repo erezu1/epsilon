@@ -7,7 +7,8 @@
 //   var view = L2M_open({doc, theme, cache, base, key, onLibrary, libraryHref, kicker, mathjax,
 //                        image, actions});
 //     image(name) -> Promise of a URL, for figures that need fetching (a private library);
-//     actions: [{label, href} or {label, onClick(button), pressed}] shown by the title.
+//     actions: [{label, href} or {label, onClick(button), pressed}] shown by the title;
+//     menuItems, menuHead: a host's own entries at the top of the contents panel (HTML <li>s).
 //   view.ready.then(...);   // formulas and images are in
 //   view.close();            // back to an empty <main>, ready for the next paper
 (function () {
@@ -171,7 +172,13 @@
     });
     if (document.getElementById("notes-h")) items.push('<li class="lvl1"><a href="#notes-h"><span class="tocnum"></span><span>Notes</span></a></li>');
     if (document.getElementById("refs-h")) items.push('<li class="lvl1"><a href="#refs-h"><span class="tocnum"></span><span>References</span></a></li>');
-    holder.querySelector("#l2m-menu ol").innerHTML = fill(items.join(""));
+    if (o.menuItems) {
+      // a host's own entries (the app's pages) above the sections of this page
+      holder.querySelector("#l2m-menu .menu-inner").innerHTML = '<p class="menu-head">' + esc(o.menuHead || "Go to") + "</p><ol>" +
+        o.menuItems + "</ol>" + (items.length ? '<p class="menu-head">On this page</p><ol>' + fill(items.join("")) + "</ol>" : "");
+    } else {
+      holder.querySelector("#l2m-menu ol").innerHTML = fill(items.join(""));
+    }
 
     if (/[\u1f00-\u1fff]/.test(doc.body) && theme.greekFont && !document.getElementById("l2m-font-greek")) {
       var l = document.createElement("link");
@@ -192,10 +199,10 @@
 
     var view = {
       ready: ready,
-      close: function () {
+      close: function (save) {           // save === false: the history entry has already moved on
         if (closed) return;
         closed = true;
-        if (nav) nav.destroy();
+        if (nav) nav.destroy(save);
         added.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
         root.classList.remove("l2m-bar-always");
         main.innerHTML = "";
