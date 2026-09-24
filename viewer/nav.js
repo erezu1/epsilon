@@ -171,7 +171,7 @@ window.L2M_nav = function (opts) {
     bar.classList.remove("menu-open");
     root.classList.remove("l2m-settings-open");
     titleBtn.setAttribute("aria-expanded", "false");
-    backBtn.setAttribute("aria-label", "Back to where you were");
+    backBtn.setAttribute("aria-label", opts.onLibrary ? "Library" : "Back to where you were");
     update();
   }
   function toggle(name) {
@@ -541,7 +541,11 @@ window.L2M_nav = function (opts) {
     if (e.key === "Escape") { closeViewer(); closeMenu(); closeSheet(); }
   });
   backBtn.addEventListener("click", function () {
-    if (panel) closeMenu(); else goBack();
+    if (panel) { closeMenu(); return; }
+    // the bar's back button always leads to the library, past any jumps inside the paper
+    // (the phone's own back button still steps back through them)
+    if (opts.onLibrary) { saveHere(); opts.onLibrary(useHistory ? idx : 0); return; }
+    goBack();
   });
   topBtn.addEventListener("click", function () { closeMenu("jump"); navigate("l2m-top"); });
   Array.prototype.forEach.call(document.querySelectorAll('[data-act="library"]'), function (b) {

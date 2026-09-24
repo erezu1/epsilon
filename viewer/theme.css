@@ -1053,3 +1053,6 @@ a.lib-title { color: var(--ink); }
 .app-pending .lib-title { color: var(--muted); }
 .app-pending .app-progress { width: 100%; margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) { .app-spin { animation-duration: 2.4s; } }
+
+/* once the date is in the bar, it follows the scroll exactly (no easing behind the finger) */
+.app-bar.joined.settled .app-bar-day { transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }

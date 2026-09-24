@@ -110,6 +110,16 @@
         return call("/actions/workflows/" + workflow + "/dispatches", {method: "POST",
           headers: {"Content-Type": "application/json"}, body: JSON.stringify({ref: "main", inputs: inputs || {}})});
       },
+      readWithSha: function (path) {
+        return call("/contents/" + path).then(function (r) { return r.json(); }).then(function (j) {
+          return {data: JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\s/g, ""))))), sha: j.sha};
+        });
+      },
+      putJSON: function (path, data, sha, message, keepalive) {
+        return call("/contents/" + path, {method: "PUT", keepalive: !!keepalive, headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({message: message, content: b64(JSON.stringify(data) + "\n"), sha: sha || undefined})})
+          .then(function (r) { return r.json(); }).then(function (j) { return j.content && j.content.sha; });
+      },
       writeJSON: function (path, data, message) {
         var url = "/contents/" + path;
         return call(url).then(function (r) { return r.json(); }, function () { return {}; }).then(function (old) {
@@ -171,6 +181,77 @@
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     });
   }
+
+  // ---------------------------------------------------------------- where each paper was left, on all devices
+  // A place is kept as "this far into this block": the paragraph, equation or figure at the top of the
+  // screen (counted from the start), and how far into it. The same place on any width and font.
+  // Kept on the device, and in reading.json in the library repo for the other devices.
+  var reading = store("reading") || {}, readingSha = null, readingDirty = false, readingTimer = null;
+  function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
+  function anchors() {                     // the paper's blocks, in order: the same on every device
+    return Array.prototype.filter.call(main.querySelectorAll("p, li, h1, h2, h3, h4, h5, figure, table, [id]"), function (e) {
+      return e.offsetParent !== null && !e.closest(".l2m-chrome, .l2m-bar, .l2m-panel") && e.id !== "l2m-top" && e.offsetHeight > 0;
+    });
+  }
+  function span(list, k) {                  // from a block's top to the next one's (or its own bottom)
+    var r = list[k].getBoundingClientRect(), n = list[k + 1] ? list[k + 1].getBoundingClientRect().top : r.bottom;
+    return Math.max(n, r.top + 1) - r.top;
+  }
+  function capturePlace() {
+    var top = barBottom() + 4, list = anchors(), k = -1;
+    if (window.pageYOffset < 40 || !list.length) return {n: -1, frac: 0};
+    for (var i = 0; i < list.length; i++) { if (list[i].getBoundingClientRect().top <= top) k = i; else break; }
+    if (k < 0) return {n: -1, frac: 0};
+    var a = list[k].getBoundingClientRect().top, h = span(list, k);
+    return {n: k, of: list.length, anchor: list[k].id || null, frac: h > 0 ? Math.max(0, Math.min(1, (top - a) / h)) : 0};
+  }
+  function restorePlace(p) {
+    if (!p || !(p.n >= 0 || p.anchor)) return;
+    var list = anchors(), k = p.n;
+    if (p.of !== list.length || !list[k]) k = p.anchor ? list.map(function (e) { return e.id; }).indexOf(p.anchor) : -1;
+    if (k < 0) return;
+    window.scrollTo(0, window.pageYOffset + list[k].getBoundingClientRect().top + span(list, k) * (p.frac || 0) - barBottom() - 4);
+  }
+  function savePlace(key, leaving) {
+    if (!key || isPage(key) || !view) return;
+    var p = capturePlace();
+    p.at = Date.now();
+    reading[key] = p;
+    store("reading", reading);
+    readingDirty = true;
+    clearTimeout(readingTimer);
+    if (leaving) pushReading(true); else readingTimer = setTimeout(pushReading, 4000);
+  }
+  function mergeReading(remote) {
+    Object.keys(remote || {}).forEach(function (k) {
+      if (!reading[k] || (remote[k].at || 0) > (reading[k].at || 0)) reading[k] = remote[k];
+    });
+    store("reading", reading);
+    var opened = store("opened") || {};                 // the library's reading order follows too
+    Object.keys(reading).forEach(function (k) { opened[k] = Math.max(opened[k] || 0, reading[k].at || 0); });
+    store("opened", opened);
+  }
+  function pullReading() {
+    if (!src || !src.readWithSha) return Promise.resolve();
+    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); },
+                                                function () {});
+  }
+  function pushReading(keepalive) {
+    if (!readingDirty || !src || !src.putJSON) return;
+    readingDirty = false;
+    src.putJSON("reading.json", {papers: reading}, readingSha, "Reading places", keepalive).then(function (sha) {
+      readingSha = sha || readingSha;
+    }, function () {
+      // someone else (another device) wrote it meanwhile: take theirs in, then write ours again
+      readingDirty = true;
+      if (document.visibilityState !== "hidden") pullReading().then(function () { pushReading(false); });
+    });
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") savePlace(current, true);
+    else pullReading().then(function () { if (isPage(current)) refresh(); });
+  });
+  window.addEventListener("pagehide", function () { savePlace(current, true); });
 
   // ---------------------------------------------------------------- conversions started here
   function pending() { return store("pending") || {}; }
@@ -640,8 +721,41 @@
     }
     place(k, animate && had);
   }
+  // where each paper sat in the library list, so a new order can slide into place (not jump)
+  var libTops = null;
+  function measureLibrary() {
+    var box = main.querySelector('[data-pane="app:library"] .app-pane-in'), m = {}, n = 0;
+    Array.prototype.forEach.call(box ? box.querySelectorAll("li[data-k]") : [], function (li) { m[li.getAttribute("data-k")] = li.offsetTop; n++; });
+    return n ? m : null;
+  }
+  function slideLibrary(box, before) {
+    if (!before || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    var moved = [];
+    Array.prototype.forEach.call(box.querySelectorAll("li[data-k]"), function (li) {
+      var was = before[li.getAttribute("data-k")];
+      if (was === undefined || Math.abs(was - li.offsetTop) < 1) return;
+      li.style.transition = "none";
+      li.style.transform = "translateY(" + (was - li.offsetTop) + "px)";
+      li.style.position = "relative";
+      li.style.zIndex = was > li.offsetTop ? "1" : "";     // the one rising passes over the others
+      moved.push(li);
+    });
+    if (!moved.length) return;
+    void box.offsetWidth;
+    // coming back from a paper: wait for the page to have slid in, then let the order move
+    var wait = root.classList.contains("l2m-in-back") ? 380 : 30;
+    setTimeout(function () {
+      moved.forEach(function (li) {
+        li.style.transition = "transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+        li.style.transform = "";
+      });
+      setTimeout(function () { moved.forEach(function (li) { li.style.transition = li.style.position = li.style.zIndex = ""; }); }, 560);
+    }, wait);
+  }
   function renderLibrary() {
     var box = pane("app:library");
+    var before = measureLibrary() || libTops;
+    libTops = null;
     feedMath();
     var rm = removing(), I = theme.icons || {};
     var read = store("opened") || {};
@@ -660,7 +774,7 @@
       else if (x.kind === "draft") meta.push("your draft");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
-      return '<li data-hay="' + esc(hay) + '"><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
+      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
         (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
@@ -682,6 +796,7 @@
     }).join("");
     box.innerHTML = (papers.length || converting ? '<ol class="l2m-library" id="lib-list">' + converting + items + "</ol>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
+    slideLibrary(box, before);
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
       b.addEventListener("click", function () {
         var c = b.closest("li").querySelector(".app-confirm");
@@ -799,20 +914,27 @@
         if (passed) cur = k;
       });
       var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === "app:new";
+      pinned.apply = joinBar;
+      pinned.day = cur >= 0 ? {h: days[cur].offsetHeight, text: days[cur].textContent} : null;
+      if (sw && sw.dir === "x") return;         // a swipe between the tabs draws it meanwhile
       bar.classList.toggle("joined", on);
       if (on) {
         var d = days[cur], h = d.offsetHeight;
         row.style.height = h + "px";              // the bar grows down to take the date in (animated)
         if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
         // scroll-linked crossfade: the date fades out as the next one comes up under it, and a new one fades in
-        var span = 2 * h, out = 1, inn = 1;
+        var span = h, out = 1, inn = 1;
         if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next date coming up
         if (cur > 0) inn = Math.max(0, Math.min(1, (barH - nat[cur]) / span));                      // this date just arrived
         var op = Math.min(out, inn);
+        pinned.day.op = op;
         row.style.opacity = String(op);
         // it drifts up as it leaves and rises into place as it arrives, as if the next day pushes it out
-        row.style.transform = "translateY(" + (out < 1 ? -(1 - out) * 8 : (1 - inn) * 8) + "px)";
+        row.style.transform = "translateY(" + (out < 1 ? -(1 - out) * 6 : (1 - inn) * 6) + "px)";
+        if (!bar.classList.contains("settled")) { clearTimeout(joinBar.t); joinBar.t = setTimeout(function () { if (bar.classList.contains("joined")) bar.classList.add("settled"); }, 230); }
       } else {
+        clearTimeout(joinBar.t);
+        bar.classList.remove("settled");
         row.style.height = "";                   // back to the bar alone; the date fades as it goes
         row.style.opacity = "";
         row.style.transform = "";
@@ -836,6 +958,7 @@
   }
 
   function showPaper(key) {
+    libTops = measureLibrary() || libTops;      // the order as it was, for the slide on the way back
     dropShell();
     var read = store("opened") || {};           // reading order, kept on this device
     read[key] = Date.now();
@@ -849,6 +972,7 @@
       return;
     }
     main.innerHTML = splash(0.12);
+    var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
     var docP = paperFile(key, entry, "paper.json").then(function (b) { progress(0.55); return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
     Promise.all([docP, mathP]).then(function () { progress(0.9); }, function () {});
@@ -869,6 +993,11 @@
             return paperFile(key, entry, "images/" + name).then(function (b) { var u = URL.createObjectURL(b); urls.push(u); return u; });
           },
           mathjax: lib && lib.mathjax, onLibrary: backToLists, libraryHref: "./", actions: actions});
+        var v = view;
+        // opened afresh (not by back or forward): the place it was left, on this device or another
+        if (fresh && reading[key] && !location.hash) v.ready.then(function () {
+          setTimeout(function () { if (view === v) restorePlace(reading[key]); }, 60);
+        });
       });
     }).catch(function (e) {
       buildShell(); setTab("library");
@@ -887,6 +1016,7 @@
     return (history.state || {}).l2mPaper || "app:library";     // an artifact's address cannot carry ?p
   }
   function close(save) {
+    if (view && current && !isPage(current)) savePlace(current, true);
     if (view) { view.close(save); view = null; }
     urls.forEach(function (u) { URL.revokeObjectURL(u); });
     urls = [];
@@ -919,8 +1049,8 @@
   function refresh() { if (isPage(current)) showLists(current === "app:new" ? current : "app:library", false); }
   var fromList = false;                     // the open paper was opened from Library or New
   var newAboveLibrary = false;              // the history has Library right below the New entry
-  function backToLists() {
-    if (fromList) { history.back(); return; }   // the list's own history entry, where it was left
+  function backToLists(steps) {             // steps: the jumps made inside the paper, stepped over too
+    if (fromList) { history.go(-1 - (steps || 0)); return; }   // the list's own history entry, where it was left
     close();                                // opened from a link: the library takes the paper's place
     try { history.replaceState({l2mPaper: "app:library"}, "", location.pathname); } catch (e) {}
     show("app:library");
@@ -965,6 +1095,27 @@
   });
   // swiping sideways on Library / New: the strip with both lists follows the finger
   var sw = null;
+  // New's pinned date, while a swipe moves between the tabs: the bar grows and shrinks with the finger
+  var pinned = {day: null, apply: null};
+  function pinnedMix(pageAt) {                // pageAt: where the track is, 0 = Library, 1 = New (in between while swiping)
+    if (!shell || !pinned.day) return;
+    var f = Math.max(0, Math.min(1, 1 - Math.abs(ORDER.indexOf("app:new") - pageAt)));
+    var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), d = pinned.day;
+    if (row.textContent !== d.text) row.innerHTML = "<span>" + esc(d.text) + "</span>";
+    bar.classList.add("joined");
+    bar.classList.remove("settled");
+    row.style.transition = "none";
+    row.style.height = d.h * f + "px";
+    row.style.paddingTop = 19 * f + "px";
+    row.style.opacity = String((d.op === undefined ? 1 : d.op) * f);
+    row.style.transform = "";
+  }
+  function pinnedSettle() {                   // the swipe is over: the bar eases to where the tab it lands on has it
+    if (!shell) return;
+    var row = shell.querySelector(".app-bar-day");
+    row.style.transition = row.style.paddingTop = "";
+    if (pinned.apply) pinned.apply();
+  }
   main.addEventListener("touchstart", function (e) {
     var t = main.querySelector(".app-track");
     if (!t || !isPage(current) || panelOpen || e.touches.length !== 1) { sw = null; return; }
@@ -981,12 +1132,14 @@
     if (next < 0 || next >= ORDER.length) dx *= 0.25;   // nothing that way: it only gives a little
     sw.track.style.transition = "none";
     sw.track.style.transform = "translateX(" + (-sw.i * sw.w + dx) + "px)";
+    pinnedMix(Math.max(0, Math.min(ORDER.length - 1, sw.i - dx / sw.w)));
   }, {passive: false});
   function endSwipe(e) {
     if (!sw || sw.dir !== "x") { sw = null; return; }
     var dx = (e && e.changedTouches ? e.changedTouches[0].clientX : sw.x) - sw.x, fast = Date.now() - sw.t < 300;
     var to = sw.i - Math.sign(dx), s0 = sw;
     sw = null;
+    pinnedSettle();
     if (to >= 0 && to < ORDER.length && (Math.abs(dx) > s0.w * 0.25 || (fast && Math.abs(dx) > 30))) {
       s0.track.style.transition = "transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)";
       s0.track.style.transform = "translateX(" + (-to * s0.w) + "px)";
@@ -1009,7 +1162,7 @@
       getJSON("library.json", true).catch(function () { return {papers: []}; }),
       getJSON("feed.json", true).catch(function () { return null; }),
       getJSON("config.json", true).catch(function () { return null; })
-    ]).then(function (r) { lib = r[0]; feed = r[1]; config = r[2]; });
+    ]).then(function (r) { lib = r[0]; feed = r[1]; config = r[2]; return pullReading(); });
   }
   var themeP = theme ? Promise.resolve(theme) : fetch("theme.json").then(function (r) { return r.json(); });
   var siteP = fetch("library.json", {cache: "no-cache"}).then(function (r) { return r.ok; }, function () { return false; });
