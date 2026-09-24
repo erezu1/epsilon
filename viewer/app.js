@@ -257,6 +257,10 @@
     var ind = group.querySelector(".sel-ind"), on = group.querySelector('[aria-checked="true"]');
     if (!ind || !on) return;
     ind.style.width = on.offsetWidth + "px";
+    if (group.classList.contains("app-tabs")) {      // the bar's tabs: a line under the current one
+      ind.style.transform = "translateX(" + on.offsetLeft + "px)";
+      return;
+    }
     ind.style.height = on.offsetHeight + "px";
     ind.style.transform = "translate(" + on.offsetLeft + "px," + on.offsetTop + "px)";
   }

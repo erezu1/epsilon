@@ -750,8 +750,18 @@ a.lib-title { color: var(--ink); }
 .app-search + .l2m-library > li:first-child { border-top: 0; }
 /* the app's own bar and settings panel (the same parts as a paper's) */
 .app-bar .bar-inner { gap: 6px; }
-.app-bar .app-tabs { margin: 0; flex: 0 0 auto; width: 176px; box-sizing: border-box; }
-.app-bar .app-tabs .seg-btn { flex: 1 1 0; min-width: 0; padding: 6px 0; }
+/* the bar's tabs: two words, the current one in ink with a line under it */
+.app-bar .app-tabs { flex: 0 0 auto; display: flex; gap: 20px; margin: 0 0 0 10px; padding: 0; background: none; border-radius: 0; }
+.app-bar .app-tabs .seg-btn {
+  flex: 0 0 auto; padding: 8px 0; border-radius: 0; background: none; box-shadow: none;
+  font-family: var(--serif); font-size: var(--fs); font-weight: 600; color: var(--muted); transition: color 180ms ease;
+}
+.app-bar .app-tabs .seg-btn:hover { color: var(--ink); background: none; }
+.app-bar .app-tabs .seg-btn[aria-checked="true"] { color: var(--ink); }
+.app-bar .app-tabs .sel-ind {
+  top: auto; bottom: 3px; height: 2px; border-radius: 2px; background: var(--ink); box-shadow: none;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 .app-spacer { flex: 1 1 auto; }
 .app-settings .app-form, .app-settings .app-pad { padding: 0 10px; }
 .app-settings .app-form .seg { margin: 0 0 12px; }
