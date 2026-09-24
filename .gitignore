@@ -1,0 +1,9 @@
+# never public: arXiv papers (their licenses), drafts, the private library's working copy
+tests/arxiv-*/
+library/
+*.l2m/
+# built or local
+node_modules/
+__pycache__/
+.DS_Store
+examples/*.html
