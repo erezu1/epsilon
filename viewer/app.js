@@ -38,6 +38,7 @@
     t.l2mTimer = setTimeout(function () { t.classList.remove("on"); }, ms || 4000);
   }
   // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
+  var SPIN = '<span class="app-spin" aria-hidden="true"></span>';
   var SPLASH_ICON = null;                   // the loading screen's icon, drawn in the page (taken from index.html)
   function splash(p) {
     var icon = document.querySelector(".app-splash-icon");
@@ -190,7 +191,7 @@
   function removing() { return store("removing") || {}; }
   function removePaper(key, button) {
     button.disabled = true;
-    button.textContent = "Removing\u2026";
+    button.innerHTML = SPIN + "Removing";
     var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === key; })[0];
     src.run("remove.yml", {keys: key}).then(function () {
       var r = removing();
@@ -297,7 +298,7 @@
   function filterLibrary() {
     var q = shell ? shell.querySelector("#lib-q").value.trim().toLowerCase() : "";
     Array.prototype.forEach.call(document.querySelectorAll("#lib-list li"), function (li) {
-      li.hidden = !!q && li.getAttribute("data-hay").indexOf(q) < 0;
+      li.hidden = !!q && (li.getAttribute("data-hay") || "").indexOf(q) < 0;
     });
   }
   function searching(on, how) {        // how: "pop" (closed by back)
@@ -665,8 +666,16 @@
         '<p class="app-confirm" hidden>Remove it from the library?<button type="button" class="app-pill" data-remove-yes="' + esc(k) + '">Remove</button>' +
         '<button type="button" class="app-link" data-remove-no>Keep</button></p></li>';
     }).join("");
-    box.innerHTML = (waiting.length ? '<p class="app-note">Converting ' + waiting.map(function (k) { return esc(p[k].id); }).join(", ") + "&hellip;</p>" : "") +
-      (papers.length ? '<ol class="l2m-library" id="lib-list">' + items + "</ol>" :
+    var known = {};
+    ((feed && feed.items) || []).forEach(function (i) { known[arxivKey(i.id)] = i; });
+    var converting = waiting.map(function (k) {
+      var f = known[k], mins = Math.max(0, Math.round((Date.now() - p[k].since) / 60000));
+      return '<li class="app-pending"><span class="lib-title">' + (f ? f.titleHtml || esc(f.title) : "arXiv:" + esc(p[k].id)) + "</span>" +
+        (f ? '<span class="lib-authors">' + esc(authorsLine(f.authors)) + "</span>" : "") +
+        '<span class="lib-meta">Converting on GitHub &middot; ' + (mins < 1 ? "just started" : mins + " min so far") + ", usually 2&ndash;4 minutes</span>" +
+        '<div class="app-progress indet"><span></span></div></li>';
+    }).join("");
+    box.innerHTML = (papers.length || converting ? '<ol class="l2m-library" id="lib-list">' + converting + items + "</ol>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
       b.addEventListener("click", function () {
@@ -679,7 +688,8 @@
         var k = b.getAttribute("data-offline"), on = b.getAttribute("aria-pressed") !== "true";
         var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === k; })[0];
         b.disabled = true;
-        b.classList.add("app-working");
+        b.classList.add("app-busy-btn");
+        b.innerHTML = SPIN;
         keepOffline(entry, on).then(function () {
           toast(on ? "Saved <em>" + esc(entry.title) + "</em> for reading offline." : "The offline copy is removed.");
         }, function (e) { toast("Could not save it: " + esc(e.message), 7000); }).then(function () {
@@ -714,7 +724,7 @@
         var k = arxivKey(i.id), got = have[k] && have[k].status === "ok", act;
         var Ic = theme.icons || {};
         if (got) act = '<a class="bar-btn app-act" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '" aria-label="Open">' + (Ic.open || "&rsaquo;") + "</a>";
-        else if (p[k]) act = '<span class="bar-btn app-act app-working" role="img" aria-label="Converting">' + (Ic.add || "+") + "</span>";
+        else if (p[k]) act = '<span class="bar-btn app-act app-busy-btn" role="img" aria-label="Converting">' + SPIN + "</span>";
         else if (src && src.run) act = '<button type="button" class="bar-btn app-act app-add-btn" data-convert="' + esc(i.id) + '" aria-label="Add to the library">' + (Ic.add || "+") + "</button>";
         else act = '<a class="bar-btn app-act" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener" aria-label="On arXiv">' + (Ic.external || "&nearr;") + "</a>";
         var t = i.titleHtml || esc(i.title);
@@ -734,7 +744,7 @@
       older = '<p class="app-row app-older"><button type="button" class="app-pill" id="feed-older">' +
         esc(new Date(order[shown] + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"})) + "</button></p>";
     } else if (order.length && src && src.run) {
-      older = '<p class="app-row app-older">' + (fetchingDay ? '<span class="app-pill app-busy">Fetching the day before&hellip;</span>' :
+      older = '<p class="app-row app-older">' + (fetchingDay ? '<span class="app-pill app-busy">' + SPIN + "Fetching the day before</span>" :
         '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
     }
     box.innerHTML = '<p class="app-note app-small">' + meta + "</p>" +
@@ -930,7 +940,7 @@
     var a = e.target.closest && e.target.closest("[data-p], [data-go], [data-convert]");
     if (!a) return;
     e.preventDefault();
-    if (a.hasAttribute("data-convert")) { a.disabled = true; a.classList.add("app-working"); convert([a.getAttribute("data-convert")]); return; }
+    if (a.hasAttribute("data-convert")) { a.disabled = true; a.classList.add("app-busy-btn"); a.innerHTML = SPIN; convert([a.getAttribute("data-convert")]); return; }
     if (a.hasAttribute("data-p")) go(null, a.getAttribute("data-p"));
     else go(a.getAttribute("data-go"));
   });

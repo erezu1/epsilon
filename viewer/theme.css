@@ -1037,3 +1037,17 @@ a.lib-title { color: var(--ink); }
 .app-bar.joined { box-shadow: 0 10px 30px -20px var(--bar-shadow); border-bottom-color: var(--bar-line); }
 .app-pane .app-day.stuck { transition: visibility 0s linear 220ms; }
 @media (prefers-reduced-motion: reduce) { .app-bar-day { transition: none; } }
+
+/* things on their way: one spinner, and the loading screen's bar for a paper being converted */
+.app-spin {
+  display: inline-block; width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%; flex: 0 0 auto;
+  border: 2px solid var(--bar-current); border-top-color: var(--link); animation: l2m-spin 0.8s linear infinite;
+}
+@keyframes l2m-spin { to { transform: rotate(360deg); } }
+.app-pill .app-spin { width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; }
+.app-busy-btn { display: inline-grid; place-items: center; pointer-events: none; }
+.app-busy-btn:hover { background: transparent; }
+.app-pending { padding: 0.85rem 0; }
+.app-pending .lib-title { color: var(--muted); }
+.app-pending .app-progress { width: 100%; margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) { .app-spin { animation-duration: 2.4s; } }
