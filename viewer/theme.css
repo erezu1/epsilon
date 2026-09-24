@@ -1072,9 +1072,9 @@ a.lib-title { color: var(--ink); }
    colour (rose on one side, sky and gold on the other), as a bubble reflects. The film is one strip the height of
    the screen, laid from the top, so the bar and a panel opened under it continue each other; the glint slides
    sideways a little as the page scrolls. */
-:root { --iris-a: 0.16; --sheen-a: 0.75; --tint-a: 0.07; --iris-x: 0px; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --iris-a: 0.1; --sheen-a: 0.08; --tint-a: 0.03; } }
-:root[data-theme="dark"] { --iris-a: 0.1; --sheen-a: 0.08; --tint-a: 0.03; }
+:root { --iris-a: 0.28; --sheen-a: 0.95; --tint-a: 0.1; --iris-x: 0px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --iris-a: 0.17; --sheen-a: 0.13; --tint-a: 0.05; } }
+:root[data-theme="dark"] { --iris-a: 0.17; --sheen-a: 0.13; --tint-a: 0.05; }
 .l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast, .fig-open {
   background-image:
     linear-gradient(112deg, transparent 22%, rgb(255 255 255 / calc(var(--sheen-a) * 0.5)) 34%, rgb(255 255 255 / var(--sheen-a)) 40%,
@@ -1082,7 +1082,7 @@ a.lib-title { color: var(--ink); }
     linear-gradient(112deg, transparent 18%, rgb(255 150 205 / var(--iris-a)) 27%, transparent 35%,
       transparent 47%, rgb(140 205 255 / var(--iris-a)) 53%, rgb(255 214 150 / calc(var(--iris-a) * 0.8)) 59%, transparent 67%),
     linear-gradient(rgb(120 150 190 / var(--tint-a)), rgb(120 150 190 / var(--tint-a)));
-  background-size: 220vw 100vh, 220vw 100vh, 100% 100%;
+  background-size: 170vw 100vh, 170vw 100vh, 100% 100%;
   background-repeat: repeat-x, repeat-x, no-repeat;
   background-position: calc(-30vw - var(--iris-x)) 0, calc(-30vw - var(--iris-x)) 0, 0 0;
 }
@@ -1140,3 +1140,17 @@ a.lib-title { color: var(--ink); }
 .font-pick.open .font-drop { grid-template-rows: 1fr; }
 .font-pick.open .font-drop > .opt-list { opacity: 1; margin-top: 4px; transition: opacity 240ms ease 60ms, margin-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 @media (prefers-reduced-motion: reduce) { .font-drop, .font-drop > .opt-list, .opt-chev { transition: none; } }
+
+/* the loading screen: the epsilon is written in one stroke; its underline is the progress bar */
+.app-splash-icon .pen { stroke-dasharray: 1 1.1; animation: l2m-write 1000ms cubic-bezier(0.45, 0.05, 0.3, 1) 100ms both; }
+@keyframes l2m-write { from { stroke-dashoffset: 1.02; } to { stroke-dashoffset: 0; } }
+.app-splash-icon .pen-done { opacity: 0; animation: l2m-written 1ms linear 1150ms forwards; }
+@keyframes l2m-written { to { opacity: 1; } }
+.app-splash-icon .ul-fill { transform-box: fill-box; transform-origin: 0 50%; transform: scaleX(var(--p, 0));
+                            transition: transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.app-splash.indet .ul-fill { animation: l2m-ul-sweep 1.3s ease-in-out infinite; }
+@keyframes l2m-ul-sweep { from { transform: translateX(-40%) scaleX(0.4); } to { transform: translateX(100%) scaleX(0.4); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-splash-icon .pen { animation: none; stroke-dasharray: none; }
+  .app-splash.indet .ul-fill { animation: none; transform: scaleX(0.4); }
+}

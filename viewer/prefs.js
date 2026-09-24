@@ -59,7 +59,7 @@
   var last = typeof WeakMap === "function" ? new WeakMap() : null, drift = 0, queued = false;
   function place() {
     queued = false;
-    var period = 2.2 * (window.innerWidth || 400);
+    var period = 1.7 * (window.innerWidth || 400);
     root.style.setProperty("--iris-x", (((drift % period) + period) % period).toFixed(1) + "px");
   }
   if (last) document.addEventListener("scroll", function (e) {

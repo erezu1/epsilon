@@ -43,12 +43,16 @@
   function splash(p) {
     var icon = document.querySelector(".app-splash-icon");
     SPLASH_ICON = SPLASH_ICON || (icon ? icon.outerHTML : '<img src="icon-192.png" alt="" width="88" height="88">');
-    return '<div class="app-splash" role="status" aria-label="Loading">' + SPLASH_ICON +
-      '<div class="app-progress' + (p == null ? " indet" : "") + '"><span style="transform:scaleX(' + (p || 0.3) + ')"></span></div></div>';
+    // the icon's underline is the progress bar (and the \u03b5 writes itself as it comes up)
+    return '<div class="app-splash' + (p == null ? " indet" : "") + '" role="status" aria-label="Loading" style="--p:' + (p || 0) + '">' + SPLASH_ICON + "</div>";
+  }
+  function showSplash(p) {                  // the loading screen already up (the app is starting): it carries on
+    var s = main.querySelector(".app-splash");
+    if (s && main.children.length === 1) progress(p); else main.innerHTML = splash(p);
   }
   function progress(p) {
-    var bar = main.querySelector(".app-progress span");
-    if (bar) { bar.parentNode.classList.remove("indet"); bar.style.transform = "scaleX(" + p + ")"; }
+    var s = main.querySelector(".app-splash");
+    if (s) { s.classList.remove("indet"); s.style.setProperty("--p", String(p)); }
   }
   // INSPIRE (the high-energy physics literature database) knows papers from these archives
   function inspire(id, cats) {
@@ -1004,7 +1008,7 @@
         (entry.arxiv ? '<p class="app-row"><a class="app-pill" href="https://arxiv.org/abs/' + esc(entry.arxiv.id) + '" target="_blank" rel="noopener">Open on arXiv</a></p>' : "");
       return;
     }
-    main.innerHTML = splash(0.12);
+    showSplash(0.12);
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
     var docP = paperFile(key, entry, "paper.json").then(function (b) { progress(0.55); return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
