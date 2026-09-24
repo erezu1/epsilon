@@ -644,7 +644,12 @@
     var box = pane("app:library");
     feedMath();
     var rm = removing(), I = theme.icons || {};
+    var read = store("opened") || {};
     var papers = ((lib && lib.papers) || []).filter(function (x) { return !rm[keyOf(x)]; }), p = pending(), off = offlineSet();
+    // the papers read last come first; the others after, newest added first (the index's own order)
+    papers = papers.map(function (x, i) { return [x, i]; }).sort(function (a, b) {
+      return (read[keyOf(b[0])] || 0) - (read[keyOf(a[0])] || 0) || a[1] - b[1];
+    }).map(function (a) { return a[0]; });
     var waiting = Object.keys(p).filter(function (k) {
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
     });
@@ -832,6 +837,9 @@
 
   function showPaper(key) {
     dropShell();
+    var read = store("opened") || {};           // reading order, kept on this device
+    read[key] = Date.now();
+    store("opened", read);
     var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === key; })[0] || {key: key, path: "papers/" + key};
     if (entry.status === "failed") {
       buildShell(); setTab("library");
