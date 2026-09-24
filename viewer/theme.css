@@ -782,3 +782,9 @@ a.lib-title { color: var(--ink); }
 }
 .app-abs.open { display: block; -webkit-line-clamp: unset; line-clamp: unset; color: var(--ink); }
 .app-paper-text .cap-more { margin-top: 6px; }
+.app-offline { color: var(--muted); opacity: 0.75; }
+.app-offline[aria-pressed="true"] { color: var(--link); opacity: 1; }
+.app-offline:hover { opacity: 1; }
+.app-working { animation: l2mpulse 1s ease-in-out infinite; }
+@keyframes l2mpulse { 50% { opacity: 0.3; } }
+.app-lib-row { gap: 0; }

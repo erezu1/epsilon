@@ -319,7 +319,7 @@
       (store("token") ? '<button type="button" class="app-link" id="gh-forget">Forget the token</button>' : "") + "</p></form>" +
       '<p class="menu-head">On this device</p><p class="app-help app-pad">' +
       (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
-           "No papers saved offline yet. In a paper, tap <em>Keep offline</em>.") + "</p>" +
+           "No papers saved offline yet. In the library, tap the download button next to a paper.") + "</p>" +
       (n ? '<p class="app-row app-pad"><button type="button" class="app-pill" id="off-clear">Remove offline copies</button></p>' : "");
     return h;
   }
@@ -482,12 +482,13 @@
       var k = keyOf(x), meta = [];
       if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : ""));
       else if (x.kind === "draft") meta.push("your draft");
-      if (off[k]) meta.push("saved on this device");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
       return '<li data-hay="' + esc(hay) + '"><div class="app-lib-row"><a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '"><span class="lib-title">' +
         (x.titleHtml || esc(x.title || k)) + '</span><span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
         (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</a>" +
+        (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
+          '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
         '</div><p class="app-confirm" hidden>Remove it from the library?<button type="button" class="app-pill" data-remove-yes="' + esc(k) + '">Remove</button>' +
         '<button type="button" class="app-link" data-remove-no>Keep</button></p></li>';
@@ -500,6 +501,19 @@
       b.addEventListener("click", function () {
         var c = b.closest("li").querySelector(".app-confirm");
         c.hidden = !c.hidden;
+      });
+    });
+    Array.prototype.forEach.call(main.querySelectorAll("[data-offline]"), function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-offline"), on = b.getAttribute("aria-pressed") !== "true";
+        var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === k; })[0];
+        b.disabled = true;
+        b.classList.add("app-working");
+        keepOffline(entry, on).then(function () {
+          toast(on ? "Saved <em>" + esc(entry.title) + "</em> for reading offline." : "The offline copy is removed.");
+        }, function (e) { toast("Could not save it: " + esc(e.message), 7000); }).then(function () {
+          if (current === "app:library") showLibrary();
+        });
       });
     });
     Array.prototype.forEach.call(main.querySelectorAll("[data-remove-no]"), function (b) {
@@ -601,16 +615,6 @@
           actions.push({label: "arXiv", href: "https://arxiv.org/abs/" + entry.arxiv.id});
           actions.push({label: "PDF", href: "https://arxiv.org/pdf/" + entry.arxiv.id});
         }
-        if (window.caches) actions.push({label: isOffline(key) ? "Saved offline" : "Keep offline", pressed: isOffline(key), onClick: function (b) {
-          var on = !isOffline(key);
-          b.disabled = true;
-          b.textContent = on ? "Saving\u2026" : "Removing\u2026";
-          keepOffline(entry, on).then(function () {
-            b.textContent = on ? "Saved offline" : "Keep offline";
-            b.setAttribute("aria-pressed", on ? "true" : "false");
-          }, function (e) { toast("Could not save it: " + esc(e.message)); b.textContent = "Keep offline"; })
-            .then(function () { b.disabled = false; });
-        }});
         view = L2M_open({doc: doc, theme: Object.assign({}, theme, {titleblock: []}), cache: cache, key: key, kicker: null,
           base: src.kind === "site" ? (entry.path || "papers/" + key) + "/" : "",
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
