@@ -257,7 +257,7 @@
       '<button type="button" class="bar-btn" id="app-search" aria-label="Search your library">' + (I.search || "?") + "</button>" +
       '<button type="button" class="bar-btn" id="app-plus" aria-label="Add a paper" aria-expanded="false" aria-controls="app-addp">' + (I.add || "+") + "</button>" +
       '<button type="button" class="bar-btn" id="app-gear" aria-label="Settings" aria-expanded="false" aria-controls="app-settings">' +
-      (I.gear || I.settings || "") + "</button></div></header>" +
+      (I.gear || I.settings || "") + '</button></div><div class="app-bar-day" aria-hidden="true"></div></header>' +
       '<div class="l2m-menu l2m-settings app-settings" id="app-settings" role="dialog" aria-label="Settings" aria-hidden="true">' +
       '<div class="menu-inner"></div></div>' +
       '<div class="l2m-menu l2m-settings app-settings" id="app-addp" role="dialog" aria-label="Add a paper" aria-hidden="true">' +
@@ -762,7 +762,12 @@
         d.classList.toggle("stuck", on);
         if (on) stuck = d;
       });
-      shell.querySelector("#app-bar").classList.toggle("joined", !!stuck && current === "app:new");
+      var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = !!stuck && current === "app:new";
+      bar.classList.toggle("joined", on);
+      if (on) {                            // the bar takes the pinned date in: one glass layer, no seam
+        row.textContent = stuck.textContent;
+        row.style.height = (stuck.getBoundingClientRect().height + 8) + "px";
+      }
     }
     if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(joinBar); }, {passive: true}); }
     joinBar();
