@@ -1019,3 +1019,8 @@ a.lib-title { color: var(--ink); }
 /* the list's own date strip has no glass (the bar draws the pinned date; Safari draws blur on a pinned element
    inside a scrolling list only in part) */
 .app-pane .app-day { background-color: var(--ground); -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* one day's date gives way to the next with a quick fade */
+@media (prefers-reduced-motion: reduce) { .app-bar-day { transition-duration: 0.01s; } }
+
+.app-splash-icon { width: 88px; height: 88px; border-radius: 22px; box-shadow: 0 10px 30px -12px var(--bar-shadow); }
+.app-tappable { cursor: pointer; }

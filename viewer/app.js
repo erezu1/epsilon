@@ -38,8 +38,11 @@
     t.l2mTimer = setTimeout(function () { t.classList.remove("on"); }, ms || 4000);
   }
   // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
+  var SPLASH_ICON = null;                   // the loading screen's icon, drawn in the page (taken from index.html)
   function splash(p) {
-    return '<div class="app-splash" role="status" aria-label="Loading"><img src="icon-192.png" alt="" width="88" height="88">' +
+    var icon = document.querySelector(".app-splash-icon");
+    SPLASH_ICON = SPLASH_ICON || (icon ? icon.outerHTML : '<img src="icon-192.png" alt="" width="88" height="88">');
+    return '<div class="app-splash" role="status" aria-label="Loading">' + SPLASH_ICON +
       '<div class="app-progress' + (p == null ? " indet" : "") + '"><span style="transform:scaleX(' + (p || 0.3) + ')"></span></div></div>';
   }
   function progress(p) {
@@ -297,18 +300,23 @@
       li.hidden = !!q && li.getAttribute("data-hay").indexOf(q) < 0;
     });
   }
-  function searching(on) {
+  function searching(on, how) {        // how: "pop" (closed by back)
     if (!shell) return;
+    if (!on && !shell.querySelector("#app-bar").classList.contains("searching")) return;
     closePanel();
     shell.querySelector("#app-bar").classList.toggle("searching", on);
     var f = shell.querySelector("#lib-q"), bar = shell.querySelector("#app-bar");
     bar.classList.remove("search-in", "search-out");
     void bar.offsetWidth;
     if (on) {
+      try { if (!(history.state || {}).l2mSearch) history.pushState(Object.assign({}, history.state || {}, {l2mSearch: true}), ""); } catch (x) {}
       bar.classList.add("search-in");
       if (current !== "app:library") go("library");
       setTimeout(function () { f.focus(); }, 60);
     } else {
+      if (how !== "pop") {
+        try { if ((history.state || {}).l2mSearch) { skipPop = true; history.back(); } } catch (x) {}
+      }
       f.value = ""; filterLibrary(); f.blur();
       bar.classList.add("search-out");
     }
@@ -593,6 +601,7 @@
         b.firstChild.textContent = open ? "Less" : "More";
       }
       b.addEventListener("click", function (e) { e.stopPropagation(); toggle(); });
+      p.l2mToggle = toggle;
       p.addEventListener("click", function (e) {
         e.stopPropagation();                                   // not a tap on the paper's row
         if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not tapping
@@ -710,7 +719,7 @@
         else act = '<a class="bar-btn app-act" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener" aria-label="On arXiv">' + (Ic.external || "&nearr;") + "</a>";
         var t = i.titleHtml || esc(i.title);
         return '<li class="app-paper"><div class="app-paper-head"><div class="app-paper-text">' +
-          (got ? '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + t + "</a>" : '<span class="lib-title">' + t + "</span>") +
+          '<span class="lib-title app-abs-title">' + t + "</span>" +
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) +
           (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + inspireLink(i.id, [i.category]) + "</span></div>" +
           '<div class="app-paper-act">' + act + "</div></div>" +
@@ -752,6 +761,11 @@
       }, function (e) { toast("Could not fetch it: " + esc(e.message)); });
     });
     foldAbstracts(box);
+    // in New a paper's title opens and closes its abstract (the round button opens the paper)
+    Array.prototype.forEach.call(box.querySelectorAll(".app-abs-title"), function (t) {
+      var abs = t.closest(".app-paper").querySelector(".app-abs");
+      if (abs && abs.l2mToggle) { t.classList.add("app-tappable"); t.addEventListener("click", function () { abs.l2mToggle(); }); }
+    });
     // a date pinned under the bar joins it: one glass block, the shadow under the date
     var paneEl = box.parentNode;
     function joinBar() {
@@ -759,21 +773,30 @@
       // a day is pinned while its papers pass under the bar: judged from its list (the pinned date's own
       // position is not exact on every phone: the bar's height there includes the notch, in fractions of pixels)
       var barH = parseFloat(getComputedStyle(root).getPropertyValue("--l2m-bar-h")) || shell.querySelector("#app-bar").getBoundingClientRect().height;
-      var stuck = null;
-      Array.prototype.forEach.call(box.querySelectorAll(".app-day"), function (d) {
-        var list = d.nextElementSibling, h = d.offsetHeight, on = false;
-        if (list && paneEl.scrollTop > 0) {
-          var r = list.getBoundingClientRect();
-          on = r.top - h <= barH + 0.5 && r.bottom > barH + h;
-        }
-        d.classList.toggle("stuck", on);
-        if (on) stuck = d;
+      // the day we are in: the last one whose date has reached the bar (where it would be, from its list:
+      // exact pixels differ on phones, whose bar includes the notch)
+      var days = Array.prototype.slice.call(box.querySelectorAll(".app-day")), cur = -1, nat = [];
+      days.forEach(function (d, k) {
+        var list = d.nextElementSibling;
+        nat[k] = list ? list.getBoundingClientRect().top - d.offsetHeight : Infinity;
+        var passed = paneEl.scrollTop > 0 && nat[k] <= barH + 0.5;
+        d.classList.toggle("stuck", passed);            // passed dates are drawn by the bar, not the list
+        if (passed) cur = k;
       });
-      var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = !!stuck && current === "app:new";
+      var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === "app:new";
       bar.classList.toggle("joined", on);
-      if (on) {                            // the bar takes the pinned date in: one glass layer, no seam
-        row.textContent = stuck.textContent;
-        row.style.height = (stuck.getBoundingClientRect().height + 8) + "px";
+      if (on) {
+        var d = days[cur], h = d.offsetHeight;
+        row.style.height = (h + 8) + "px";
+        row.textContent = d.textContent;
+        // scroll-linked crossfade: the date fades out as the next one comes up under it, and a new one fades in
+        var op = 1;
+        if (cur + 1 < days.length) op = Math.min(op, Math.max(0, nat[cur + 1] - barH) / h);
+        if (cur > 0) op = Math.min(op, Math.max(0, barH - nat[cur]) / h);
+        row.style.opacity = String(Math.max(0, Math.min(1, op)));
+      } else {
+        row.textContent = "";
+        row.style.opacity = "";
       }
     }
     if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(joinBar); }, {passive: true}); }
@@ -873,9 +896,12 @@
   var listMove = false;                      // the next show() moves between the two lists
   function refresh() { if (isPage(current)) showLists(current === "app:new" ? current : "app:library", false); }
   var fromList = false;                     // the open paper was opened from Library or New
+  var newAboveLibrary = false;              // the history has Library right below the New entry
   function backToLists() {
-    if (fromList) history.back();           // the list's own history entry, where it was left
-    else go("library");
+    if (fromList) { history.back(); return; }   // the list's own history entry, where it was left
+    close();                                // opened from a link: the library takes the paper's place
+    try { history.replaceState({l2mPaper: "app:library"}, "", location.pathname); } catch (e) {}
+    show("app:library");
   }
   function go(pageName, key) {
     fromList = !!key && isPage(current);
@@ -884,6 +910,12 @@
     var k = key || "app:" + pageName;
     if (k === current) return;
     listMove = isPage(current) && isPage(k);
+    if (k === "app:library" && current === "app:new" && newAboveLibrary) {
+      newAboveLibrary = false;
+      history.back();                       // New was one step above Library: step back down to it
+      return;
+    }
+    if (listMove) newAboveLibrary = k === "app:new";
     var url = key ? "?p=" + encodeURIComponent(key) : pageName === "new" ? "?v=new" : location.pathname;
     try { history.pushState({l2mPaper: k}, "", url); } catch (e) {}
     show(k);
@@ -901,9 +933,12 @@
   window.addEventListener("popstate", function (e) {
     if (skipPop) { skipPop = false; return; }
     if (panelOpen) { closePanel("pop"); return; }       // back closes the open panel, nothing else
+    if (shell && shell.querySelector("#app-bar").classList.contains("searching")) { searching(false, "pop"); return; }
     var k = (e.state && e.state.l2mPaper) || wanted();
     if (k === current) return;              // a step inside the open paper: nav.js handles it
     listMove = isPage(current) && isPage(k);
+    if (k === "app:library") newAboveLibrary = false;
+    else if (k === "app:new") newAboveLibrary = true;
     show(k, false);                         // the entry has already changed: nothing to save into it
   });
   // swiping sideways on Library / New: the strip with both lists follows the finger
@@ -967,7 +1002,16 @@
     return load();
   }).then(function () {
     var k = wanted();
-    try { history.replaceState(Object.assign({}, history.state || {}, {l2mPaper: k}), ""); } catch (e) {}
+    try {
+      if (k !== "app:library" && !(history.state || {}).l2mPaper) {
+        // opened straight on New or on a paper: the library goes underneath, so back leads to it
+        history.replaceState({l2mPaper: "app:library"}, "", location.pathname);
+        history.pushState({l2mPaper: k}, "", k === "app:new" ? "?v=new" : "?p=" + encodeURIComponent(k));
+        if (k === "app:new") newAboveLibrary = true; else fromList = true;
+      } else {
+        history.replaceState(Object.assign({}, history.state || {}, {l2mPaper: k}), "");
+      }
+    } catch (e) {}
     show(k);
     watch();
   }).catch(function (e) {
