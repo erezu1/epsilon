@@ -90,7 +90,7 @@ class Library:
 def http_get(url, tries=3):
     for k in range(tries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/atom+xml, application/xml;q=0.9, */*;q=0.8"})
             with urllib.request.urlopen(req, timeout=60) as r:
                 return r.read()
         except (urllib.error.URLError, TimeoutError) as e:
