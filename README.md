@@ -119,6 +119,21 @@ python3 latex2mobile.py examples/sample.tex --html examples/sample.html --kicker
 
 `tests/run_arxiv.py FOLDER` converts every paper in a folder of arXiv sources (one subfolder per paper with `src.bin`) and writes `results.json`. `tests/check_viewer.py FOLDER` opens every paper in a site at phone width and checks that it has the same text and formulas as its one-file page and is not wider than the screen (`--browser-math` tests formulas drawn in the browser). `tests/check_docs.py FOLDER` packs each document again and checks the page is identical to the one written at conversion. `tests/check_layout.py PAGES...` loads pages at phone width (390px) in headless Chrome and reports anything wider than the screen. `tests/arxiv-2026-09-24/` holds a full run on one day of hep-th, with a report.
 
+## The reading app and the private library
+
+- **The app** is `viewer/`, published by GitHub Pages at https://erezu1.github.io/l2m-app/. It has your library (with search), *New* (today's papers in your arXiv categories, each with *Convert*), the paper view (with *arXiv*, *PDF* and *Keep offline*), and Settings. It can be added to a phone's home screen and works offline for saved papers.
+- **The papers** live in the private repo `erezu1/l2m-library`, which the app reads through GitHub's API with a token typed into Settings (kept on that device only). Make it at GitHub → Settings → Developer settings → Fine-grained tokens: repository access *only erezu1/l2m-library*, permissions *Contents: read and write* and *Actions: read and write*.
+- **Converting** happens on GitHub: the library's *convert* workflow fetches the arXiv source, runs the converter with TeX Live and commits the result (about 3 minutes). The *feed* workflow refreshes `feed.json` every weekday after arXiv's announcement; the categories and whether to include cross-lists are set in the app's Settings (stored in the library's `config.json`).
+- **From this computer**, `l2m_library.py` does the same in a clone of the library:
+
+```bash
+python3 l2m_library.py --library library convert 2609.28331 --push      # an arXiv paper
+python3 l2m_library.py --library library add-draft path/to/paper.tex --push   # your own LaTeX project
+python3 l2m_library.py --library library convert outdated --push       # after improving the converter
+```
+
+`add-draft` copies only what the paper needs (the main file, what it inputs, its figures, `.bib`/`.bbl`/`.sty`/`.cls`/`.bst`), converts it here, and pushes; GitHub then sees the draft is already converted.
+
 ## A site with a library
 
 ```bash
@@ -145,10 +160,12 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `render_math.js` | draws formulas to SVG with MathJax in node (called by the converter) |
 | `l2m_render.py` | packs one document and the viewer into a single `.html` |
 | `l2m_viewer.py` | builds and serves a site of documents with a library |
+| `l2m_library.py` | manages the private library: arXiv papers, drafts, the feed |
+| `viewer/app.js`, `viewer/sw.js`, `viewer/manifest.webmanifest` | the reading app: library, new papers, settings, offline copies |
 | `viewer/theme.json`, `viewer/theme.css` | the theme |
 | `viewer/viewer.js` | draws a document: bar, contents, settings, footnote sheet, figure viewer, formulas |
 | `viewer/nav.js` | runs an open paper: history-aware links, panels, figure zoom |
 | `viewer/prefs.js` | applies the reader's saved choices before the page is drawn |
-| `viewer/site.js`, `viewer/index.html` | the site: library and papers on one page |
+| `viewer/index.html` | the app's page |
 | `DOCUMENT.md` | the document format |
 | `examples/` | a sample document that exercises the supported features |
