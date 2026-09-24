@@ -1262,3 +1262,15 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 /* in a paper, every font's small letters stand at the same height (fonts differ a lot there), so a change of font
    changes its style, not how big the text reads */
 html:not(.l2m-app-lists) main { font-size-adjust: ex-height 0.48; }
+
+/* a paper's running text is set justified, as in print, with the words hyphenated (a phone's short lines would
+   leave wide gaps otherwise) and the breaks chosen over the whole paragraph where the browser can. Captions,
+   centred and right-set text, tables, the references and footnotes keep a ragged right. */
+html:not(.l2m-app-lists) main :is(p, li) {
+  text-align: justify; -webkit-hyphens: auto; hyphens: auto;
+  hyphenate-limit-chars: 6 3 2;            /* words of 6 letters or more, at least 3 before the break and 2 after */
+  text-wrap: pretty;
+}
+html:not(.l2m-app-lists) main :is(.center, .flushright, figcaption, td, th, ol.refs, .omitted, .skel-paper) :is(p, li),
+html:not(.l2m-app-lists) main :is(p, li):is(.center, .flushright, .omitted),
+html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens: manual; hyphens: manual; }
