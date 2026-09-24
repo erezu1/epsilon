@@ -992,12 +992,7 @@ a.lib-title { color: var(--ink); }
               background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms;
 }
 /* a pinned date is drawn in the bar (one glass layer); the list's own copy stays in place, unseen */
-.app-bar-day { display: none; }
-.app-bar.joined { padding-bottom: 0; box-shadow: 0 10px 30px -20px var(--bar-shadow); border-bottom-color: var(--bar-line); }
-.app-bar.joined .app-bar-day {
-  display: block; box-sizing: border-box; max-width: 40rem; margin: 0 auto; padding: 19px 10px 0;
-  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-family: var(--ui);
-}
+
 .app-pane .app-day.stuck { visibility: hidden; box-shadow: none; border-bottom-color: transparent; }
 /* library rows: the buttons level with the title's first line; the abstract across the whole row */
 #lib-list > li { padding: 0.85rem 0; }
@@ -1028,5 +1023,17 @@ a.lib-title { color: var(--ink); }
 #app-search { transition: opacity 200ms ease, visibility 0s linear 0s; }
 #app-search.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
 @media (prefers-reduced-motion: reduce) { #app-search { transition-duration: 0.01s; } }
-.app-bar.joined .app-bar-day { transition: opacity 120ms linear, transform 120ms linear; }
+
 @media (prefers-reduced-motion: reduce) { .app-bar.joined .app-bar-day { transition: none; } }
+
+/* the pinned date in the bar: the bar grows down to take it in and shrinks back as it lets go, the date
+   fading with it; the list's own strip hides only once the bar covers it */
+.app-bar-day {
+  display: block; box-sizing: border-box; max-width: 40rem; margin: 0 auto; height: 0; overflow: hidden; opacity: 0;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-family: var(--ui);
+  transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, transform 120ms linear;
+}
+.app-bar-day span { display: block; padding: 19px 10px 0; }
+.app-bar.joined { box-shadow: 0 10px 30px -20px var(--bar-shadow); border-bottom-color: var(--bar-line); }
+.app-pane .app-day.stuck { transition: visibility 0s linear 220ms; }
+@media (prefers-reduced-motion: reduce) { .app-bar-day { transition: none; } }

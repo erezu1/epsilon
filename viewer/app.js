@@ -787,8 +787,8 @@
       bar.classList.toggle("joined", on);
       if (on) {
         var d = days[cur], h = d.offsetHeight;
-        row.style.height = (h + 8) + "px";
-        row.textContent = d.textContent;
+        row.style.height = h + "px";              // the bar grows down to take the date in (animated)
+        if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
         // scroll-linked crossfade: the date fades out as the next one comes up under it, and a new one fades in
         var span = 2 * h, out = 1, inn = 1;
         if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next date coming up
@@ -798,7 +798,7 @@
         // it drifts up as it leaves and rises into place as it arrives, as if the next day pushes it out
         row.style.transform = "translateY(" + (out < 1 ? -(1 - out) * 8 : (1 - inn) * 8) + "px)";
       } else {
-        row.textContent = "";
+        row.style.height = "";                   // back to the bar alone; the date fades as it goes
         row.style.opacity = "";
         row.style.transform = "";
       }
