@@ -11,6 +11,20 @@
  ],
  "fonts": [
   {
+   "key": "newsreader",
+   "name": "Newsreader",
+   "note": "Made for screens",
+   "stack": "\"Newsreader\", \"Georgia\", serif",
+   "css": "Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,600"
+  },
+  {
+   "key": "literata",
+   "name": "Literata",
+   "note": "Like a book",
+   "stack": "\"Literata\", \"Georgia\", serif",
+   "css": "Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400;1,7..72,600"
+  },
+  {
    "key": "stix",
    "name": "STIX Two Text",
    "note": "Journal",
@@ -18,25 +32,11 @@
    "css": "STIX+Two+Text:ital,wght@0,400;0,600;0,700;1,400;1,600"
   },
   {
-   "key": "literata",
-   "name": "Literata",
-   "note": "Made for screens",
-   "stack": "\"Literata\", \"Georgia\", serif",
-   "css": "Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;0,7..72,700;1,7..72,400"
-  },
-  {
-   "key": "sourceserif",
-   "name": "Source Serif 4",
-   "note": "Modern serif",
-   "stack": "\"Source Serif 4\", \"Georgia\", serif",
-   "css": "Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400"
-  },
-  {
-   "key": "plex",
-   "name": "IBM Plex Sans",
+   "key": "inter",
+   "name": "Inter",
    "note": "Sans serif",
-   "stack": "\"IBM Plex Sans\", \"Helvetica Neue\", Arial, sans-serif",
-   "css": "IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400"
+   "stack": "\"Inter\", \"Helvetica Neue\", Arial, sans-serif",
+   "css": "Inter:ital,opsz,wght@0,14..32,400;0,14..32,600;0,14..32,700;1,14..32,400;1,14..32,600"
   }
  ],
  "sizes": [
@@ -84,7 +84,7 @@
   }
  ],
  "defaults": {
-  "font": "stix",
+  "font": "newsreader",
   "size": "m",
   "appearance": "system",
   "tone": "neutral"

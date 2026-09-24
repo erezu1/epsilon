@@ -20,7 +20,7 @@
   --bar-current: rgba(29, 91, 152, 0.14);
   --flash: rgba(29, 91, 152, 0.13);
   --flash-ring: rgba(29, 91, 152, 0.45);
-  --serif: "STIX Two Text", "STIX Two", "Cambria", "Georgia", "Times New Roman", serif;
+  --serif: "Newsreader", "Georgia", serif;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -1258,3 +1258,7 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 .seg .sel-ind, .app-seg .seg-btn[aria-checked="true"] { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
 /* a panel open over New with a date pinned: the bar has no shadow or line of its own either (the panel has them) */
 .app-bar.joined.menu-open { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 0s, border-color 0s; }
+
+/* in a paper, every font's small letters stand at the same height (fonts differ a lot there), so a change of font
+   changes its style, not how big the text reads */
+html:not(.l2m-app-lists) main { font-size-adjust: ex-height 0.48; }
