@@ -158,7 +158,7 @@ def wait_for(root, nid, sha, since, timeout=900):
     t0 = time.time()
     print("converting on GitHub", end="", flush=True)
     while time.time() - t0 < timeout:
-        time.sleep(12)
+        time.sleep(6)
         print(".", end="", flush=True)
         e = remote_entry(root, nid)
         if e and e.get("sourceHash") == sha and e.get("converted", "") >= since:
