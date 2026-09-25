@@ -97,6 +97,7 @@ window.L2M_nav = function (opts) {
   function navigate(id) {
     var el = document.getElementById(id);
     if (!el) return false;
+    if (finding) closeFind("jump");
     var from = window.pageYOffset;
     var y = id === "l2m-top" ? 0 : yOf(el);
     if (useHistory) {
@@ -126,6 +127,7 @@ window.L2M_nav = function (opts) {
     if (opts.leaving && opts.leaving()) return;    // the host is taking the reader out of the paper
     if (skipPop) { skipPop = false; return; }
     if (panel) { closeMenu("pop"); return; }       // back closes the open panel, nothing else
+    if (finding && !(e.state && e.state.l2mFind)) { closeFind("pop"); return; }   // then the search
     if (peekOpen && !(e.state && e.state.l2mPeek)) { closePeek("pop"); closeSheet(); return; }   // then the peek
     var st = e.state;
     if (st && st.l2mPaper !== undefined && st.l2mPaper !== KEY) return;   // another paper's entry: the host switches
@@ -210,6 +212,226 @@ window.L2M_nav = function (opts) {
       e.stopPropagation();
       if (panel === name) closeMenu(); else openPanel(name);
     };
+  }
+
+
+  // ---------------------------------------------------------------- search in the paper: words, or TeX
+  // The search field takes the bar (as the library's does). Words are found in the text, as a browser finds them;
+  // a query with TeX in it (\phi, x^2, \frac{1}{2}) is looked for in the formulas' TeX. A single symbol (\phi,
+  // \alpha, \partial, or "phi", or φ itself) is found as its drawn glyph, in every formula, so a paper's own macros
+  // for it are found too, and each one is marked where it stands in its formula; longer TeX marks the formulas
+  // whose TeX has it. Found text is marked yellow (a highlight laid over the text, which is left as it is); the
+  // match one is on, amber. Enter or the arrows go on to the next (Shift+Enter, back); nothing enters history
+  // except the search itself (back closes it).
+  var findBar = bar.querySelector(".bar-find"), findBtn = bar.querySelector('[data-act="find"]');
+  var findField = findBar ? findBar.querySelector("input") : null, findCount = findBar ? findBar.querySelector(".find-count") : null;
+  var finding = false, hits = [], hitAt = -1, findTimer = null;
+  var GLYPH = {alpha: "1D6FC", beta: "1D6FD", gamma: "1D6FE", delta: "1D6FF", epsilon: "1D716", varepsilon: "1D700", zeta: "1D701",
+    eta: "1D702", theta: "1D703", vartheta: "1D717", iota: "1D704", kappa: "1D705", varkappa: "1D718", lambda: "1D706", mu: "1D707",
+    nu: "1D708", xi: "1D709", pi: "1D70B", varpi: "1D71B", rho: "1D70C", varrho: "1D71A", sigma: "1D70E", varsigma: "1D70D",
+    tau: "1D70F", upsilon: "1D710", phi: "1D719", varphi: "1D711", chi: "1D712", psi: "1D713", omega: "1D714", Gamma: "393",
+    Delta: "394", Theta: "398", Lambda: "39B", Xi: "39E", Pi: "3A0", Sigma: "3A3", Upsilon: "3A5", Phi: "3A6", Psi: "3A8",
+    Omega: "3A9", varGamma: "1D6E4", varDelta: "1D6E5", varTheta: "1D6E9", varLambda: "1D6EC", varXi: "1D6EF", varPi: "1D6F1",
+    varSigma: "1D6F4", varUpsilon: "1D6F6", varPhi: "1D6F7", varPsi: "1D6F9", varOmega: "1D6FA", ell: "2113", hbar: "210F",
+    hslash: "210F", partial: "1D715", nabla: "2207", infty: "221E", aleph: "2135", wp: "2118", emptyset: "2205", varnothing: "2205"};
+  var GREEK = {"α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ϵ": "epsilon", "ε": "varepsilon", "ζ": "zeta", "η": "eta",
+    "θ": "theta", "ϑ": "vartheta", "ι": "iota", "κ": "kappa", "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi", "π": "pi", "ρ": "rho",
+    "σ": "sigma", "ς": "varsigma", "τ": "tau", "υ": "upsilon", "ϕ": "phi", "φ": "varphi", "χ": "chi", "ψ": "psi", "ω": "omega",
+    "Γ": "Gamma", "Δ": "Delta", "Θ": "Theta", "Λ": "Lambda", "Ξ": "Xi", "Π": "Pi", "Σ": "Sigma", "Υ": "Upsilon", "Φ": "Phi",
+    "Ψ": "Psi", "Ω": "Omega", "ℓ": "ell", "ℏ": "hbar", "∂": "partial", "∇": "nabla", "∞": "infty"};
+  var BLOCK = "p, li, h1, h2, h3, h4, h5, h6, .display, figcaption, td, th, dt, dd, blockquote, pre, .thm, .titleblock";
+  function findClear() {
+    if (window.CSS && CSS.highlights) { CSS.highlights.delete("l2m-find"); CSS.highlights.delete("l2m-find-now"); }
+    Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-g"), function (r) { r.remove(); });
+    Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-f, main .l2m-find-now"), function (e) {
+      e.classList.remove("l2m-find-f", "l2m-find-now");
+    });
+    hits = []; hitAt = -1;
+  }
+  // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn)
+  function findWhat(q) {
+    q = q.trim();
+    if (!q) return null;
+    if (GREEK[q]) return {glyph: GLYPH[GREEK[q]], tex: "\\" + GREEK[q]};
+    var cmd = /^\\([A-Za-z]+)$/.exec(q);
+    if (cmd && GLYPH[cmd[1]]) return {glyph: GLYPH[cmd[1]], tex: q};
+    if (/[\\^_{}]/.test(q)) return {tex: q.replace(/\s+/g, "")};
+    var w = {text: q.toLowerCase()};
+    if (GLYPH[q]) { w.glyph = GLYPH[q]; w.tex = "\\" + q; }         // "phi": the word, and the symbol
+    else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
+    return w;
+  }
+  function texHas(tex, q) {
+    var t = (tex || "").replace(/\s+/g, ""), i = t.indexOf(q);
+    while (i >= 0) {
+      // \phi is not the start of \phiup: after a command name the next character is no letter
+      if (!(/[A-Za-z]$/.test(q) && /\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
+      i = t.indexOf(q, i + 1);
+    }
+    return false;
+  }
+  function glyphMark(g) {             // a soft box behind one glyph, inside its formula (it moves with it)
+    try {
+      var b = g.getBBox(), pad = 50;
+      var r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      r.setAttribute("class", "l2m-find-g");
+      r.setAttribute("x", b.x - pad); r.setAttribute("y", b.y - pad);
+      r.setAttribute("width", b.width + 2 * pad); r.setAttribute("height", b.height + 2 * pad);
+      r.setAttribute("rx", 90);
+      if (g.getAttribute("transform")) r.setAttribute("transform", g.getAttribute("transform"));
+      g.parentNode.insertBefore(r, g);
+      return r;
+    } catch (e) { return null; }
+  }
+  function findRun() {
+    findClear();
+    var what = findWhat(findField.value);
+    if (!what) { findShow(); return; }
+    var main = document.querySelector("main"), text = "", nodes = [], starts = [], forms = [], lastBlock = null;
+    var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
+      if (n.nodeType === 1) {
+        if (n.matches("mjx-container[data-n], l2m-math[n]")) return NodeFilter.FILTER_ACCEPT;
+        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_SKIP;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }});
+    for (var n = walk.nextNode(); n; n = walk.nextNode()) {
+      if (n.nodeType === 1) {                          // a formula: its place in the text, and what it has
+        forms.push({el: n, at: text.length});
+        text += "\u0000";
+        continue;
+      }
+      var blk = n.parentNode.closest(BLOCK);
+      if (blk !== lastBlock) { text += "\u0001"; lastBlock = blk; }
+      nodes.push(n); starts.push(text.length);
+      text += n.data;
+    }
+    var found = [];                                     // {at, range} | {at, el, glyph} | {at, el}
+    if (what.text) {
+      var low = text.toLowerCase(), q = what.text, i = low.indexOf(q);
+      function pos(k) {                                 // the text node and offset of the k-th character
+        var lo = 0, hi = starts.length - 1;
+        while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= k) lo = mid; else hi = mid - 1; }
+        return {node: nodes[lo], off: Math.min(k - starts[lo], nodes[lo].data.length)};
+      }
+      while (i >= 0 && found.length < 3000) {
+        var a = pos(i), b = pos(i + q.length);
+        try { var r = document.createRange(); r.setStart(a.node, a.off); r.setEnd(b.node, b.off); found.push({at: i, range: r}); } catch (e) {}
+        i = low.indexOf(q, i + q.length);
+      }
+    }
+    if (what.glyph || what.tex) {
+      forms.forEach(function (f) {
+        var gl = what.glyph && f.el.tagName !== "L2M-MATH" ? f.el.querySelectorAll('[data-c="' + what.glyph + '"]') : [];
+        if (gl.length) {
+          Array.prototype.forEach.call(gl, function (g, k) { found.push({at: f.at + k * 1e-4, el: f.el, glyph: g}); });
+        } else if (what.tex && !what.glyph && texHas(opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "", what.tex)) {
+          found.push({at: f.at, el: f.el});
+        } else if (what.glyph && f.el.tagName === "L2M-MATH" && texHas(opts.tex ? opts.tex(f.el.getAttribute("n")) : "", what.tex)) {
+          found.push({at: f.at, el: f.el});            // not drawn yet: by its TeX
+        }
+      });
+    }
+    found.sort(function (x, y) { return x.at - y.at; });
+    hits = found;
+    var ranges = [];
+    hits.forEach(function (h) {
+      if (h.range) ranges.push(h.range);
+      else if (h.glyph) h.mark = glyphMark(h.glyph);
+      else h.el.classList.add("l2m-find-f");
+    });
+    if (window.CSS && CSS.highlights && window.Highlight && ranges.length) {
+      var hl = new Highlight(); ranges.forEach(function (r) { hl.add(r); });
+      CSS.highlights.set("l2m-find", hl);
+    }
+    // the first one from where the reader is
+    var top = barHeight() + 4, k0 = 0;
+    for (var j = 0; j < hits.length; j++) { if (hitRect(hits[j]).top >= top) { k0 = j; break; } k0 = 0; }
+    findGo(hits.length ? k0 : -1, true);
+  }
+  function hitRect(h) {
+    var el = h.range || h.mark || h.glyph || h.el;
+    return el.getBoundingClientRect();
+  }
+  function findGo(k, soft) {
+    if (hitAt >= 0 && hits[hitAt]) {
+      var o = hits[hitAt];
+      if (o.mark) o.mark.classList.remove("now"); else if (!o.range) o.el.classList.remove("l2m-find-now");
+    }
+    hitAt = k;
+    if (window.CSS && CSS.highlights) CSS.highlights.delete("l2m-find-now");
+    if (k >= 0 && hits[k]) {
+      var h = hits[k];
+      if (h.range) { if (window.Highlight) CSS.highlights.set("l2m-find-now", new Highlight(h.range)); }
+      else if (h.mark) h.mark.classList.add("now");
+      else h.el.classList.add("l2m-find-now");
+      // in sight: below the bar, above the peek, a third of the way down if it has to move
+      var r = hitRect(h), top = barHeight() + 12, bottom = window.innerHeight - (peekOpen ? peekH : 0) - 24;
+      if (r.top < top || r.bottom > bottom) window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - top - (bottom - top) * 0.3));
+      var at = h.glyph || (h.range && h.range.startContainer.parentElement), eq = at && at.closest && at.closest(".eqbody");
+      if (eq) {                                           // a wide formula scrolled sideways to it
+        var er = eq.getBoundingClientRect(), gr = hitRect(h);
+        if (gr.left < er.left + 16 || gr.right > er.right - 16) eq.scrollLeft += gr.left - er.left - er.width / 2 + gr.width / 2;
+      }
+    }
+    findShow();
+  }
+  function findShow() {
+    if (!findCount) return;
+    var q = findField.value.trim();
+    findCount.textContent = !q ? "" : hits.length ? (hitAt + 1) + "/" + (hits.length >= 3000 ? "3000+" : hits.length) : "0";
+    findCount.classList.toggle("none", !!q && !hits.length);
+    findBar.querySelector(".find-prev").disabled = findBar.querySelector(".find-next").disabled = hits.length < 2;
+  }
+  function findStep(d) { if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
+  function openFind() {
+    if (!findBar || finding) return;
+    closeMenu("jump"); closeSheet();
+    finding = true;
+    if (useHistory) { try { if (!state().l2mFind) history.pushState(assign(state(), {l2mFind: true}), ""); } catch (e) {} }
+    bar.classList.remove("find-in", "find-out"); void bar.offsetWidth;
+    bar.classList.add("finding", "find-in");
+    update();
+    setTimeout(function () { findField.focus(); findField.select(); }, 40);
+    if (findField.value.trim()) findRun();
+    setTimeout(function () { bar.classList.remove("find-in"); }, 320);
+  }
+  function closeFind(how) {            // how: "pop" (by back), "jump" (something else follows)
+    if (!finding) return;
+    finding = false;
+    clearTimeout(findTimer);
+    if (useHistory && how !== "pop") {
+      try {
+        if (state().l2mFind) {
+          if (how === "jump") { var st = assign(state(), {}); delete st.l2mFind; history.replaceState(st, ""); }
+          else { skipPop = true; history.back(); }
+        }
+      } catch (e) {}
+    }
+    findClear();
+    findField.blur();
+    bar.classList.remove("finding", "find-in"); void bar.offsetWidth;
+    bar.classList.add("find-out");
+    setTimeout(function () { bar.classList.remove("find-out"); }, 300);
+    update();
+  }
+  if (findBar) {
+    findBtn.addEventListener("click", openFind);
+    findField.addEventListener("input", function () { clearTimeout(findTimer); findTimer = setTimeout(findRun, 140); });
+    findField.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); clearTimeout(findTimer); if (!hits.length) findRun(); else findStep(e.shiftKey ? -1 : 1); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(); }
+    });
+    findBar.querySelector(".find-prev").addEventListener("click", function () { findStep(-1); });
+    findBar.querySelector(".find-next").addEventListener("click", function () { findStep(1); });
+    findBar.querySelector('[data-act="find-close"]').addEventListener("click", function () { closeFind(); });
+    on(document, "keydown", function (e) {           // Ctrl/Cmd+F: this search, not the browser's (which cannot read formulas)
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        if (finding) { findField.focus(); findField.select(); } else openFind();
+      }
+    });
   }
 
   // ---------------------------------------------------------------- full screen while reading (a phone's own
@@ -729,6 +951,8 @@ window.L2M_nav = function (opts) {
       n.removeAttribute("id");
     });
     Array.prototype.forEach.call(peekMain.querySelectorAll(".fnref.active"), function (n) { n.classList.remove("active"); });
+    Array.prototype.forEach.call(peekMain.querySelectorAll(".l2m-find-g"), function (n) { n.remove(); });
+    Array.prototype.forEach.call(peekMain.querySelectorAll(".l2m-find-f, .l2m-find-now"), function (n) { n.classList.remove("l2m-find-f", "l2m-find-now"); });
     peekHeads = Array.prototype.filter.call(peekMain.querySelectorAll("h2[data-pid], h3[data-pid]"), function (h) {
       return !h.closest(".titleblock");
     });
@@ -1038,7 +1262,7 @@ window.L2M_nav = function (opts) {
   window.L2M_progress = progress;
   function update() {
     prog.firstChild.style.width = (progress() * 100).toFixed(2) + "%";
-    var show = ALWAYS || (trigger ? trigger.getBoundingClientRect().bottom < 8 : window.pageYOffset > 240) || panel !== null;
+    var show = ALWAYS || (trigger ? trigger.getBoundingClientRect().bottom < 8 : window.pageYOffset > 240) || panel !== null || finding;
     if (show !== shown) {
       shown = show;
       bar.classList.toggle("show", show);
@@ -1116,6 +1340,7 @@ window.L2M_nav = function (opts) {
       root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
       if (peek) { peek.remove(); peek = null; peekOpen = false; document.body.style.paddingBottom = ""; }
       fullLeave();
+      if (window.CSS && CSS.highlights) { CSS.highlights.delete("l2m-find"); CSS.highlights.delete("l2m-find-now"); }
       clearTimeout(peekCloseTimer);
       if (window.L2M_progress === progress) window.L2M_progress = null;
     }

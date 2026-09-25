@@ -68,7 +68,8 @@
     h.innerHTML = '<header class="l2m-bar show skel-bar" id="l2m-skel-bar" aria-hidden="true"><div class="bar-inner">' +
       '<button type="button" class="bar-btn swap" tabindex="-1"><span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' +
       (I.close || "") + '</span></button><button type="button" class="bar-title" tabindex="-1"><span class="bar-title-inner"><span class="skel skel-bar-title"></span>' +
-      '</span></button><button type="button" class="bar-btn" tabindex="-1">' + (I.settings || "") + "</button></div></header>";
+      '</span></button><button type="button" class="bar-btn" tabindex="-1">' + (I.search || "") + "</button>" +
+      '<button type="button" class="bar-btn" tabindex="-1">' + (I.settings || "") + "</button></div></header>";
     var bar = h.firstChild;
     document.body.insertBefore(bar, main);
     root.style.setProperty("--l2m-bar-h", bar.getBoundingClientRect().height + "px");   // the page starts where it will

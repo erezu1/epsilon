@@ -1,10 +1,6 @@
 {
  "name": "Epsilon default",
- "bar": [
-  "back",
-  "title",
-  "settings"
- ],
+ "bar": ["back", "title", "search", "settings"],
  "barShows": "always",
  "titleblock": [
   "library"

@@ -78,11 +78,20 @@
       top: '<button type="button" class="bar-btn" data-act="top" aria-label="Go to the top">' + (I.top || "") + "</button>",
       settings: '<button type="button" class="bar-btn" data-act="settings" aria-label="Reading settings" aria-controls="l2m-settings">' +
         (I.settings || "") + "</button>",
+      search: '<button type="button" class="bar-btn" data-act="find" aria-label="Search this paper">' + (I.search || "") + "</button>",
       library: o.onLibrary ? '<button type="button" class="bar-btn" data-act="library" aria-label="All papers">' + (I.library || "") + "</button>" : ""
     };
     var always = theme.barShows !== "afterTitle";
     var bar = '<header class="l2m-bar' + (always ? ' show" aria-hidden="false"' : '" aria-hidden="true"') + ' id="l2m-bar"><div class="bar-inner">' +
-      (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") + "</div></header>\n";
+      (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") +
+      ((theme.bar || []).indexOf("search") >= 0 ?
+        '<div class="bar-find" role="search"><input class="app-field" type="search" enterkeyhint="search" placeholder="Search, or TeX: \\phi" ' +
+        'aria-label="Search this paper, words or TeX" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+        '<span class="find-count" aria-live="polite"></span>' +
+        '<button type="button" class="bar-btn find-prev" data-act="find-prev" aria-label="Previous match">' + (I.chevron || "") + "</button>" +
+        '<button type="button" class="bar-btn find-next" data-act="find-next" aria-label="Next match">' + (I.chevron || "") + "</button>" +
+        '<button type="button" class="bar-btn" data-act="find-close" aria-label="Close the search">' + (I.close || "") + "</button></div>" : "") +
+      "</div></header>\n";
     var menu = '<nav class="l2m-menu" id="l2m-menu" aria-label="Contents" aria-hidden="true"><div class="menu-inner">' +
       '<p class="menu-head">Contents</p><ol></ol></div></nav>\n';
     var settings = '<div class="l2m-menu l2m-settings" id="l2m-settings" role="dialog" aria-label="Reading settings" aria-hidden="true">' +
@@ -118,7 +127,9 @@
       cache.svg && cache.svg.length === m.items.length ? cache.svg : null;
     function fill(h) {
       h = mathMarkers(h);
-      return svg ? h.replace(/<l2m-math n="(\d+)"><\/l2m-math>/g, function (x, k) { return svg[+k]; }) : h;
+      return svg ? h.replace(/<l2m-math n="(\d+)"><\/l2m-math>/g, function (x, k) {
+        return svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"');
+      }) : h;
     }
     if (svg) {
       var st = document.createElement("style");
@@ -215,6 +226,7 @@
       return img.complete ? null : new Promise(function (r) { img.addEventListener("load", r); img.addEventListener("error", r); });
     })));
     nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving,
+                          tex: function (n) { var it = m.items[+n]; return it ? it.tex : ""; },
                           ready: Promise.all([ready, imagesIn])});
     if (svg) done();
     else drawMath(m, o.mathjax || theme.mathjax, main, add, done, function () { return closed; });
@@ -308,6 +320,7 @@
           node.title = e.message;
           node.textContent = it.tex;
         }
+        if (node.setAttribute) node.setAttribute("data-n", el.getAttribute("n"));
         el.replaceWith(node);
       }
       function chunk() {
