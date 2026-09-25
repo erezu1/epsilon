@@ -1205,7 +1205,13 @@
       if (passed) cur = i;
     });
     var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === k;
-    pinned.days[k] = cur >= 0 ? {h: days[cur].offsetHeight, text: days[cur].textContent, op: 1} : null;
+    // where the header's words stand, as they would with this list in view (the list may be sliding sideways)
+    var textX = 0;
+    if (cur >= 0) {
+      var rg0 = document.createRange(); rg0.selectNodeContents(days[cur]);
+      textX = rg0.getBoundingClientRect().left - paneEl.getBoundingClientRect().left + main.getBoundingClientRect().left - row.getBoundingClientRect().left;
+    }
+    pinned.days[k] = cur >= 0 ? {h: days[cur].offsetHeight, text: days[cur].textContent, op: 1, x: textX} : null;
     if (current !== k || (sw && sw.dir === "x") || pinned.following) return;   // a move between the tabs draws it meanwhile
     bar.classList.toggle("joined", on);
     if (on) {
@@ -1213,10 +1219,8 @@
       row.style.height = h + "px";              // the bar grows down to take the header in (animated)
       root.style.setProperty("--l2m-join-h", h + "px");   // a panel closes onto the bar with its header
       if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
-      // the words exactly over where they stood in the list (whatever the phone's insets and widths)
-      var rg = document.createRange(); rg.selectNodeContents(d);
-      var dx = rg.getBoundingClientRect().left - row.getBoundingClientRect().left;
-      if (dx >= 0 && dx < 200) row.style.paddingLeft = dx.toFixed(2) + "px";
+      // the words exactly over where they stand in the list (whatever the phone's insets and widths)
+      if (textX >= 0 && textX < 400) row.style.paddingLeft = textX.toFixed(2) + "px";
       // scroll-linked crossfade: the header fades out as the next one comes up under it, and a new one fades in
       var span = h, out = 1, inn = 1;
       if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next header coming up
@@ -1585,6 +1589,7 @@
     var near = wn >= wl ? dn : dl, far = wn >= wl ? dl : dn, w = Math.max(wn, wl), d = near || far;
     var op = near ? (near.op === undefined ? 1 : near.op) * (far ? 2 * w - 1 : w) : (far.op === undefined ? 1 : far.op) * (1 - w);
     if (row.textContent !== d.text) row.innerHTML = "<span>" + esc(d.text) + "</span>";
+    if (d.x >= 0 && d.x < 400) row.style.paddingLeft = d.x.toFixed(2) + "px";     // in place all through the slide
     bar.classList.add("joined");
     bar.classList.remove("settled");
     row.style.transition = "none";
