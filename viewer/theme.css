@@ -1440,3 +1440,23 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   transition: width 900ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 .lib-rows > li.read-still::after { transition: none; }
+
+/* settings open: the bar becomes the settings' bar. The icon turns into a close button, Library / Explore give way
+   to System / View (in the same place, the same style), and search and add step aside; all back as it closes */
+.app-lead, .app-tabswap { display: grid; align-items: center; flex: 0 0 auto; }
+.app-lead > *, .app-tabswap > * { grid-area: 1 / 1; }
+.app-lead .app-close { justify-self: center; width: 40px; height: 40px; border-radius: 50%; }
+.app-lead .app-logo, .app-lead .app-close, .app-tabswap > .app-tabs, #app-search, #app-plus {
+  transition: opacity 200ms ease, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0s;
+}
+.app-lead .app-close { opacity: 0; transform: rotate(-90deg) scale(0.6); visibility: hidden; transition-delay: 0s, 0s, 260ms; }
+.app-bar.set-mode .app-lead .app-logo { opacity: 0; transform: rotate(90deg) scale(0.6); }
+.app-bar.set-mode .app-lead .app-close { opacity: 1; transform: none; visibility: visible; transition-delay: 0s, 0s, 0s; }
+.app-tabswap > .set-tabs { opacity: 0; transform: translateY(6px); visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 260ms; }
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs) { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+.app-bar.set-mode .app-tabswap > .set-tabs { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition-delay: 60ms, 60ms, 0s; }
+.app-bar.set-mode #app-search, .app-bar.set-mode #app-plus { opacity: 0; transform: scale(0.8); pointer-events: none; }
+.app-bar .set-tabs .sel-ind { bottom: 5px; }
+@media (prefers-reduced-motion: reduce) {
+  .app-lead > *, .app-tabswap > *, #app-search, #app-plus { transition-duration: 0.01s; }
+}

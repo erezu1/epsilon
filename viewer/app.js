@@ -423,10 +423,14 @@
     holder.className = "l2m-chrome app-chrome";
     holder.innerHTML =
       '<header class="l2m-bar show app-bar" id="app-bar"><div class="bar-inner">' +
-      '<svg class="app-logo" viewBox="119 117 290 290" width="28" height="28" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-      '<div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
+      '<span class="app-lead"><svg class="app-logo" viewBox="119 117 290 290" width="28" height="28" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '<button type="button" class="bar-btn app-close" id="app-close" aria-label="Close the settings" tabindex="-1">' + (I.close || "&times;") + "</button></span>" +
+      '<span class="app-tabswap"><div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>Explore</span></button></div>' +
+      '<div class="seg app-tabs set-tabs" id="set-tabs" role="tablist" aria-label="Settings" aria-hidden="true"><span class="sel-ind" aria-hidden="true"></span>' +
+      '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="true" tabindex="-1"><span>System</span></button>' +
+      '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="false" tabindex="-1"><span>View</span></button></div></span>' +
       '<span class="app-spacer"></span>' +
       '<div class="app-searchbar"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
       'autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
@@ -451,6 +455,7 @@
     holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     holder.querySelector("#app-search").addEventListener("click", function () { searching(true); });
+    holder.querySelector("#app-close").addEventListener("click", function (e) { e.stopPropagation(); closePanel(); });
     // the app's icon: to the top of the library, and the lists fetched afresh
     var logo = holder.querySelector(".app-logo");
     logo.setAttribute("role", "button"); logo.setAttribute("tabindex", "0"); logo.setAttribute("aria-label", "Library, from the top");
@@ -593,10 +598,7 @@
     } else {
       // two tabs: System (the library, the feed, this device) and View (how papers and lists look)
       var tab = store("setTab") === "view" ? "view" : "system";
-      inner.innerHTML = '<div class="seg app-tabs set-tabs" role="tablist" aria-label="Settings"><span class="sel-ind" aria-hidden="true"></span>' +
-        '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="' + (tab === "system") + '"><span>System</span></button>' +
-        '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="' + (tab === "view") + '"><span>View</span></button></div>' +
-        '<div class="set-view"><div class="set-track"><div class="set-pane" data-set="system">' + panelHTML() + "</div>" +
+      inner.innerHTML = '<div class="set-view"><div class="set-track"><div class="set-pane" data-set="system">' + panelHTML() + "</div>" +
         '<div class="set-pane l2m-settings" data-set="view">' + (window.L2M_readingSettings ? L2M_readingSettings(theme) : "") + "</div></div></div>";
       bindPanel(inner);
       bindSetTabs(inner, tab);
@@ -604,6 +606,7 @@
     el.classList.add("open");
     el.setAttribute("aria-hidden", "false");
     shell.querySelector("#app-bar").classList.add("menu-open");
+    setMode(which === "settings");
     shell.querySelector(which === "add" ? "#app-plus" : "#app-gear").setAttribute("aria-expanded", "true");
     panelOpen = which;
     requestAnimationFrame(function () {
@@ -612,7 +615,19 @@
       if (f) f.focus();
     });
   }
+  // settings open: the bar is the settings' bar (the icon a close button, the tabs the settings' tabs; search and
+  // add step aside), and back again as they close
+  function setMode(on) {
+    if (!shell) return;
+    var bar = shell.querySelector("#app-bar");
+    bar.classList.toggle("set-mode", on);
+    shell.querySelector("#set-tabs").setAttribute("aria-hidden", on ? "false" : "true");
+    shell.querySelector(".app-tabs:not(.set-tabs)").setAttribute("aria-hidden", on ? "true" : "false");
+    Array.prototype.forEach.call(shell.querySelectorAll("#set-tabs .seg-btn, #app-close"), function (b) { b.tabIndex = on ? 0 : -1; });
+    Array.prototype.forEach.call(shell.querySelectorAll(".app-tabs:not(.set-tabs) .seg-btn, #app-search, #app-plus"), function (b) { b.tabIndex = on ? -1 : 0; });
+  }
   function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
+    if (shell) setMode(false);
     if (!panelOpen || !shell) { panelOpen = false; return; }
     // the keyboard goes down with the panel, not after it (a text field in it keeps focus otherwise)
     if (document.activeElement && shell.contains(document.activeElement) && document.activeElement.blur) document.activeElement.blur();
@@ -635,7 +650,7 @@
   }
   // the settings' tabs: the underline slides, the panes slide sideways (a swipe too), the panel takes each one's height
   function bindSetTabs(inner, tab) {
-    var tabs = inner.querySelector(".set-tabs"), view = inner.querySelector(".set-view"), track = inner.querySelector(".set-track");
+    var tabs = shell.querySelector("#set-tabs"), view = inner.querySelector(".set-view"), track = inner.querySelector(".set-track");
     var panes = Array.prototype.slice.call(inner.querySelectorAll(".set-pane")), names = ["system", "view"];
     function fit(animate) {
       var h = panes[names.indexOf(tab)].offsetHeight;
@@ -654,10 +669,10 @@
       fit(animate);
       requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
     }
-    tabs.addEventListener("click", function (e) {
+    tabs.onclick = function (e) {
       var b = e.target.closest("[data-set-tab]");
       if (b) show(b.getAttribute("data-set-tab"), true);
-    });
+    };
     // a pane changing its own height (the font list unfolding, the category picker) resizes the panel with it
     if (window.ResizeObserver) new ResizeObserver(function () { fit(true); }).observe(panes[0]), new ResizeObserver(function () { fit(true); }).observe(panes[1]);
     var sw0 = null;
