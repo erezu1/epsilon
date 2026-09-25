@@ -626,7 +626,7 @@
       });
     } else {
       // two tabs: System (the library, the feed, this device) and View (how papers and lists look)
-      var tab = store("setTab") === "view" ? "view" : "system";
+      var tab = "system";                        // always opens on System
       inner.innerHTML = '<div class="set-view"><div class="set-track"><div class="set-pane" data-set="system">' + panelHTML() + "</div>" +
         '<div class="set-pane l2m-settings" data-set="view">' + (window.L2M_readingSettings ? L2M_readingSettings(theme) : "") + "</div></div></div>";
       bindPanel(inner);
@@ -701,7 +701,6 @@
     }
     function show(name, animate) {
       tab = name;
-      store("setTab", name);
       Array.prototype.forEach.call(tabs.querySelectorAll("[data-set-tab]"), function (b) { b.setAttribute("aria-checked", b.getAttribute("data-set-tab") === name ? "true" : "false"); });
       slide(tabs);
       track.style.transition = animate ? "" : "none";
