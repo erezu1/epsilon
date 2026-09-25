@@ -1169,6 +1169,7 @@
     if (on) {
       var d = days[cur], h = d.offsetHeight;
       row.style.height = h + "px";              // the bar grows down to take the header in (animated)
+      root.style.setProperty("--l2m-join-h", h + "px");   // a panel closes onto the bar with its header
       if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
       // the words exactly over where they stood in the list (whatever the phone's insets and widths)
       var rg = document.createRange(); rg.selectNodeContents(d);
@@ -1188,6 +1189,7 @@
       clearTimeout(joinBar.t);
       bar.classList.remove("settled");
       row.style.height = "";                   // back to the bar alone; the header fades as it goes
+      root.style.setProperty("--l2m-join-h", "0px");
       row.style.paddingLeft = "";
       row.style.opacity = "";
       row.style.transform = "";

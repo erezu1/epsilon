@@ -1460,3 +1460,16 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 @media (prefers-reduced-motion: reduce) {
   .app-lead > *, .app-tabswap > *, #app-search, #app-plus { transition-duration: 0.01s; }
 }
+
+/* a panel over a list with a pinned header: it opens from, and closes onto, the bar with the header (its full
+   height), while the header's row folds away and back at the panel's own pace, so the glass never jumps */
+:root { --l2m-join-h: 0px; }
+.l2m-menu, .l2m-menu.open {
+  --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h));
+  clip-path: inset(0 0 calc((1 - var(--open)) * (100% - var(--l2m-close-h)) - var(--open) * 60px) 0);
+  --shown: min(100%, calc(var(--l2m-close-h) + var(--open) * (100% - var(--l2m-close-h) + 60px)));
+}
+.app-bar .app-bar-day, .app-bar.joined.settled .app-bar-day {
+  transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
+}
+.app-bar.joined.settled:not(.menu-open) .app-bar-day { transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
