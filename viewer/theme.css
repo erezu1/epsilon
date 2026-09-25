@@ -1546,3 +1546,29 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .l2m-bar .bar-progress { z-index: 3; }
 @media (min-width: 720px) { .l2m-bar .bar-progress { bottom: -4px; } }
 .l2m-bar .bar-progress { bottom: -4px; }   /* just below the section title (phones and wide screens) */
+
+/* the flip as a strip: the two sets of tabs (and the icon and its close button) stand one above the other, a fixed
+   40px apart, and move together by that much, at one pace, only up or down (no scaling, no fading of their own:
+   the soft edges above and below the bar's row fade them as they pass) */
+.app-tabswap > .app-tabs, .app-tabswap > .set-tabs, .app-lead > .app-logo, .app-lead > .app-close,
+.app-bar.set-mode .app-tabswap > .app-tabs, .app-bar.set-mode .app-tabswap > .set-tabs,
+.app-bar.set-mode .app-lead > .app-logo, .app-bar.set-mode .app-lead > .app-close {
+  opacity: 1;
+  transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), visibility 0s linear 440ms !important;
+}
+.app-tabswap > .app-tabs:not(.set-tabs), .app-lead > .app-logo { transform: translateY(0); visibility: visible; }
+.app-tabswap > .set-tabs, .app-lead > .app-close { transform: translateY(-40px); visibility: hidden; }
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs), .app-bar.set-mode .app-lead > .app-logo { transform: translateY(40px); visibility: hidden; }
+.app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close { transform: translateY(0); visibility: visible; }
+.app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close,
+.app-bar:not(.set-mode) .app-tabswap > .app-tabs:not(.set-tabs), .app-bar:not(.set-mode) .app-lead > .app-logo {
+  transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), visibility 0s !important;
+}
+.app-lead .app-close { transform-origin: 50% 50%; }
+.app-tabswap > .app-tabs, .app-lead > .app-logo, .app-lead > .app-close, .app-bar .app-tabswap > .app-tabs:not(.set-tabs) { opacity: 1 !important; }
+/* the section title's highlight fits the words (with room to their left), inside the row: the row itself keeps the
+   bar's height for one or two lines, so the underline below is never covered */
+.l2m-bar:not(.app-bar) .bar-inner { min-height: 53.2px; }
+.l2m-bar:not(.app-bar) .bar-title { min-height: 0; align-self: center; padding: 4px 10px; margin-left: -8px; border-radius: 10px; }
+@media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-inner { min-height: 58.4px; } }
+.l2m-bar:not(.app-bar) .bar-title { padding: 3px 10px; }
