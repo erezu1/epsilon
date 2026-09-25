@@ -651,9 +651,10 @@
     if (!shell) return;
     var bar = shell.querySelector("#app-bar");
     if (bar.classList.contains("set-mode") !== on) {        // while the tabs flip, their edges fade softly
-      bar.classList.add("flapping");
-      clearTimeout(setMode.t);
-      setMode.t = setTimeout(function () { bar.classList.remove("flapping"); }, 560);
+      bar.classList.add("flapping", "flap-on");   // the soft edges fade in, and out again as the new tabs settle
+      clearTimeout(setMode.t); clearTimeout(setMode.u);
+      setMode.t = setTimeout(function () { bar.classList.remove("flap-on"); }, 430);
+      setMode.u = setTimeout(function () { bar.classList.remove("flapping"); }, 620);
     }
     bar.classList.toggle("set-mode", on);
     placeSwapInd();

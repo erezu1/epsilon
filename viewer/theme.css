@@ -1600,12 +1600,12 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-bar .bar-inner { position: relative; }
 .app-bar .bar-inner > .swap-ind { bottom: 5px; }
 .app-bar.flapping .app-tabswap {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 4px, #000 26px, #000 49px, transparent 56px) !important;
-  mask-image: linear-gradient(to bottom, transparent 4px, #000 26px, #000 49px, transparent 56px) !important;
+  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
+  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
 }
 .app-bar.flapping .app-lead {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
-  mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
+  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 24px, #000 34px, #000 39px, transparent 49px) !important;
+  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 24px, #000 34px, #000 39px, transparent 49px) !important;
 }
 
 /* one thickness for every line: the header's underline, the reading underline, the library's reading lines and the
@@ -1652,12 +1652,12 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 /* the flip's two soft edges mirror each other about the tabs' text (19-43px in the bar): each 5px, ending at the
    text's top and bottom (the bottom one at the underline) */
 .app-bar.flapping .app-tabswap {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 13px, #000 27px, #000 51px, transparent 62px) !important;
-  mask-image: linear-gradient(to bottom, transparent 13px, #000 27px, #000 51px, transparent 62px) !important;
+  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
+  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
 }
 .app-bar.flapping .app-lead {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 9px, #000 23px, #000 47px, transparent 58px) !important;
-  mask-image: linear-gradient(to bottom, transparent 9px, #000 23px, #000 47px, transparent 58px) !important;
+  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 24px, #000 34px, #000 39px, transparent 49px) !important;
+  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 24px, #000 34px, #000 39px, transparent 49px) !important;
 }
 
 /* Library refreshing: Explore's loading bar at the top of the list, fading in and out */
@@ -1740,8 +1740,10 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 .eqbody.l2m-scrolling::-webkit-scrollbar-thumb, .table-wrap.l2m-scrolling::-webkit-scrollbar-thumb, pre.l2m-scrolling::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
 
 /* the viewer's back chevron: a little larger than the other icons (a bare chevron reads small); the same line */
-.l2m-bar:not(.app-bar) .ico-back svg { width: 32px; height: 32px; stroke-width: calc(1.5px * 21 / 32); translate: -6px 0; }
-.l2m-bar:not(.app-bar) .ico-back svg * { stroke-width: inherit; }
+.l2m-bar:not(.app-bar) .ico-back svg { width: 32px; height: 32px; }
+/* the back button nearer the bar's left edge: its chevron as far from that edge as the settings icon is from the
+   right one (the button's round highlight may reach the edge) */
+.l2m-bar:not(.app-bar) .bar-btn.swap { margin-left: -13px; }
 
 /* the flip's soft edges only while it runs: at rest nothing is masked (the close button's shadow and pressed circle
    are whole; what rests is inside the fully shown band, so taking the mask away changes nothing seen) */
@@ -1777,3 +1779,15 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 .app-pane-in { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .app-pane-in > .l2m-library:last-child, .app-pane-in > :last-child { margin-bottom: 0; }
 .app-pane-in > .l2m-library + .app-older { margin-top: calc(16px - 3rem); }
+
+/* the flip's soft edges: symmetric about the tabs' letters (31-50px in their box) and wholly faded 3px before the
+   underline (56px). They reach into where the letters rest, so the fade itself comes and goes: in as the flip
+   starts, out as the new tabs settle (--flap: 0 is no fade at all). Two mask layers, added: a plain one at
+   1 - flap over the soft-edged one. */
+@property --flap { syntax: "<number>"; inherits: false; initial-value: 0; }
+.app-bar.flapping .app-tabswap, .app-bar.flapping .app-lead {
+  --flap: 0; transition: --flap 150ms ease;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-composite: source-over; mask-composite: add;
+}
+.app-bar.flapping.flap-on .app-tabswap, .app-bar.flapping.flap-on .app-lead { --flap: 1; transition: --flap 90ms ease; }
