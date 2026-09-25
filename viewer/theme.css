@@ -1786,7 +1786,7 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
    1 - flap over the soft-edged one. */
 @property --flap { syntax: "<number>"; inherits: false; initial-value: 0; }
 .app-bar.flapping .app-tabswap, .app-bar.flapping .app-lead {
-  --flap: 0; transition: --flap 150ms ease;
+  --flap: 0; transition: --flap 280ms cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-composite: source-over; mask-composite: add;
 }
