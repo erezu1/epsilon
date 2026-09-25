@@ -609,12 +609,21 @@ def push(lib, message):
         say("nothing to commit")
         return
     git("commit", "-q", "-m", message)
-    for _ in range(3):
-        if git("push", "-q").returncode == 0:
+    last = None
+    for attempt in range(5):
+        r = git("push", "-q")
+        if r.returncode == 0:
             say("pushed")
             return
-        git("pull", "-q", "--rebase")
-    sys.exit("l2m_library: git push failed")
+        last = r
+        # someone else wrote meanwhile (the app keeps reading places here): take their commits in and try again
+        r = git("pull", "-q", "--rebase")
+        if r.returncode != 0:
+            git("rebase", "--abort")
+            last = r
+            break
+        time.sleep(2 + 3 * attempt)
+    sys.exit("l2m_library: git push failed:\n" + ((last.stderr or last.stdout) if last else "").strip())
 
 
 def main():
@@ -657,9 +666,18 @@ def main():
                 if not ARXIV_ID.match(i):
                     sys.exit("l2m_library: not an arXiv id: %r" % i)
                 clean.append(i)
+            # the app sends again the papers still waiting (a run waiting behind another can be dropped by GitHub):
+            # one converted in the last half hour was done by an earlier run
+            done = []
             for i in clean:
+                e = lib.entry(arxiv_key(i)) or {}
+                t = e.get("converted")
+                if t and e.get("status") == "ok" and time.time() - datetime.datetime.fromisoformat(t).timestamp() < 1800:
+                    say("%s: converted %s, skipped" % (arxiv_key(i), t))
+                    continue
                 convert_arxiv(lib, i)
-            msg = "Add " + ", ".join(clean)
+                done.append(i)
+            msg = "Add " + (", ".join(done) or "nothing new")
     elif a.cmd == "add-draft":
         e = add_draft(lib, a.tex, a.name)
         msg = "Draft " + e["key"]

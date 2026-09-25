@@ -1332,3 +1332,4 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .lib-rows .app-lib-row > .bar-btn { width: 38px; height: 38px; margin-top: -8px; }
 .lib-rows .app-lib-row > .bar-btn + .bar-btn { margin-left: -5px; }
 .l2m-bar:not(.app-bar) .bar-inner > .bar-btn:not(.swap) + .bar-btn:not(.swap) { margin-left: -5px; }
+.app-logo[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }

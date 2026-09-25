@@ -343,9 +343,18 @@
       .filter(function (i) { return /^(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?\/\d{7})(v\d+)?$/.test(i); });
     if (!ids.length) { toast("That is not an arXiv id or link."); return Promise.resolve(); }
     if (!src.run) { toast("Converting needs the GitHub library (Settings)."); return Promise.resolve(); }
+    // the papers still waiting go along: GitHub keeps one run waiting behind the running one, and drops the others
+    var p0 = pending(), have = {};
+    ((lib && lib.papers) || []).forEach(function (x) { have[keyOf(x)] = x; });
+    ids.forEach(function (i) { have[arxivKey(i)] = null; });
+    Object.keys(p0).forEach(function (k) {
+      var x = have[k];
+      if (x === null || (x && x.converted && Date.parse(x.converted) >= p0[k].since - 60000)) return;
+      if (p0[k].id) ids.push(p0[k].id);
+    });
     return src.run("convert.yml", {ids: ids.join(" ")}).then(function () {
       var p = pending();
-      ids.forEach(function (i) { p[arxivKey(i)] = {id: i, since: Date.now()}; });
+      ids.forEach(function (i) { if (!p[arxivKey(i)]) p[arxivKey(i)] = {id: i, since: Date.now()}; });
       store("pending", p);
       toast("Converting " + esc(ids.join(", ")) + ". It takes a few minutes; it will appear in your library.", 6000);
       watch();
@@ -442,6 +451,11 @@
     holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     holder.querySelector("#app-search").addEventListener("click", function () { searching(true); });
+    // the app's icon: to the top of the library, and the lists fetched afresh
+    var logo = holder.querySelector(".app-logo");
+    logo.setAttribute("role", "button"); logo.setAttribute("tabindex", "0"); logo.setAttribute("aria-label", "Library, from the top");
+    logo.addEventListener("click", home);
+    logo.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); home(); } });
     holder.querySelector("#search-close").addEventListener("click", function () { searching(false); });
     holder.querySelector("#lib-q").addEventListener("input", filterLibrary);
     return holder;
@@ -1129,6 +1143,20 @@
     listenJoin("app:new");
     var r = document.getElementById("feed-now");
     if (r) r.addEventListener("click", checkFeed);
+  }
+  function home() {
+    closePanel("jump");
+    searching(false);
+    if (current !== "app:library") go("library");
+    var pe = pane("app:library").parentNode;
+    if (pe.scrollTop > 0) pe.scrollTo({top: 0, behavior: "smooth"});
+    if (!src) return;
+    var before = listText.join("\u0000"), order = listState();
+    freshLists().then(function (t) {
+      var changed = t.join("\u0000") !== before;
+      if (changed) { var oldFeed = feed; useLists(t); if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); } }
+      return pullReading().then(function () { if ((changed || listState() !== order) && isPage(current)) refresh(); });
+    }, function () {});
   }
   // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
   var feedCheck = null;
