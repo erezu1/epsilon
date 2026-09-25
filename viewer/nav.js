@@ -997,6 +997,15 @@ window.L2M_nav = function (opts) {
     backBtn.disabled = !(panel || opts.onLibrary || (useHistory ? idx > 0 : mem.length > 0));
   }
 
+  // a wide formula, table or code scrolled sideways shows its thin scroll bar until it has been still a moment
+  on(document, "scroll", function (e) {
+    var t = e.target;
+    if (!t || !t.classList || !t.matches(".eqbody, .table-wrap, pre")) return;
+    t.classList.add("l2m-scrolling");
+    clearTimeout(t.l2mStill);
+    t.l2mStill = setTimeout(function () { t.classList.remove("l2m-scrolling"); }, 900);
+  }, true);
+
   var ticking = false, saveTimer = null;
   on(window, "scroll", function () {
     if (!ticking) {
