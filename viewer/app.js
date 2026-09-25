@@ -797,33 +797,60 @@
   }
   // where each paper sat in the library list, so a new order can slide into place (not jump)
   var libTops = null;
-  function measureLibrary() {
-    var box = main.querySelector('[data-pane="app:library"] .app-pane-in'), m = {}, n = 0;
-    Array.prototype.forEach.call(box ? box.querySelectorAll("li[data-k]") : [], function (li) { m[li.getAttribute("data-k")] = li.offsetTop; n++; });
+  // where each row sat (by its key, relative to its list's top): a new order then slides into place, and rows new to
+  // the list fade in where they belong (the same in Library and in New)
+  function measureRows(box) {
+    if (!box) return null;
+    var top = box.getBoundingClientRect().top, m = {}, n = 0;
+    Array.prototype.forEach.call(box.querySelectorAll("[data-k]"), function (el) { m[el.getAttribute("data-k")] = el.getBoundingClientRect().top - top; n++; });
     return n ? m : null;
   }
-  function slideLibrary(box, before) {
+  function measureLibrary() { return measureRows(main.querySelector('[data-pane="app:library"] .app-pane-in')); }
+  function slideRows(box, before, scroller) {
     if (!before || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
-    var moved = [];
-    Array.prototype.forEach.call(box.querySelectorAll("li[data-k]"), function (li) {
-      var was = before[li.getAttribute("data-k")];
-      if (was === undefined || Math.abs(was - li.offsetTop) < 1) return;
-      li.style.transition = "none";
-      li.style.transform = "translateY(" + (was - li.offsetTop) + "px)";
-      li.style.position = "relative";
-      li.style.zIndex = was > li.offsetTop ? "1" : "";     // the one rising passes over the others
-      moved.push(li);
+    var top = box.getBoundingClientRect().top, rows = [];
+    Array.prototype.forEach.call(box.querySelectorAll("[data-k]"), function (el) {
+      rows.push({el: el, was: before[el.getAttribute("data-k")], now: el.getBoundingClientRect().top - top});
     });
-    if (!moved.length) return;
+    // scrolled down a list: what is on the screen stays there (rows arriving above come in out of sight)
+    var shift = 0;
+    if (scroller && scroller.scrollTop > 40) {
+      var y = scroller.scrollTop, anchor = null;
+      rows.forEach(function (r) { if (r.was !== undefined && r.was >= y - 1 && (!anchor || r.was < anchor.was)) anchor = r; });
+      if (anchor) { shift = anchor.now - anchor.was; scroller.scrollTop = y + shift; }
+    }
+    var moved = [], fresh = [];
+    rows.forEach(function (r) {
+      if (r.was === undefined) {
+        r.el.style.transition = "none"; r.el.style.opacity = "0"; r.el.style.transform = "translateY(-14px)";
+        fresh.push(r.el);
+        return;
+      }
+      var d = r.was - r.now + shift;
+      if (Math.abs(d) < 1) return;
+      r.el.style.transition = "none";
+      r.el.style.transform = "translateY(" + d + "px)";
+      if (getComputedStyle(r.el).position === "static") r.el.style.position = "relative";
+      r.el.style.zIndex = d > 0 ? "1" : "";          // one rising passes over the others
+      moved.push(r.el);
+    });
+    if (!moved.length && !fresh.length) return;
     void box.offsetWidth;
     // coming back from a paper: wait for the page to have slid in, then let the order move
     var wait = root.classList.contains("l2m-in-back") || root.classList.contains("l2m-vt-back") ? 380 : 30;
     setTimeout(function () {
-      moved.forEach(function (li) {
-        li.style.transition = "transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1)";
-        li.style.transform = "";
+      moved.forEach(function (el) {
+        el.style.transition = "transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+        el.style.transform = "";
       });
-      setTimeout(function () { moved.forEach(function (li) { li.style.transition = li.style.position = li.style.zIndex = ""; }); }, 560);
+      fresh.forEach(function (el, i) {             // the new ones come in one after another, as the others make room
+        var delay = 140 + Math.min(i, 8) * 45;
+        el.style.transition = "opacity 380ms ease " + delay + "ms, transform 520ms cubic-bezier(0.2, 0.8, 0.2, 1) " + delay + "ms";
+        el.style.opacity = ""; el.style.transform = "";
+      });
+      setTimeout(function () {
+        moved.concat(fresh).forEach(function (el) { el.style.transition = el.style.position = el.style.zIndex = ""; });
+      }, 1100);
     }, wait);
   }
   // each paper's reading line (the bottom rule of its row, filled as far as it is read) grows to a new length
@@ -889,7 +916,7 @@
     }).join("");
     box.innerHTML = (papers.length || converting ? '<ol class="l2m-library" id="lib-list">' + converting + items + "</ol>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
-    slideLibrary(box, before);
+    slideRows(box, before, box.parentNode);
     growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
       b.addEventListener("click", function () {
@@ -924,6 +951,7 @@
   var daysShown = 1, fetchingDay = null;      // New shows the latest day, and more on request
   function renderNew() {
     var box = pane("app:new");
+    var before = measureRows(box);
     feedMath();
     var have = {}, p = pending(), rm = removing();
     ((lib && lib.papers) || []).forEach(function (x) { if (x.arxiv && !rm[keyOf(x)]) have[arxivKey(x.arxiv.id)] = x; });
@@ -934,7 +962,7 @@
     var shown = Math.max(1, Math.min(daysShown, order.length));
     var days = order.slice(0, shown).map(function (d) {
       var label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
-      return '<p class="app-day">' + esc(label) + '</p><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
+      return '<p class="app-day" data-k="d:' + esc(d) + '">' + esc(label) + '</p><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
         var k = arxivKey(i.id), got = have[k] && have[k].status === "ok", act;
         var Ic = theme.icons || {};
         if (got) act = '<a class="bar-btn app-act" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '" aria-label="Open">' + (Ic.open || "&rsaquo;") + "</a>";
@@ -942,7 +970,7 @@
         else if (src && src.run) act = '<button type="button" class="bar-btn app-act app-add-btn" data-convert="' + esc(i.id) + '" aria-label="Add to the library">' + (Ic.add || "+") + "</button>";
         else act = '<a class="bar-btn app-act" href="https://arxiv.org/abs/' + esc(i.id) + '" target="_blank" rel="noopener" aria-label="On arXiv">' + (Ic.external || "&nearr;") + "</a>";
         var t = i.titleHtml || esc(i.title);
-        return '<li class="app-paper"><div class="app-paper-head"><div class="app-paper-text">' +
+        return '<li class="app-paper" data-k="p:' + esc(k) + '"><div class="app-paper-head"><div class="app-paper-text">' +
           '<span class="lib-title app-abs-title">' + t + "</span>" +
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' + esc(i.id) +
           (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + inspireLink(i.id, [i.category]) + "</span></div>" +
@@ -951,8 +979,11 @@
       }).join("") + "</ol>";
     }).join("");
     var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
-      (feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "") +
-      (src && src.run ? ' &middot; <button type="button" class="app-link" id="feed-now">refresh</button>' : "");
+      (feedCheck ? " &middot; checking arXiv&hellip;" :
+        feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "");
+    var refreshBtn = src && src.run ? '<button type="button" class="bar-btn app-refresh' + (feedCheck ? " spinning" : "") + '" id="feed-now" ' +
+      (feedCheck ? "disabled " : "") + 'aria-label="' + (feedCheck ? "Checking for new papers" : "Check for new papers") + '">' +
+      ((theme.icons || {}).refresh || "&#8635;") + "</button>" : "";
     var older = "";
     if (order.length > shown) {
       older = '<p class="app-row app-older"><button type="button" class="app-pill" id="feed-older">' +
@@ -961,7 +992,7 @@
       older = '<p class="app-row app-older">' + (fetchingDay ? '<span class="app-pill app-busy">' + SPIN + "Fetching the day before</span>" :
         '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
     }
-    box.innerHTML = '<p class="app-note app-small">' + meta + "</p>" +
+    box.innerHTML = '<div class="app-feedbar"><p class="app-note app-small">' + meta + "</p>" + refreshBtn + "</div>" +
       (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>") + older;
     var ob = box.querySelector("#feed-older");
     if (ob) ob.addEventListener("click", function () {
@@ -985,6 +1016,7 @@
       }, function (e) { toast("Could not fetch it: " + esc(e.message)); });
     });
     foldAbstracts(box);
+    slideRows(box, before, box.parentNode);
     // in New a paper's title opens and closes its abstract (the round button opens the paper)
     Array.prototype.forEach.call(box.querySelectorAll(".app-abs-title"), function (t) {
       var abs = t.closest(".app-paper").querySelector(".app-abs");
@@ -1037,10 +1069,50 @@
     if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(joinBar); }, {passive: true}); }
     joinBar();
     var r = document.getElementById("feed-now");
-    if (r) r.addEventListener("click", function () {
-      src.run("feed.yml", {}).then(function () { toast("Fetching the new papers. Come back in a minute."); },
-                                   function (e) { toast("Could not start it: " + esc(e.message)); });
+    if (r) r.addEventListener("click", checkFeed);
+  }
+  // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
+  var feedCheck = null;
+  function checkFeed() {
+    if (feedCheck || !src || !src.run) return;
+    var was = feed && feed.updated;
+    feedCheck = {tries: 0};
+    if (isPage(current)) renderNew();
+    src.run("feed.yml", {}).then(function () {
+      feedCheck.timer = setInterval(function () {
+        getJSON("feed.json", true).then(function (f) {
+          if (f && f.updated && f.updated !== was) {
+            clearInterval(feedCheck.timer);
+            var n = adoptFeed(f);
+            feedCheck = null;
+            if (isPage(current)) renderNew();
+            toast(n ? n + (n === 1 ? " new paper." : " new papers.") : "No new papers since the last check.");
+          } else if (++feedCheck.tries > 30) {
+            clearInterval(feedCheck.timer);
+            feedCheck = null;
+            if (isPage(current)) renderNew();
+            toast("It is still running on GitHub; the list comes in the next time you open the app.", 7000);
+          }
+        }).catch(function () {});
+      }, 10000);
+    }, function (e) {
+      feedCheck = null;
+      if (isPage(current)) renderNew();
+      toast("Could not start it: " + esc(e.message));
     });
+  }
+  // a newer list: the days it adds on top are shown along with the ones already there (they arrive above them)
+  function adoptFeed(f) {
+    var old = {}, days = {};
+    ((feed && feed.items) || []).forEach(function (i) { old[i.id] = 1; days[i.announced] = 1; });
+    var newest = Object.keys(days).sort().pop(), added = {};
+    var n = ((f && f.items) || []).filter(function (i) {
+      if (newest && i.announced > newest) added[i.announced] = 1;
+      return !old[i.id];
+    }).length;
+    if (newest) daysShown += Object.keys(added).length;
+    feed = f; mathIn = false; feedMath();
+    return n;
   }
 
   function showConnect() {
@@ -1374,7 +1446,11 @@
     var before = listText.join("\u0000"), order = JSON.stringify(store("opened") || {});
     freshLists().then(function (t) {
       var changed = t.join("\u0000") !== before;
-      if (changed) useLists(t);
+      if (changed) {
+        var oldFeed = feed;
+        useLists(t);
+        if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); }
+      }
       return pullReading().then(function () {
         if ((changed || JSON.stringify(store("opened") || {}) !== order) && isPage(current)) refresh();
       });
