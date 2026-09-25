@@ -1742,3 +1742,7 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 /* the viewer's back chevron: a little larger than the other icons (a bare chevron reads small); the same line */
 .l2m-bar:not(.app-bar) .ico-back svg { width: 27px; height: 27px; stroke-width: calc(1.5px * 21 / 27); }
 .l2m-bar:not(.app-bar) .ico-back svg * { stroke-width: inherit; }
+
+/* the flip's soft edges only while it runs: at rest nothing is masked (the close button's shadow and pressed circle
+   are whole; what rests is inside the fully shown band, so taking the mask away changes nothing seen) */
+.app-bar:not(.flapping) .app-tabswap, .app-bar:not(.flapping) .app-lead { -webkit-mask-image: none; mask-image: none; }
