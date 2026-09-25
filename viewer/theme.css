@@ -1746,3 +1746,14 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 /* the flip's soft edges only while it runs: at rest nothing is masked (the close button's shadow and pressed circle
    are whole; what rests is inside the fully shown band, so taking the mask away changes nothing seen) */
 .app-bar:not(.flapping) .app-tabswap, .app-bar:not(.flapping) .app-lead { -webkit-mask-image: none; mask-image: none; }
+
+/* the film belongs to the screen, not to the glass: its colours are those seen from where one looks, so a piece of
+   glass that moves passes through them and they stay put. The bar and the panels start at the top of the screen and
+   take the film from there (on wide screens, from the screen's left edge); a sheet, a message and the peek's head
+   are set against their place on the screen as they move (L2M_pinFilm). The rims stay with each piece's edges. */
+:root { --glass-x: 0px; }
+@media (min-width: 800px) { :root { --glass-x: calc((46rem - 100vw) / 2); } }
+.l2m-bar::before, .l2m-menu::before { background-position: var(--glass-x) 0; }
+.l2m-fnsheet::before, .app-toast::before, .peek-head::before { background-position: var(--film-x, 0px) var(--film-y, 0px); }
+/* the film under a rolling panel has the same corners as its moving edge (square where it meets a phone's bar) */
+.l2m-menu::before { border-radius: 0 0 var(--l2m-edge-r, 16px) var(--l2m-edge-r, 16px); }

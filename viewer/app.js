@@ -39,8 +39,9 @@
     if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     t.innerHTML = html;
     t.classList.add("on");
+    if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
     clearTimeout(t.l2mTimer);
-    t.l2mTimer = setTimeout(function () { t.classList.remove("on"); }, ms || 4000);
+    t.l2mTimer = setTimeout(function () { t.classList.remove("on"); if (window.L2M_pinFilm) L2M_pinFilm(t, 400); }, ms || 4000);
   }
   // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
   var SPIN = '<span class="app-spin" aria-hidden="true"></span>';

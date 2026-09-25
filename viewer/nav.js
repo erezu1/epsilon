@@ -5,6 +5,19 @@
 // L2M_nav(opts) starts it on the page viewer.js has drawn and returns {destroy}, so one page can open
 // and close many papers. opts: key (which paper; history entries are tagged with it), theme,
 // ready (a promise: the saved place is restored once formulas and images are in), onLibrary.
+// A piece of glass that moves (a sheet rising, the peek dragged) keeps its film where it is on the screen: the film's
+// colours belong to where one looks from (the angle), not to the glass, so the glass moves through them. For ms
+// milliseconds (a transition's length; 0: once, now) the film is set against the glass's place on the screen.
+window.L2M_pinFilm = function (el, ms) {
+  if (!el) return;
+  var end = performance.now() + (ms || 0);
+  (function step() {
+    var r = el.getBoundingClientRect();
+    el.style.setProperty("--film-x", -Math.round(r.left) + "px");
+    el.style.setProperty("--film-y", -Math.round(r.top) + "px");
+    if (performance.now() < end) requestAnimationFrame(step);
+  })();
+};
 window.L2M_nav = function (opts) {
   "use strict";
   opts = opts || {};
@@ -333,12 +346,14 @@ window.L2M_nav = function (opts) {
     ref.classList.add("active");
     sheet.classList.add("open");
     sheet.setAttribute("aria-hidden", "false");
+    L2M_pinFilm(sheet, 360);
     return true;
   }
   function closeSheet() {
     if (!sheet || !sheet.classList.contains("open")) return;
     sheet.classList.remove("open");
     sheet.setAttribute("aria-hidden", "true");
+    L2M_pinFilm(sheet, 360);
     if (activeRef) { activeRef.classList.remove("active"); activeRef = null; }
   }
 
@@ -589,7 +604,7 @@ window.L2M_nav = function (opts) {
     var drag = null, settle = null;
     var SPRING = "transform 460ms linear(0, 0.262, 0.470, 0.631, 0.753, 0.843, 0.908, 0.954, 0.984, 1.004, 1.016, " +
       "1.022, 1.024, 1.023, 1.022, 1.019, 1.017, 1.014, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1)";
-    function slide(h, max) { peek.style.transform = "translateY(" + Math.round(max - h) + "px)"; }
+    function slide(h, max) { peek.style.transform = "translateY(" + Math.round(max - h) + "px)"; if (drag) L2M_pinFilm(peekHead); }
     function snaps(max) {
       var avail = window.innerHeight - barHeight();
       return [0.34, 0.5, 0.66].map(function (f) { return Math.min(max, Math.round(avail * f)); });
@@ -647,6 +662,7 @@ window.L2M_nav = function (opts) {
       peekUserH = best / avail;
       peek.style.transition = SPRING;
       slide(best, max);
+      L2M_pinFilm(peekHead, 480);
       settle = {h: best, timer: setTimeout(rest, 480)};
     }
     peekHead.addEventListener("pointerup", dragEnd);
@@ -772,6 +788,7 @@ window.L2M_nav = function (opts) {
     root.classList.add("l2m-peeking");
     peek.style.transform = "";
     peek.style.transition = "";
+    L2M_pinFilm(peekHead, 360);
     setPeekHeight(peekH);
     peek.setAttribute("aria-hidden", "false");
     peekStack = [];
@@ -796,6 +813,7 @@ window.L2M_nav = function (opts) {
     if (!peekOpen) return;
     peekOpen = false;
     peek.classList.remove("open");
+    L2M_pinFilm(peekHead, 360);
     peek.setAttribute("aria-hidden", "true");
     if (how !== "pop" && useHistory) {
       try { if (state().l2mPeek) { skipPop = true; history.back(); } } catch (e) {}
