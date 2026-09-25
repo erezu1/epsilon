@@ -595,6 +595,9 @@ window.L2M_nav = function (opts) {
       return [0.34, 0.5, 0.66].map(function (f) { return Math.min(max, Math.round(avail * f)); });
     }
     function band(x, d) { return d * (1 - 1 / (x * 0.55 / d + 1)); }          // how far it goes for x pulled
+    // near the bottom it wants to go: below a low line it drops faster than the finger (and is let go, it goes)
+    function fall(x, c) { var u = Math.max(0, x) / c; return c * u * u * (2 - u); }
+    function unfall(y, c) { var lo = 0, hi = c; for (var i = 0; i < 20; i++) { var m = (lo + hi) / 2; if (fall(m, c) < y) lo = m; else hi = m; } return lo; }
     function unband(y, d) { y = Math.min(y, d - 1); return d / 0.55 * y / (d - y); }
     function rest() {                 // the slide ended: the height it shows becomes its height
       if (!settle) return;
@@ -613,8 +616,9 @@ window.L2M_nav = function (opts) {
       var h = window.innerHeight - peek.getBoundingClientRect().top, max = peekMax();   // where it is now, even mid-slide
       if (settle) { clearTimeout(settle.timer); settle = null; }
       peek.style.transition = "";
-      var top = snaps(max)[2], raw = h > top ? top + unband(h - top, max - top) : h;   // (caught above: the pull it shows)
-      drag = {y: e.clientY, h: raw, at: h, max: max, top: top, id: e.pointerId};
+      var top = snaps(max)[2], low = Math.round((window.innerHeight - barHeight()) * 0.3);
+      var raw = h > top ? top + unband(h - top, max - top) : h < low ? unfall(h, low) : h;   // (caught mid-way: the pull it shows)
+      drag = {y: e.clientY, h: raw, at: h, max: max, top: top, low: low, id: e.pointerId};
       peek.classList.add("dragging");
       peek.style.height = max + "px";
       slide(h, max);
@@ -623,7 +627,7 @@ window.L2M_nav = function (opts) {
     peekHead.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.id) return;
       var raw = drag.h + drag.y - e.clientY;
-      drag.at = Math.max(90, raw > drag.top ? drag.top + band(raw - drag.top, drag.max - drag.top) : raw);
+      drag.at = raw > drag.top ? drag.top + band(raw - drag.top, drag.max - drag.top) : raw < drag.low ? fall(raw, drag.low) : raw;
       slide(drag.at, drag.max);
     });
     function dragEnd(e) {
@@ -632,7 +636,13 @@ window.L2M_nav = function (opts) {
       drag = null;
       peek.classList.remove("dragging");
       var avail = window.innerHeight - barHeight();
-      if (h < avail * 0.22) { peek.style.transform = ""; closePeek(); return; }
+      if (h < avail * 0.22) {         // let go low: it falls away, quickening
+        peek.style.transition = "transform 240ms cubic-bezier(0.5, 0, 1, 1), visibility 0s linear 240ms";
+        peek.style.transform = "";
+        closePeek();
+        setTimeout(function () { if (!peekOpen) peek.style.transition = ""; }, 260);
+        return;
+      }
       var best = snaps(max).reduce(function (a, b) { return Math.abs(b - h) < Math.abs(a - h) ? b : a; });
       peekUserH = best / avail;
       peek.style.transition = SPRING;
@@ -761,6 +771,7 @@ window.L2M_nav = function (opts) {
     peekOpen = true;
     root.classList.add("l2m-peeking");
     peek.style.transform = "";
+    peek.style.transition = "";
     setPeekHeight(peekH);
     peek.setAttribute("aria-hidden", "false");
     peekStack = [];
