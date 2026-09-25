@@ -257,9 +257,9 @@ window.L2M_nav = function (opts) {
         var t = tilt(k++), m = document.createElement("span");
         m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
         m.style.left = (r.left + x0 - 2) + "px";
-        m.style.top = (r.top + y0 + r.height * 0.2 + t.dy) + "px";
+        m.style.top = (r.top + y0 - 1 + t.dy) + "px";               // the whole height of the letters' line
         m.style.width = (r.width + 4) + "px";
-        m.style.height = (r.height * 0.72) + "px";
+        m.style.height = (r.height + 2) + "px";
         m.style.transform = "rotate(" + t.a + "deg)";
         findLayer.appendChild(m);
         h.boxes.push(m);
