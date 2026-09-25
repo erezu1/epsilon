@@ -1091,19 +1091,19 @@ a.lib-title { color: var(--ink); }
    of a panel or the top of a sheet (the edge a bar starts from, and a sheet rests on, has none). The two masks add
    up. Set in pixels from the edge, the rim is the same on a short or a tall piece of glass. */
 :root {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.17) 18px, rgb(0 0 0 / 0.14) 28px, rgb(0 0 0 / 0.14) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.17) 18px, rgb(0 0 0 / 0.14) 28px, rgb(0 0 0 / 0.14) 100%);
-  --rim-sides: linear-gradient(to right, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, transparent 28px,
-    transparent calc(100% - 28px), rgb(0 0 0 / 0.1) calc(100% - 18px), rgb(0 0 0 / 0.26) calc(100% - 10px), rgb(0 0 0 / 0.6) calc(100% - 4px), #000 100%);
+  --rim: linear-gradient(to top, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.17) 18px, rgb(0 0 0 / 0.14) 28px, rgb(0 0 0 / 0.14) 100%);
+  --rim-down: linear-gradient(to bottom, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.17) 18px, rgb(0 0 0 / 0.14) 28px, rgb(0 0 0 / 0.14) 100%);
+  --rim-sides: linear-gradient(to right, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, transparent 28px,
+    transparent calc(100% - 28px), rgb(0 0 0 / 0.1) calc(100% - 18px), rgb(0 0 0 / 0.22) calc(100% - 10px), rgb(0 0 0 / 0.48) calc(100% - 4px), rgb(0 0 0 / 0.8) 100%);
 }
 /* dark glass: the body nearly clear (the film adds light there) */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
+  --rim: linear-gradient(to top, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
+  --rim-down: linear-gradient(to bottom, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
 } }
 :root[data-theme="dark"] {
-  --rim: linear-gradient(to top, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
-  --rim-down: linear-gradient(to bottom, #000 0, rgb(0 0 0 / 0.6) 4px, rgb(0 0 0 / 0.26) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
+  --rim: linear-gradient(to top, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
+  --rim-down: linear-gradient(to bottom, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
 }
 .l2m-bar::before, .l2m-menu::before {
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
