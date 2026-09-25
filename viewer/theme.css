@@ -1326,3 +1326,9 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .lib-rows .app-lib-row > .bar-btn { width: 40px; height: 40px; margin-top: -9px; border-radius: 50%; }
 .l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 42px; height: 42px; border-radius: 50%; }
 .l2m-bar:not(.app-bar) .bar-btn.swap { width: 44px; height: 44px; border-radius: 50%; }
+/* buttons packed closer: each keeps its full tap target, overlapping its neighbour a little */
+.app-bar .bar-inner { gap: 0; }
+.app-bar .bar-inner > .bar-btn + .bar-btn { margin-left: -6px; }
+.lib-rows .app-lib-row > .bar-btn { width: 38px; height: 38px; margin-top: -8px; }
+.lib-rows .app-lib-row > .bar-btn + .bar-btn { margin-left: -5px; }
+.l2m-bar:not(.app-bar) .bar-inner > .bar-btn:not(.swap) + .bar-btn:not(.swap) { margin-left: -5px; }
