@@ -180,7 +180,8 @@ def main_tex(folder):
     cands = []
     for f in Path(folder).rglob("*.tex"):
         t = f.read_text(errors="replace")
-        if re.search(r"^[^%\n]*\\documentclass", t, re.M) and "\\begin{document}" in t:
+        if (re.search(r"^[^%\n]*\\documentclass", t, re.M) and "\\begin{document}" in t) or \
+                re.search(r"^[ \t]*\\input\s+(harvmac|lanlmac)\b", t, re.M):          # (a harvmac paper is read too)
             cands.append((len(t), str(f)))
     return Path(max(cands)[1]) if cands else None
 

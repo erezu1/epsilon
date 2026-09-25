@@ -367,6 +367,14 @@ def png_size(data):
 
 
 def plain_text(tex):
+    # accents (\v{c}, \'e, \"{o}, ...) as the letters they make
+    def accent_m(m):
+        base = m.group(3) or m.group(4) or ""
+        return unicodedata.normalize("NFC", base[:1] + ACCENTS[m.group(1) or m.group(2)] + base[1:]) if base else ""
+    sym = re.escape("".join(k for k in ACCENTS if not k.isalpha()))
+    let = "".join(k for k in ACCENTS if k.isalpha())
+    tex = re.sub(r"\\(?:([%s])|([%s])(?![A-Za-z]))\s*(?:\{([A-Za-z]?)\}|([A-Za-z]))" % (sym, let),
+                 lambda m: accent_m(m), tex)
     t = re.sub(r"\$([^$]*)\$", r"\1", tex)
     t = re.sub(r"\\(?:thanks|footnote)\s*\{[^{}]*\}", "", t)
     t = re.sub(r"\\\\", " ", t)
@@ -2414,7 +2422,12 @@ class Converter:
 
     # ------------------------------------------------------------------ main
     def run(self):
-        text = strip_comments(self.src.read_text(errors="replace"))
+        raw = self.src.read_text(errors="replace")
+        from harvmac import is_harvmac, harvmac_to_latex
+        if is_harvmac(raw):                   # a plain-TeX paper in harvmac: as LaTeX first
+            self.info("harvmac: read as LaTeX")
+            raw = harvmac_to_latex(raw)
+        text = strip_comments(raw)
         text = self.inline_inputs(text, self.srcdir)
         text = re.sub(r"\\iffalse(?![A-Za-z]).*?\\fi(?![A-Za-z])", "", text, flags=re.S)
         b = text.find("\\begin{document}")
