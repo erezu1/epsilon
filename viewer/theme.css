@@ -1397,3 +1397,13 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   box-shadow: 0 0 6px color-mix(in srgb, var(--link) 55%, transparent), 0 1.5px 2px rgb(0 0 0 / 0.18);
 }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 0s; }
+
+/* progress everywhere (reading underline, library reading lines, loading bars): one brighter blue */
+:root { --progress: #2b7de9; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --progress: #6cb4ff; } }
+:root[data-theme="dark"] { --progress: #6cb4ff; }
+.l2m-bar .bar-progress { background: color-mix(in srgb, var(--progress) 16%, transparent); }
+.l2m-bar .bar-progress > i { background: var(--progress);
+  box-shadow: 0 0 7px color-mix(in srgb, var(--progress) 60%, transparent), 0 1.5px 2px rgb(0 0 0 / 0.18); }
+.lib-rows > li[data-read]::after { background: var(--progress); opacity: 0.9; }
+.app-progress span { background: var(--progress); }
