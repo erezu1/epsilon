@@ -1542,3 +1542,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
     mask-image: linear-gradient(to right, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
   }
 }
+/* the reading underline above the section title's own highlight (which reaches it on wide screens) */
+.l2m-bar .bar-progress { z-index: 3; }
+@media (min-width: 720px) { .l2m-bar .bar-progress { bottom: -4px; } }
+.l2m-bar .bar-progress { bottom: -4px; }   /* just below the section title (phones and wide screens) */
