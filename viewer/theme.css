@@ -1410,3 +1410,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 /* the reading underline fades out as a panel opens, and back in as it closes */
 .l2m-bar .bar-progress { transition: opacity 240ms ease 60ms; }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 160ms ease; }
+/* the underline sits evenly on the glass (between the back and settings buttons), round at both ends */
+.l2m-bar .bar-progress { left: 50px; right: 50px; height: 3px; border-radius: 999px; }
+.l2m-bar .bar-progress > i { border-radius: 999px; min-width: 3px; }
+.l2m-bar .bar-progress { left: 46px; }   /* (the bar's inner area sits 4px right of centre) */

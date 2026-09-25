@@ -612,6 +612,15 @@ window.L2M_nav = function (opts) {
   prog.setAttribute("aria-hidden", "true");
   prog.innerHTML = "<i></i>";
   (bar.querySelector(".bar-inner") || bar).appendChild(prog);
+  function placeProgress() {                // exactly over the text's margins
+    var main = document.querySelector("main"), box = prog.parentNode;
+    if (!main || !box) return;
+    var m = main.getBoundingClientRect(), cs = getComputedStyle(main), b = box.getBoundingClientRect();
+    var left = m.left + parseFloat(cs.paddingLeft) - b.left, right = b.right - (m.right - parseFloat(cs.paddingRight));
+    prog.style.left = left.toFixed(1) + "px";
+    prog.style.right = right.toFixed(1) + "px";
+  }
+  placeProgress();
   function progress() {
     var refs = document.getElementById("refs-h");
     var end = refs ? refs.getBoundingClientRect().top + window.pageYOffset : document.documentElement.scrollHeight;
@@ -655,11 +664,13 @@ window.L2M_nav = function (opts) {
   }, {passive: true});
   on(window, "resize", function () {
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
+    placeProgress();
     update();
   });
 
   function start() {
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
+    placeProgress();
     var st = state();
     if (typeof st.l2mY === "number" && st.l2mPaper === KEY) {
       scrollToY(st.l2mY);
