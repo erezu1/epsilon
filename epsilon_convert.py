@@ -821,22 +821,33 @@ class Converter:
             shipped = found[0] if len(found) == 1 else None
         if shipped:
             shutil.copy(shipped, self.build / (stem + ".bbl"))
+        # LaTeX runs once: the labels file it writes already holds the final numbers (they are read from it, not
+        # from the PDF); a second run only when bibtex or biber made the bibliography, for its citation labels
         self.info("running %s ..." % engine)
-        run(latex)
+        r = run(latex)
+        for _ in range(6):                       # a package missing from this TeX Live: fetched, and again
+            if not self.fetch_missing(r.stdout):
+                break
+            r = run(latex)
         aux = self.build / (stem + ".aux")
         auxtext = aux.read_text(errors="replace") if aux.exists() else ""
         m = re.search(r"\\bibdata\{([^}]*)\}", auxtext)
+        rebuilt = False
         if m:
             bibs = [b.strip() for b in m.group(1).split(",") if b.strip()]
             have = all((self.srcdir / (b if b.endswith(".bib") else b + ".bib")).exists() for b in bibs)
             if have or not shipped:
                 self.info("running bibtex ...")
-                run(["bibtex", stem])
+                b = run(["bibtex", stem])
+                if self.fetch_missing(b.stdout):
+                    run(["bibtex", stem])
+                rebuilt = True
         elif (self.build / (stem + ".bcf")).exists() and not shipped and shutil.which("biber"):
             self.info("running biber ...")
             run(["biber", "--input-directory", str(self.srcdir), stem])
-        run(latex)
-        r = run(latex)
+            rebuilt = True
+        if rebuilt:
+            r = run(latex)
         if not aux.exists():
             tail = "\n".join(r.stdout.splitlines()[-25:])
             sys.exit("epsilon_convert: LaTeX produced no .aux file. End of the log:\n" + tail)
@@ -845,6 +856,44 @@ class Converter:
             self.warn("LaTeX reported errors (the page may still be fine): " + (errs[0] if errs else "see log"))
         bbl = self.build / (stem + ".bbl")
         return aux.read_text(errors="replace"), (bbl.read_text(errors="replace") if bbl.exists() else "")
+
+    def fetch_missing(self, log):
+        """On a machine that allows it (EPSILON_TLMGR set: the path of a file listing what was added), the TeX Live
+        packages holding the files LaTeX could not find (styles, classes, bibliography styles, fonts) are installed.
+        True if something was."""
+        want = os.environ.get("EPSILON_TLMGR")
+        if not want or not shutil.which("tlmgr") or not log:
+            return False
+        names = set(re.findall(r"File `([^'\s]+\.(?:sty|cls|clo|def|fd|cfg|tex|bst|bbx|cbx|lbx))' not found", log))
+        names |= set(re.findall(r"I couldn't open style file ([^\s]+\.bst)", log))
+        names |= {n + ".tfm" for n in re.findall(r"Font \\[^=]+=([A-Za-z0-9_-]+)(?:[^\n]*?)not loadable: Metric \(TFM\) file", log)}
+        names |= {n + ".tfm" for n in re.findall(r"mktextfm ([A-Za-z0-9_-]+)", log)}
+        tried = self.__dict__.setdefault("tl_tried", set())
+        added = []
+        for n in sorted(names - tried):
+            tried.add(n)
+            try:
+                r = subprocess.run(["tlmgr", "search", "--global", "--file", "/" + n], capture_output=True, text=True, timeout=180)
+            except (OSError, subprocess.SubprocessError):
+                continue
+            pkg = None
+            for m in re.finditer(r"^([^\s:][^:\n]*):\n((?:\t[^\n]*\n?)+)", r.stdout, re.M):
+                if any(line.strip().endswith("/" + n) for line in m.group(2).splitlines()):
+                    pkg = m.group(1).strip()
+                    break
+            if not pkg:
+                continue
+            self.info("installing %s (for %s) ..." % (pkg, n))
+            i = subprocess.run(["tlmgr", "install", pkg], capture_output=True, text=True, timeout=600)
+            if i.returncode == 0:
+                added.append(pkg)
+        if added:
+            try:
+                with open(want, "a") as f:
+                    f.write("\n".join(added) + "\n")
+            except OSError:
+                pass
+        return bool(added)
 
     def parse_aux(self, aux):
         for m in re.finditer(r"\\newlabel\{", aux):
@@ -1411,22 +1460,41 @@ class Converter:
         return i
 
     # ------------------------------------------------------------------ images
-    def image_html(self, name, opts):
-        path = None
+    def find_image(self, name):
         dirs = [self.srcdir] + [(self.srcdir / d).resolve() for d in self.graphicspath]
         for d in dirs:
             for ext in ("", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".eps", ".gif"):
                 p = d / (name + ext)
                 if p.is_file():
-                    path = p
-                    break
-            if path:
-                break
+                    return p
+        return None
+
+    def prefetch_images(self, body):
+        """Every figure the paper includes starts converting now, several at once (PDF and EPS figures take a
+        moment each); image_html then only waits for its own."""
+        from concurrent.futures import ThreadPoolExecutor
+        todo = []
+        for m in re.finditer(r"\\includegraphics\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}", body):
+            p = self.find_image(m.group(1).strip())
+            if p and p not in self.image_cache and p.suffix.lower() in (".pdf", ".eps") and p not in todo:
+                todo.append(p)
+        if not todo:
+            return
+        pool = ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4))
+        for p in todo:
+            self.image_cache[p] = pool.submit(self.load_image, p)
+        pool.shutdown(wait=False)
+
+    def image_html(self, name, opts):
+        path = self.find_image(name)
         if path is None:
             self.warn("image not found: %s" % name)
             return '<span class="omitted">[missing image: %s]</span>' % html.escape(name)
         if path in self.image_cache:
-            data, mime, natural = self.image_cache[path]
+            got = self.image_cache[path]
+            if hasattr(got, "result"):                  # converting ahead of time: wait for it
+                got = self.image_cache[path] = got.result()
+            data, mime, natural = got
         else:
             data, mime, natural = self.load_image(path)
             self.image_cache[path] = (data, mime, natural)
@@ -1469,7 +1537,7 @@ class Converter:
                 path, suf = pdf, ".pdf"
             if suf == ".pdf":
                 dpi = 200
-                prefix = self.build / ("img-%d" % len(self.image_cache))
+                prefix = self.build / ("img-%s" % hashlib.sha1(str(path).encode()).hexdigest()[:12])
                 png = Path(str(prefix) + ".png")
                 if shutil.which("pdftoppm"):
                     subprocess.run(["pdftoppm", "-png", "-r", str(dpi), "-f", "1", "-l", "1", "-singlefile",
@@ -2246,8 +2314,11 @@ class Converter:
             env[var] = str(self.srcdir) + os.pathsep + env.get(var, "")
         self.info("drawing %d pictures with %s ..." % (len(self.pics), self.args.engine))
         try:
-            subprocess.run([self.args.engine, "-interaction=nonstopmode", "l2mpics.tex"], cwd=self.build, env=env,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+            for _ in range(4):
+                r = subprocess.run([self.args.engine, "-interaction=nonstopmode", "l2mpics.tex"], cwd=self.build, env=env,
+                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, errors="replace", timeout=600)
+                if not self.fetch_missing(r.stdout):
+                    break
         except (OSError, subprocess.TimeoutExpired):
             pass
         log = (self.build / "l2mpics.log").read_text(errors="replace") if (self.build / "l2mpics.log").exists() else ""
@@ -2258,8 +2329,7 @@ class Converter:
         if not pdf.exists() or len(sizes) != len(self.pics) or not pages or int(pages.group(1)) != len(self.pics):
             self.warn("pictures could not be drawn by LaTeX (placeholders shown)")
             return [None] * len(self.pics)
-        out = []
-        for k in range(len(self.pics)):
+        def one(k):
             h, d, w = sizes[k + 1]
             uri = None
             if shutil.which("pdftocairo"):
@@ -2274,11 +2344,12 @@ class Converter:
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
                 if f.with_suffix(".png").exists():
                     uri = "data:image/png;base64," + base64.b64encode(f.with_suffix(".png").read_bytes()).decode()
-            if not uri or w <= 0:
-                self.warn("a picture could not be drawn (placeholder shown)")
-                out.append(None)
-            else:
-                out.append({"uri": uri, "h": h, "d": d, "w": w})
+            return {"uri": uri, "h": h, "d": d, "w": w} if uri and w > 0 else None
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as pool:     # every picture at once
+            out = list(pool.map(one, range(len(self.pics))))
+        if any(p is None for p in out):
+            self.warn("a picture could not be drawn (placeholder shown)")
         return out
 
     def place_pictures(self, drawn, page_body):
@@ -2465,6 +2536,7 @@ class Converter:
             body = re.sub(r"\\(begin|end)\s*\{subequations\}", "", body)
             if not re.search(r"\\title\s*[\[{]", text):
                 body = self.find_handmade_title(body)
+            self.prefetch_images(body)
             blocks = self.convert_block(body)
             refs = self.bibliography_html(bbl) if bbl else ""
             titleblock = self.title_block()

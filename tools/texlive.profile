@@ -1,0 +1,30 @@
+# TeX Live for the library's conversions on GitHub (convert.yml): what arXiv papers commonly need, without
+# documentation or sources (about 1 GB); kept between runs, and anything else a paper needs is added on demand.
+selected_scheme scheme-custom
+TEXDIR /home/runner/texlive
+TEXMFLOCAL /home/runner/texlive/texmf-local
+TEXMFSYSVAR /home/runner/texlive/texmf-var
+TEXMFSYSCONFIG /home/runner/texlive/texmf-config
+TEXMFVAR /home/runner/texlive/texmf-var
+TEXMFCONFIG /home/runner/texlive/texmf-config
+TEXMFHOME /home/runner/texmf
+binary_x86_64-linux 1
+collection-basic 1
+collection-latex 1
+collection-latexrecommended 1
+collection-latexextra 1
+collection-mathscience 1
+collection-pictures 1
+collection-publishers 1
+collection-fontsrecommended 1
+collection-bibtexextra 1
+collection-plaingeneric 1
+instopt_adjustpath 0
+instopt_adjustrepo 1
+instopt_letter 0
+instopt_portable 0
+instopt_write18_restricted 1
+tlpdbopt_autobackup 0
+tlpdbopt_install_docfiles 0
+tlpdbopt_install_srcfiles 0
+tlpdbopt_create_formats 1
