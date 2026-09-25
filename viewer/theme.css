@@ -1467,9 +1467,15 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 :root { --l2m-join-h: 0px; }
 .l2m-menu, .l2m-menu.open {
   --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h));
-  clip-path: inset(0 0 calc((1 - var(--open)) * (100% - var(--l2m-close-h)) - var(--open) * 60px) 0);
+  clip-path: inset(0 0 calc((1 - var(--open)) * (100% - var(--l2m-close-h)) - var(--open) * 60px) 0
+                   round 0 0 var(--l2m-edge-r) var(--l2m-edge-r));
   --shown: min(100%, calc(var(--l2m-close-h) + var(--open) * (100% - var(--l2m-close-h) + 60px)));
 }
+/* the edge it rolls down with is rounded as the bar is where it starts (square on a phone, the page's corners on
+   wider screens) and as the panel's own are where it ends, and changes in between at the panel's pace, so the
+   corners never jump */
+.l2m-menu { --l2m-edge-r: min(16px, calc(var(--open) * 24px)); }
+@media (min-width: 800px) { .l2m-menu { --l2m-edge-r: 16px; } }
 .app-bar .app-bar-day, .app-bar.joined.settled .app-bar-day {
   transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
 }
