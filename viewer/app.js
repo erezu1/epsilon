@@ -185,7 +185,16 @@
   var PAPER_CACHE = "l2m-papers-v1", KEEP_PAPERS = 30;
   function paperFile(key, entry, name) {
     var base = entry.path || "papers/" + key, path = base + "/" + name, ver = entry.converted || "";
-    if (isOffline(key)) return fromCache(path).then(function (r) { return r.blob(); }, function () { return src.blob(path); });
+    if (isOffline(key)) {
+      // the copy on this device, unless the paper has been converted again since it was saved: then the new one (and the
+      // copy is saved afresh); with no network, the copy as it is
+      var saved = offlineSet()[key] || {};
+      if (ver && saved.ver !== ver) {
+        return src.blob(path).then(function (b) { refreshOffline(entry); return b; },
+                                    function () { return fromCache(path).then(function (r) { return r.blob(); }); });
+      }
+      return fromCache(path).then(function (r) { return r.blob(); }, function () { return src.blob(path); });
+    }
     if (!window.caches || !ver || src.kind === "site") return src.blob(path);
     var ck = new URL("__papers/" + path + "?v=" + encodeURIComponent(ver), location.href).href;
     return caches.open(PAPER_CACHE).then(function (c) {
@@ -217,6 +226,16 @@
       });
     });
   }
+  var refreshing = {};
+  function refreshOffline(entry) {
+    var key = keyOf(entry);
+    if (refreshing[key]) return;
+    refreshing[key] = setTimeout(function () {   // after the paper has opened
+      keepOffline(entry, true).then(function () {     // saved over the old copy (never left without one)
+        delete refreshing[key];
+      }, function () { delete refreshing[key]; });
+    }, 1500);
+  }
   function keepOffline(entry, on) {
     var key = keyOf(entry), base = entry.path || "papers/" + key, set = offlineSet();
     if (!on) {
@@ -235,7 +254,8 @@
       t.replace(/src=\\?"images\/([^"\\]+)\\?"/g, function (m, n) { names[n] = 1; });
       return Promise.all([grab("math.json").catch(function () {})].concat(Object.keys(names).map(function (n) { return grab("images/" + n); })));
     }).then(function () {
-      set[key] = {bytes: bytes, saved: new Date().toISOString()};
+      set = offlineSet();
+      set[key] = {bytes: bytes, saved: new Date().toISOString(), ver: entry.converted || ""};
       store("offline", set);
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
     });
