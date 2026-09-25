@@ -1365,3 +1365,20 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
   .l2m-menu { border-radius: 0 0 16px 16px; }
   .l2m-fnsheet, .app-toast { border-radius: 16px 16px 0 0; }
 }
+
+/* every icon's lines 1.5 screen pixels thick, whatever size it is drawn at (as the settings' icons) */
+svg > g[stroke-linecap="round"] { stroke-width: 1.5px; }
+svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
+/* a paper's reading progress: the lit part of the glass's bottom edge, clipped to the bar's shape (its rounded
+   corners on wide screens), with a soft glow into the glass */
+.l2m-bar:not(.app-bar) { overflow: hidden; }
+.l2m-bar .bar-progress {
+  bottom: 0; height: 3px; border-radius: 0 2px 2px 0; opacity: 0.8;
+  background: linear-gradient(to top, var(--link), color-mix(in srgb, var(--link) 70%, transparent));
+  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--link) 45%, transparent);
+}
+/* wide screens: the paper bar's title grows with the text (the bar keeps room for two lines of it) */
+@media (min-width: 720px) {
+  .l2m-bar:not(.app-bar) .bar-title { font-size: 19px; }
+  html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 75.3875px); }
+}

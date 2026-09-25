@@ -426,7 +426,7 @@
       '<svg class="app-logo" viewBox="119 117 290 290" width="28" height="28" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '<div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
-      '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>New</span></button></div>' +
+      '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>Explore</span></button></div>' +
       '<span class="app-spacer"></span>' +
       '<div class="app-searchbar"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
       'autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
@@ -827,7 +827,7 @@
     buildShell();
     root.classList.add("l2m-app-lists");
     setTab(k.slice(4));
-    document.title = k === "app:new" ? "New papers" : (lib && lib.name) || "Papers";
+    document.title = k === "app:new" ? "Explore" : (lib && lib.name) || "Papers";
     if (!had || !animate) {
       if (src) { renderLibrary(); renderNew(); } else showConnect();
     }
@@ -1226,7 +1226,7 @@
   }
 
   function showConnect() {
-    pane("app:new").innerHTML = '<p class="app-note">New papers appear here once the library is connected.</p>';
+    pane("app:new").innerHTML = '<p class="app-note">New papers appear in Explore once the library is connected.</p>';
     pane("app:library").innerHTML = '<p class="app-note">Your papers are kept in a private GitHub repo. To read them here, open the settings ' +
       '(the button at the top right) and paste an access token under <em>Library</em>.</p>' +
       '<p class="app-row"><button type="button" class="app-pill" id="open-settings">Open settings</button></p>';
