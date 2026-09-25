@@ -1757,3 +1757,6 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 .l2m-fnsheet::before, .app-toast::before, .peek-head::before { background-position: var(--film-x, 0px) var(--film-y, 0px); }
 /* the film under a rolling panel has the same corners as its moving edge (square where it meets a phone's bar) */
 .l2m-menu::before { border-radius: 0 0 var(--l2m-edge-r, 16px) var(--l2m-edge-r, 16px); }
+
+/* buttons side by side in the settings (Connect, Forget the token): as close as a confirmation's */
+.app-settings .app-row { gap: 8px; }

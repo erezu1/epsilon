@@ -599,11 +599,11 @@
       '<input class="app-field" id="gh-token" type="password" aria-label="Access token" autocomplete="off" placeholder="' +
       (store("token") ? "Access token: saved on this device" : "Access token (github_pat_&hellip;)") + '">' +
       '<p class="app-row"><button type="submit" class="app-pill">Connect</button>' +
-      (store("token") ? '<button type="button" class="app-link" id="gh-forget">Forget the token</button>' : "") + "</p></form>" +
+      (store("token") ? '<button type="button" class="app-pill app-danger" id="gh-forget">Forget the token</button>' : "") + "</p></form>" +
       '<p class="menu-head">On this device</p><p class="app-help app-pad">' +
       (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
            "No papers saved offline yet. In the library, tap the download button next to a paper.") + "</p>" +
-      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill" id="off-clear">Remove offline copies</button></p>' : "");
+      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill app-danger" id="off-clear">Remove offline copies</button></p>' : "");
     return h;
   }
   var skipPop = false;       // the history step of a panel closed by hand: already handled
