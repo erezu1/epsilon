@@ -1600,3 +1600,9 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   -webkit-mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
   mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
 }
+
+/* one thickness for every line: the header's underline, the reading underline, the library's reading lines and the
+   loading bars (the reading underline's glow kept tight, so it reads as thick as the others) */
+:root { --line: 3px; }
+.swap-ind, .app-bar .app-tabs .sel-ind, .set-tabs .sel-ind, .l2m-bar .bar-progress, .app-progress, .lib-rows > li[data-read]::after { height: var(--line); }
+.l2m-bar .bar-progress > i { box-shadow: 0 0 3px color-mix(in srgb, var(--progress) 45%, transparent), 0 1px 1.5px rgb(0 0 0 / 0.14); }
