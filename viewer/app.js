@@ -1725,9 +1725,16 @@
   var wheelPull = null;
   main.addEventListener("wheel", function (e) {
     var pe = e.target.closest && e.target.closest(".app-pane");
+    // a pull is a gesture of its own: a scroll gesture (wheel events with no pause of 350ms) may pull only if it began
+    // with the list already resting at its top; one that reaches the top on the way up, momentum and all, stops there
+    if (pe) {
+      var now = Date.now();
+      if (now - (pe.l2mWheelAt || 0) >= 350) pe.l2mFromTop = pe.scrollTop <= 0;
+      pe.l2mWheelAt = now;
+    }
     if (!pe || !isPage(current) || panelOpen || !src || pull) return;
     if (pullChip() && pullChip().classList.contains("spinning")) return;
-    if (!wheelPull && (pe.scrollTop > 0 || e.deltaY >= 0)) return;
+    if (!wheelPull && (pe.scrollTop > 0 || e.deltaY >= 0 || !pe.l2mFromTop)) return;
     if (!wheelPull) wheelPull = {pane: pe, d: 0};
     e.preventDefault();
     wheelPull.d = Math.max(0, Math.min(PULL_AT * 1.6, wheelPull.d - e.deltaY * 0.45));
