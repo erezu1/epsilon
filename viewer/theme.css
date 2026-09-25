@@ -1572,3 +1572,14 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .l2m-bar:not(.app-bar) .bar-title { min-height: 0; align-self: center; padding: 4px 10px; margin-left: -8px; border-radius: 10px; }
 @media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-inner { min-height: 58.4px; } }
 .l2m-bar:not(.app-bar) .bar-title { padding: 3px 10px; }
+
+/* one underline for the bar's tabs, staying through the flip (the two sets' own lines stay hidden) */
+.app-tabswap { position: relative; }
+.app-tabswap .app-tabs .sel-ind { visibility: hidden; }
+.app-tabswap .swap-ind {
+  position: absolute; left: 0; bottom: 21px; height: 3px; width: 0; border-radius: 2px; background: var(--ink);
+  pointer-events: none; z-index: 1;
+  transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), width 440ms cubic-bezier(0.3, 0.7, 0.25, 1);
+}
+.app-tabswap .swap-ind.no-anim { transition: none; }
+@media (prefers-reduced-motion: reduce) { .app-tabswap .swap-ind { transition: none; } }

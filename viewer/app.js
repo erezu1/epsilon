@@ -425,7 +425,7 @@
       '<header class="l2m-bar show app-bar" id="app-bar"><div class="bar-inner">' +
       '<span class="app-lead"><svg class="app-logo" viewBox="119 117 290 290" width="28" height="28" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '<button type="button" class="bar-btn app-close" id="app-close" aria-label="Close the settings" tabindex="-1">' + (I.close || "&times;") + "</button></span>" +
-      '<span class="app-tabswap"><div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
+      '<span class="app-tabswap"><span class="swap-ind" aria-hidden="true"></span><div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>Explore</span></button></div>' +
       '<div class="seg app-tabs set-tabs" id="set-tabs" role="tablist" aria-label="Settings" aria-hidden="true"><span class="sel-ind" aria-hidden="true"></span>' +
@@ -476,12 +476,27 @@
     if (shell) { shell.remove(); shell = null; }
     root.classList.remove("l2m-bar-always", "l2m-app-lists");
   }
+  // the bar's one underline: under the chosen tab of whichever set shows (Library / Explore, or System / View); it
+  // stays through the flip between the sets, only sliding and stretching to its new tab
+  function placeSwapInd(instant) {
+    if (!shell) return;
+    var sw = shell.querySelector(".app-tabswap"), ind = sw && sw.querySelector(".swap-ind");
+    if (!ind) return;
+    var set = shell.querySelector("#app-bar").classList.contains("set-mode") ? sw.querySelector("#set-tabs") : sw.querySelector(".app-tabs:not(.set-tabs)");
+    var on = set.querySelector('[aria-checked="true"]');
+    if (!on) return;
+    if (instant) ind.classList.add("no-anim");
+    ind.style.width = on.offsetWidth + "px";
+    ind.style.transform = "translateX(" + (set.offsetLeft + on.offsetLeft) + "px)";
+    if (instant) { void ind.offsetWidth; ind.classList.remove("no-anim"); }
+  }
   function slide(group) {                  // the highlight of a segmented control or option list
     var ind = group.querySelector(".sel-ind"), on = group.querySelector('[aria-checked="true"]');
     if (!ind || !on) return;
     ind.style.width = on.offsetWidth + "px";
     if (group.classList.contains("app-tabs")) {      // the bar's tabs: a line under the current one
       ind.style.transform = "translateX(" + on.offsetLeft + "px)";
+      if (group.closest(".app-tabswap")) placeSwapInd(!placeSwapInd.done), placeSwapInd.done = true;
       return;
     }
     ind.style.height = on.offsetHeight + "px";
@@ -626,6 +641,7 @@
       setMode.t = setTimeout(function () { bar.classList.remove("flapping"); }, 560);
     }
     bar.classList.toggle("set-mode", on);
+    placeSwapInd();
     shell.querySelector("#set-tabs").setAttribute("aria-hidden", on ? "false" : "true");
     shell.querySelector(".app-tabs:not(.set-tabs)").setAttribute("aria-hidden", on ? "true" : "false");
     Array.prototype.forEach.call(shell.querySelectorAll("#set-tabs .seg-btn, #app-close"), function (b) { b.tabIndex = on ? 0 : -1; });
