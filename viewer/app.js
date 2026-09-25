@@ -871,6 +871,11 @@
                  root.classList.contains("l2m-in-back") || root.classList.contains("l2m-vt-back") ? 420 : 40);
     });
   }
+  var NEW_DAYS = 30;
+  function isNewPaper(x, read) {
+    var k = keyOf(x), t = Date.parse(x.added || "");
+    return x.status === "ok" && !read[k] && !(reading[k] && reading[k].at) && t > Date.now() - NEW_DAYS * 864e5;
+  }
   function renderLibrary() {
     var box = pane("app:library");
     var before = measureLibrary() || libTops;
@@ -879,8 +884,13 @@
     var rm = removing(), I = theme.icons || {};
     var read = store("opened") || {};
     var papers = ((lib && lib.papers) || []).filter(function (x) { return !rm[keyOf(x)]; }), p = pending(), off = offlineSet();
-    // the papers read last come first; the others after, newest added first (the index's own order)
+    // papers added and not opened yet (on any device) come first, newest first, marked new; then the papers read
+    // last; then the others, newest added first (the index's own order)
+    var fresh = function (x) { return isNewPaper(x, read); };
     papers = papers.map(function (x, i) { return [x, i]; }).sort(function (a, b) {
+      var na = fresh(a[0]), nb = fresh(b[0]);
+      if (na !== nb) return na ? -1 : 1;
+      if (na) return (Date.parse(b[0].added) || 0) - (Date.parse(a[0].added) || 0) || a[1] - b[1];
       return (read[keyOf(b[0])] || 0) - (read[keyOf(a[0])] || 0) || a[1] - b[1];
     }).map(function (a) { return a[0]; });
     var waiting = Object.keys(p).filter(function (k) {
@@ -897,7 +907,7 @@
       return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
-        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
+        (meta.length || fresh(x) ? '<span class="lib-meta">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
@@ -993,6 +1003,7 @@
         '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
     }
     box.innerHTML = '<div class="app-feedbar"><p class="app-note app-small">' + meta + "</p>" + refreshBtn + "</div>" +
+      (feedCheck ? '<div class="app-progress indet app-feed-progress" role="progressbar" aria-label="Checking arXiv"><span></span></div>' : "") +
       (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>") + older;
     var ob = box.querySelector("#feed-older");
     if (ob) ob.addEventListener("click", function () {

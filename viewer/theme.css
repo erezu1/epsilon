@@ -1286,3 +1286,11 @@ html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens:
 .app-refresh.spinning { color: var(--link); }
 .app-refresh.spinning svg { animation: l2m-spin 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .app-refresh.spinning svg { animation-duration: 2.4s; } }
+/* the fetch in progress: the loading bar under New's first line */
+.app-feed-progress { width: auto; margin: 2px 0 10px; }
+/* a paper added and not opened yet: a small "New" before its details */
+.app-new-tag {
+  display: inline-block; margin-right: 8px; padding: 1px 7px 2px; border-radius: 999px; vertical-align: 1px;
+  font-family: var(--ui); font-size: 0.82em; font-weight: 600; letter-spacing: 0.02em; line-height: 1.35;
+  color: var(--link); background: var(--bar-current);
+}
