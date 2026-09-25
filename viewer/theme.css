@@ -1740,7 +1740,7 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 .eqbody.l2m-scrolling::-webkit-scrollbar-thumb, .table-wrap.l2m-scrolling::-webkit-scrollbar-thumb, pre.l2m-scrolling::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
 
 /* the viewer's back chevron: a little larger than the other icons (a bare chevron reads small); the same line */
-.l2m-bar:not(.app-bar) .ico-back svg { width: 27px; height: 27px; stroke-width: calc(1.5px * 21 / 27); }
+.l2m-bar:not(.app-bar) .ico-back svg { width: 32px; height: 32px; stroke-width: calc(1.5px * 21 / 32); translate: -6px 0; }
 .l2m-bar:not(.app-bar) .ico-back svg * { stroke-width: inherit; }
 
 /* the flip's soft edges only while it runs: at rest nothing is masked (the close button's shadow and pressed circle
