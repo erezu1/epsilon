@@ -282,15 +282,25 @@ window.L2M_nav = function (opts) {
     hits = []; hitAt = -1;
   }
   // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn)
+  // operators drawn as upright words (\log, \sin, ...): their letters, as drawn
+  var OPNAME = /^(log|ln|lg|exp|sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|coth|arcsin|arccos|arctan|det|dim|ker|deg|hom|lim|liminf|limsup|max|min|sup|inf|arg|gcd|Pr|Tr|tr)$/;
   function findWhat(q) {
     q = q.trim();
     if (!q) return null;
+    if (q.charAt(0) === "$") {                       // "$...": the formulas only (the rest read as TeX)
+      q = q.slice(1).replace(/\$$/, "").trim();
+      if (!q) return null;
+      if (GLYPH[q]) q = "\\" + q;
+      var c1 = /^\\([A-Za-z]+)$/.exec(q);
+      return c1 && GLYPH[c1[1]] ? {glyph: GLYPH[c1[1]], tex: q} : {tex: q.replace(/\s+/g, "")};
+    }
     if (GREEK[q]) return {glyph: GLYPH[GREEK[q]], tex: "\\" + GREEK[q]};
     var cmd = /^\\([A-Za-z]+)$/.exec(q);
     if (cmd && GLYPH[cmd[1]]) return {glyph: GLYPH[cmd[1]], tex: q};
     if (/[\\^_{}]/.test(q)) return {tex: q.replace(/\s+/g, "")};
     var w = {text: q.toLowerCase()};
     if (GLYPH[q]) { w.glyph = GLYPH[q]; w.tex = "\\" + q; }         // "phi": the word, and the symbol
+    else if (/^[A-Za-z]{3,}$/.test(q) && (OPS[q] || OPNAME.test(q))) w.tex = "\\" + q;   // "sum", "log": the word, and the command
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
     return w;
   }
@@ -330,6 +340,7 @@ window.L2M_nav = function (opts) {
           continue;
         }
         if (GLYPH[name]) out.push([GLYPH[name]]);
+        else if (OPNAME.test(name)) { for (var o = 0; o < name.length; o++) out.push([hex(name.charCodeAt(o))]); }
         else if (OPS[name]) out.push([OPS[name]]);
         else if (name === "{" || name === "}") out.push([hex(name.charCodeAt(0))]);
         else if (!QUIET.test(name)) return null;
