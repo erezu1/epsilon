@@ -606,10 +606,12 @@ window.L2M_nav = function (opts) {
   }
 
   // how far through the paper: the references count as the end (they are reached, not read)
+  // an underline under the section title, lit as far as the paper is read
   var prog = document.createElement("span");
   prog.className = "bar-progress";
   prog.setAttribute("aria-hidden", "true");
-  bar.appendChild(prog);
+  prog.innerHTML = "<i></i>";
+  (bar.querySelector(".bar-inner") || bar).appendChild(prog);
   function progress() {
     var refs = document.getElementById("refs-h");
     var end = refs ? refs.getBoundingClientRect().top + window.pageYOffset : document.documentElement.scrollHeight;
@@ -617,7 +619,7 @@ window.L2M_nav = function (opts) {
   }
   window.L2M_progress = progress;
   function update() {
-    prog.style.transform = "scaleX(" + progress().toFixed(4) + ")";
+    prog.firstChild.style.width = (progress() * 100).toFixed(2) + "%";
     var show = ALWAYS || (trigger ? trigger.getBoundingClientRect().bottom < 8 : window.pageYOffset > 240) || panel !== null;
     if (show !== shown) {
       shown = show;

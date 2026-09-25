@@ -1382,3 +1382,18 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   .l2m-bar:not(.app-bar) .bar-title { font-size: 19px; }
   html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 75.3875px); }
 }
+
+/* the reading progress: an underline under the section title, just above the bar's edge, with a faint track;
+   its lit part glows a little and casts a small shadow, as if it lay on the glass */
+.l2m-bar:not(.app-bar) { overflow: visible; }
+.l2m-bar:not(.app-bar) .bar-inner { position: relative; }
+.l2m-bar .bar-progress {
+  position: absolute; left: 50px; right: 8px; bottom: -1px; top: auto; height: 3px; border-radius: 3px;
+  background: color-mix(in srgb, var(--link) 14%, transparent); box-shadow: none; opacity: 1; transform: none;
+  pointer-events: none; transition: opacity 200ms ease;
+}
+.l2m-bar .bar-progress > i {
+  display: block; height: 100%; width: 0; border-radius: inherit; background: var(--link);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--link) 55%, transparent), 0 1.5px 2px rgb(0 0 0 / 0.18);
+}
+.l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 0s; }
