@@ -1771,3 +1771,9 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 /* a paper's bar: the section title's letters (their caps and lowercase together) on the same middle as the back
    chevron and the settings icon (a text box's middle is above its letters' middle, room kept for descenders) */
 .l2m-bar:not(.app-bar) .bar-title-inner { top: 0.12em; }
+
+/* the end of Library and Explore: a short margin after the last paper (or Explore's button for older days), not
+   a screenful of empty room */
+.app-pane-in { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+.app-pane-in > .l2m-library:last-child, .app-pane-in > :last-child { margin-bottom: 0; }
+.app-pane-in > .l2m-library + .app-older { margin-top: calc(16px - 3rem); }
