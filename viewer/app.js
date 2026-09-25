@@ -480,14 +480,15 @@
   // stays through the flip between the sets, only sliding and stretching to its new tab
   function placeSwapInd(instant) {
     if (!shell) return;
-    var sw = shell.querySelector(".app-tabswap"), ind = sw && sw.querySelector(".swap-ind");
-    if (!ind) return;
+    var sw = shell.querySelector(".app-tabswap"), ind = shell.querySelector(".swap-ind");
+    if (!ind || !sw) return;
+    if (ind.parentNode === sw) sw.parentNode.appendChild(ind);     // outside the tabs' soft edges (never faded)
     var set = shell.querySelector("#app-bar").classList.contains("set-mode") ? sw.querySelector("#set-tabs") : sw.querySelector(".app-tabs:not(.set-tabs)");
     var on = set.querySelector('[aria-checked="true"]');
     if (!on) return;
     if (instant) ind.classList.add("no-anim");
     ind.style.width = on.offsetWidth + "px";
-    ind.style.transform = "translateX(" + (set.offsetLeft + on.offsetLeft) + "px)";
+    ind.style.transform = "translateX(" + (sw.offsetLeft + set.offsetLeft + on.offsetLeft) + "px)";
     if (instant) { void ind.offsetWidth; ind.classList.remove("no-anim"); }
   }
   function slide(group) {                  // the highlight of a segmented control or option list

@@ -1576,10 +1576,27 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 /* one underline for the bar's tabs, staying through the flip (the two sets' own lines stay hidden) */
 .app-tabswap { position: relative; }
 .app-tabswap .app-tabs .sel-ind { visibility: hidden; }
-.app-tabswap .swap-ind {
+.swap-ind {
   position: absolute; left: 0; bottom: 21px; height: 3px; width: 0; border-radius: 2px; background: var(--ink);
   pointer-events: none; z-index: 1;
   transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), width 440ms cubic-bezier(0.3, 0.7, 0.25, 1);
 }
-.app-tabswap .swap-ind.no-anim { transition: none; }
-@media (prefers-reduced-motion: reduce) { .app-tabswap .swap-ind { transition: none; } }
+.swap-ind.no-anim { transition: none; }
+@media (prefers-reduced-motion: reduce) { .swap-ind { transition: none; } }
+/* the strip's step: far enough that a set leaving is wholly faded out by the soft edge before it stops */
+.app-tabswap > .set-tabs, .app-lead > .app-close { transform: translateY(-56px); }
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs), .app-bar.set-mode .app-lead > .app-logo { transform: translateY(56px); }
+.app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close { transform: translateY(0); }
+
+/* the underline outside the fading area; the tabs fade out above it (text leaving downward is gone before it
+   reaches the line) and toward the bar's top */
+.app-bar .bar-inner { position: relative; }
+.app-bar .bar-inner > .swap-ind { bottom: 5px; }
+.app-tabswap {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 4px, #000 26px, #000 49px, transparent 56px) !important;
+  mask-image: linear-gradient(to bottom, transparent 4px, #000 26px, #000 49px, transparent 56px) !important;
+}
+.app-lead {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
+  mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
+}
