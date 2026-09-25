@@ -596,7 +596,7 @@ window.L2M_nav = function (opts) {
     }
     function band(x, d) { return d * (1 - 1 / (x * 0.55 / d + 1)); }          // how far it goes for x pulled
     // near the bottom it wants to go: below a low line it drops faster than the finger (and is let go, it goes)
-    function fall(x, c) { var u = Math.max(0, x) / c; return c * u * u * (2 - u); }
+    function fall(x, c) { var u = Math.max(0, x) / c; return c * u * u * u * u * (4 - 3 * u); }
     function unfall(y, c) { var lo = 0, hi = c; for (var i = 0; i < 20; i++) { var m = (lo + hi) / 2; if (fall(m, c) < y) lo = m; else hi = m; } return lo; }
     function unband(y, d) { y = Math.min(y, d - 1); return d / 0.55 * y / (d - y); }
     function rest() {                 // the slide ended: the height it shows becomes its height
@@ -616,7 +616,7 @@ window.L2M_nav = function (opts) {
       var h = window.innerHeight - peek.getBoundingClientRect().top, max = peekMax();   // where it is now, even mid-slide
       if (settle) { clearTimeout(settle.timer); settle = null; }
       peek.style.transition = "";
-      var top = snaps(max)[2], low = Math.round((window.innerHeight - barHeight()) * 0.3);
+      var top = snaps(max)[2], low = Math.round((window.innerHeight - barHeight()) * 0.25);
       var raw = h > top ? top + unband(h - top, max - top) : h < low ? unfall(h, low) : h;   // (caught mid-way: the pull it shows)
       drag = {y: e.clientY, h: raw, at: h, max: max, top: top, low: low, id: e.pointerId};
       peek.classList.add("dragging");
@@ -636,7 +636,7 @@ window.L2M_nav = function (opts) {
       drag = null;
       peek.classList.remove("dragging");
       var avail = window.innerHeight - barHeight();
-      if (h < avail * 0.22) {         // let go low: it falls away, quickening
+      if (h < avail * 0.17) {         // let go low: it falls away, quickening
         peek.style.transition = "transform 240ms cubic-bezier(0.5, 0, 1, 1), visibility 0s linear 240ms";
         peek.style.transform = "";
         closePeek();
