@@ -1,16 +1,16 @@
 ---
-name: l2m-push
-description: Push LaTeX notes (or whole papers) into Erez's "Papers" reading app, where they are converted and appear in the library; the same id updates the same note. Use when asked to put notes, a derivation, a summary or a draft "in the app", "on my phone", or "in Papers".
+name: epsilon
+description: Push LaTeX notes (or whole papers) into Erez's Epsilon reading app, where they are converted and appear in the library; the same id updates the same note. Use when asked to put notes, a derivation, a summary or a draft "in the app", "on my phone", or "in Papers".
 ---
 
-# Pushing notes to the Papers app
+# Pushing notes to the Epsilon app
 
-`l2m_push.py` sends LaTeX to the Papers app (https://erezu1.github.io/l2m-app/). It is converted on GitHub
+`epsilon.py` sends LaTeX to the Epsilon app (https://erezu1.github.io/epsilon/). It is converted on GitHub
 (a minute or two) and shows in the library, marked "note". Pushing again with the same `--id` updates the
 same note in place (it keeps its place, reading position and pin).
 
 ```bash
-L2M="/Users/urbach/IAS Dropbox/Erez Urbach/research/latex_mobile/l2m_push.py"
+L2M="/Users/urbach/IAS Dropbox/Erez Urbach/research/epsilon/epsilon.py"
 
 # a note written as a LaTeX body only (no \documentclass): a standard preamble is added
 # (amsmath, amssymb, mathtools, amsthm with theorem/lemma/proposition/definition/remark, graphicx, tikz, hyperref)
@@ -36,5 +36,5 @@ python3 "$L2M" --remove rmt-notes  # take a note out
 - Write ordinary LaTeX: sections, equations (numbered, with `\label`/`\eqref`), theorem environments,
   `\cite` with a `thebibliography`, TikZ (drawn by LaTeX), figures via `\includegraphics` next to the file.
   Harvmac (plain TeX) papers are read too.
-- Needs git access to the private repo `erezu1/l2m-library` (the `gh` login on this Mac).
+- Needs git access to the private repo `erezu1/epsilon-library` (the `gh` login on this Mac).
 - Tell the user the link it prints.

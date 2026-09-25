@@ -1,9 +1,9 @@
-"""Unpack arXiv sources in a folder, convert each paper with latex2mobile, and summarise."""
+"""Unpack arXiv sources in a folder, convert each paper with Epsilon, and summarise."""
 import gzip, io, json, re, subprocess, sys, tarfile, time
 from pathlib import Path
 
 root = Path(sys.argv[1]).resolve()
-tool = Path(__file__).resolve().parent.parent / "latex2mobile.py"
+tool = Path(__file__).resolve().parent.parent / "epsilon_convert.py"
 results = []
 for d in sorted(p for p in root.iterdir() if p.is_dir()):
     src = d / "src.bin"

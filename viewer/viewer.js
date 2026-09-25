@@ -1,4 +1,4 @@
-// latex2mobile paper renderer: draws one stored document (paper.json, see DOCUMENT.md) with a theme
+// Epsilon paper renderer: draws one stored document (paper.json, see DOCUMENT.md) with a theme
 // (theme.json + theme.css). The reading bar, contents panel, settings, footnote sheet and figure viewer
 // are built here from the theme; the paper's own HTML comes from the document; formulas come from the
 // pre-drawn math.json when it matches the document, and are otherwise drawn here with MathJax (text
@@ -95,7 +95,7 @@
   // ------------------------------------------------------------------ one paper
   window.L2M_open = function (o) {
     var doc = o.doc, theme = o.theme || {}, I = theme.icons || {};
-    if (!doc || doc.format !== "l2m-doc") throw new Error("not a latex2mobile document");
+    if (!doc || doc.format !== "l2m-doc") throw new Error("not an Epsilon document");
     if ((doc.version || 0) > 1) throw new Error("document version " + doc.version + " is newer than this viewer");
     var main = document.querySelector("main");
     var added = [];                    // everything this paper put on the page, removed again by close()

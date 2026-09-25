@@ -1,4 +1,4 @@
-// latex2mobile paper view: reading bar (back / contents / top / settings), footnote sheet and figure
+// Epsilon paper view: reading bar (back / contents / top / settings), footnote sheet and figure
 // viewer. Every internal link becomes a history step, so the browser's back button and the bar's back
 // button both return to the exact place the reader left.
 //

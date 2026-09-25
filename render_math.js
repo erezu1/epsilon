@@ -1,4 +1,4 @@
-// Render LaTeX math to SVG with MathJax 3, for latex2mobile.py.
+// Render LaTeX math to SVG with MathJax 3, for epsilon_convert.py.
 //
 // Usage: node render_math.js job.json result.json
 //   job.json:    {"items": [{"tex": "...", "display": true|false}, ...],

@@ -1,8 +1,8 @@
-// latex2mobile app: your library, new papers in your arXiv categories, reading, settings, offline copies.
+// Epsilon app: your library, new papers in your arXiv categories, reading, settings, offline copies.
 //
 // Where papers come from:
-//   - a static site built by l2m_viewer.py (library.json next to this page), or
-//   - the private GitHub repo made for the library (erezu1/l2m-library), read through GitHub's API with a
+//   - a static site built by epsilon_viewer.py (library.json next to this page), or
+//   - the private GitHub repo made for the library (erezu1/epsilon-library), read through GitHub's API with a
 //     token the reader types into Settings; it is stored on this device only. Converting a paper starts
 //     the repo's "convert" workflow; the paper appears in the library a few minutes later.
 // Addresses: ./ (library), ?v=new (new papers), ?p=<key> (a paper, #id for a place in it).
@@ -15,6 +15,11 @@
   var lib = null, feed = null, config = null;
   var view = null, current = null, urls = [];
   var PREFS = "l2m-app";
+  // the library repo was renamed (l2m-library -> epsilon-library): a device that kept the old name moves over
+  try {
+    var saved0 = JSON.parse(localStorage.getItem(PREFS) || "{}");
+    if (saved0.repo === "erezu1/l2m-library") { saved0.repo = "erezu1/epsilon-library"; localStorage.setItem(PREFS, JSON.stringify(saved0)); }
+  } catch (e) {}
   var OFFLINE_CACHE = "l2m-offline-v1";
 
   // ---------------------------------------------------------------- small helpers
@@ -589,7 +594,7 @@
     h += '<p class="menu-head">Library</p><form class="app-form" id="gh-form"><p class="app-help">' +
       (src && src.kind === "github" ? "Reading " + esc(src.repo) + " on GitHub." : src && src.kind === "site" ? "Reading the papers of this site." : "Not connected yet.") + "</p>" +
       '<input class="app-field" id="gh-repo" aria-label="GitHub repo" autocomplete="off" autocapitalize="off" spellcheck="false" value="' +
-      esc(store("repo") || "erezu1/l2m-library") + '">' +
+      esc(store("repo") || "erezu1/epsilon-library") + '">' +
       '<input class="app-field" id="gh-token" type="password" aria-label="Access token" autocomplete="off" placeholder="' +
       (store("token") ? "Access token: saved on this device" : "Access token (github_pat_&hellip;)") + '">' +
       '<p class="app-row"><button type="submit" class="app-pill">Connect</button>' +
@@ -861,7 +866,7 @@
     inner.querySelector("#gh-form").addEventListener("submit", function (e) {
       e.preventDefault();
       var repo = inner.querySelector("#gh-repo").value.trim(), tok = inner.querySelector("#gh-token").value.trim() || store("token");
-      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("The repo is owner/name, for example erezu1/l2m-library."); return; }
+      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { toast("The repo is owner/name, for example erezu1/epsilon-library."); return; }
       if (!tok) { toast("Paste the access token first."); return; }
       var s = githubSource(repo, tok);
       s.json("library.json").catch(function (err) { if (/not found/.test(err.message)) return {papers: []}; throw err; }).then(function () {
@@ -968,7 +973,7 @@
     buildShell();
     root.classList.add("l2m-app-lists");
     setTab(k.slice(4));
-    document.title = k === "app:new" ? "Explore" : (lib && lib.name) || "Papers";
+    document.title = k === "app:new" ? "Explore" : (lib && lib.name) || "Epsilon";
     if (!had || !animate) {
       if (src) { renderLibrary(); renderNew(); } else showConnect();
     }

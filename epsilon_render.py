@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""l2m_render: pack one latex2mobile document and the viewer into a single HTML file.
+"""epsilon_render: pack one Epsilon document and the viewer into a single HTML file.
 
-    python3 latex2mobile.py paper.tex                  # once: LaTeX -> paper.l2m/ (the document)
-    python3 l2m_render.py paper.l2m -o paper.html      # any time: the one-file page, no LaTeX
+    python3 epsilon_convert.py paper.tex                  # once: LaTeX -> paper.l2m/ (the document)
+    python3 epsilon_render.py paper.l2m -o paper.html      # any time: the one-file page, no LaTeX
 
 The page carries the document, its drawn formulas (math.json) and the viewer (viewer/theme.json,
 theme.css, prefs.js, nav.js, viewer.js) inline, so it works offline and as a Claude artifact. It is
@@ -19,7 +19,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from latex2mobile import draw_math, load_doc, load_math  # noqa: E402
+from epsilon_convert import draw_math, load_doc, load_math  # noqa: E402
 
 VIEWER = HERE / "viewer"
 
@@ -78,8 +78,8 @@ def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Pack a latex2mobile document and the viewer into one HTML file.")
-    ap.add_argument("doc", help="the document folder written by latex2mobile.py (or its paper.json)")
+    ap = argparse.ArgumentParser(description="Pack an Epsilon document and the viewer into one HTML file.")
+    ap.add_argument("doc", help="the document folder written by epsilon_convert.py (or its paper.json)")
     ap.add_argument("-o", "--output", help="output .html file (default: next to the document folder)")
     ap.add_argument("--artifact", action="store_true",
                     help="write a page fragment without <html>/<head>/<body>, for publishing as a Claude artifact")

@@ -1,4 +1,4 @@
-// latex2mobile app: keeps the app itself available offline (papers are kept by app.js in their own caches).
+// Epsilon app: keeps the app itself available offline (papers are kept by app.js in their own caches).
 // The page asks for its files by release (name?v=release): those never change, so the saved copy answers at
 // once. The page itself is asked of the network first (a new release shows at once), with the saved copy
 // after a short wait on a slow network, or offline.

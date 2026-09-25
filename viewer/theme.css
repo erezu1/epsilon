@@ -1,4 +1,4 @@
-/* latex2mobile page style. Colors are tokens on :root, redefined for dark mode. */
+/* Epsilon page style. Colors are tokens on :root, redefined for dark mode. */
 /* no tap highlight, and no focus ring for taps and clicks (it stays for keyboard focus) */
 * { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }

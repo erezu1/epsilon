@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""l2m_viewer: a site of latex2mobile documents behind one viewer.
+"""epsilon_viewer: a site of Epsilon documents behind one viewer.
 
-    python3 l2m_viewer.py build site/ a.l2m b.l2m ...   # the viewer, site/papers/<name>/, site/library.json
-    python3 l2m_viewer.py serve site/                   # http://localhost:8000/        (the library)
+    python3 epsilon_viewer.py build site/ a.l2m b.l2m ...   # the viewer, site/papers/<name>/, site/library.json
+    python3 epsilon_viewer.py serve site/                   # http://localhost:8000/        (the library)
                                                         # http://localhost:8000/?p=<name> (one paper)
 
 The site is the viewer folder (viewer/: index.html, theme.json, theme.css, prefs.js, nav.js,
 viewer.js, app.js, ...) next to the documents. Edit theme.json or theme.css in the site, or rebuild
 from viewer/, and every paper changes; the documents are never rewritten. Papers carry their drawn
-formulas (math.json, made by latex2mobile.py); a paper without one is drawn here, or with
+formulas (math.json, made by epsilon_convert.py); a paper without one is drawn here, or with
 --no-math-cache left to the browser. Adding papers to an existing site keeps the ones already there.
 """
 
@@ -22,8 +22,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from latex2mobile import DOC_FORMAT, DOC_VERSION, draw_math, load_math  # noqa: E402
-from l2m_render import ascii_html, inline_json  # noqa: E402
+from epsilon_convert import DOC_FORMAT, DOC_VERSION, draw_math, load_math  # noqa: E402
+from epsilon_render import ascii_html, inline_json  # noqa: E402
 
 VIEWER = HERE / "viewer"
 FILES = ["index.html", "theme.json", "theme.css", "prefs.js", "nav.js", "viewer.js", "app.js", "sw.js",
@@ -56,7 +56,7 @@ def build(a):
     (site / "papers").mkdir(parents=True, exist_ok=True)
     lib_file = site / "library.json"
     lib = json.loads(lib_file.read_text()) if lib_file.exists() else {"papers": []}
-    lib["name"] = a.name or lib.get("name") or "Papers"
+    lib["name"] = a.name or lib.get("name") or "Epsilon"
     papers = {p["path"]: p for p in lib["papers"]}
     for d in a.docs:
         folder = Path(d)
@@ -64,7 +64,7 @@ def build(a):
             folder = folder.parent
         doc = json.loads((folder / "paper.json").read_text())
         if doc.get("format") != DOC_FORMAT or doc.get("version", 0) > DOC_VERSION:
-            sys.exit("l2m_viewer: %s is not a document this viewer reads" % folder)
+            sys.exit("epsilon_viewer: %s is not a document this viewer reads" % folder)
         path = "papers/" + doc_name(folder)
         dest = site / path
         if dest.exists():
@@ -112,12 +112,12 @@ def serve(a):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="A site of latex2mobile documents behind one viewer.")
+    ap = argparse.ArgumentParser(description="A site of Epsilon documents behind one viewer.")
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("build", help="copy the viewer and documents into a site folder")
     b.add_argument("site", help="the site folder (created if needed)")
-    b.add_argument("docs", nargs="*", help="document folders written by latex2mobile.py")
-    b.add_argument("--name", help='library title (default: "Papers")')
+    b.add_argument("docs", nargs="*", help="document folders written by epsilon_convert.py")
+    b.add_argument("--name", help='library title (default: "Epsilon")')
     b.add_argument("--viewer", default=str(VIEWER), help="the viewer folder to use (default: viewer/)")
     b.add_argument("--local-mathjax", action="store_true", help="copy MathJax into the site instead of loading it from a CDN")
     b.add_argument("--no-math-cache", action="store_true",

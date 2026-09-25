@@ -1,6 +1,6 @@
 # The document
 
-`latex2mobile.py paper.tex` writes the paper as data, with no viewer code:
+`epsilon_convert.py paper.tex` writes the paper as data, with no viewer code:
 
 ```
 paper.l2m/
@@ -9,7 +9,7 @@ paper.l2m/
   math.json         every formula drawn once (a cache, see below)
 ```
 
-Everything that shows it reads this folder without LaTeX: `l2m_render.py` packs it with the viewer into one `.html` file, and `l2m_viewer.py` puts it on a site. How it looks comes from the theme (`viewer/theme.json`, `viewer/theme.css`), which the viewer applies when the paper is shown, so changing the theme never means converting again.
+Everything that shows it reads this folder without LaTeX: `epsilon_render.py` packs it with the viewer into one `.html` file, and `epsilon_viewer.py` puts it on a site. How it looks comes from the theme (`viewer/theme.json`, `viewer/theme.css`), which the viewer applies when the paper is shown, so changing the theme never means converting again.
 
 Reconvert from LaTeX only when the converter itself changes: how LaTeX is read, numbering, macros. The `converter` field says which version wrote a document.
 
@@ -18,7 +18,7 @@ Reconvert from LaTeX only when the converter itself changes: how LaTeX is read, 
 | field | content |
 | --- | --- |
 | `format`, `version` | `"l2m-doc"` and `1`. A reader refuses newer versions. |
-| `converter` | version of `latex2mobile.py` that wrote it |
+| `converter` | version of `epsilon_convert.py` that wrote it |
 | `source`, `engine` | main `.tex` file name and the LaTeX engine used for the numbering |
 | `title`, `authors`, `kicker`, `lang` | plain-text title and author names (for page titles and library lists), the small line above the title (may be null), language code |
 | `body` | the paper as HTML, see below |
@@ -65,8 +65,8 @@ The converter draws every formula once with MathJax (in node) into `math.json`:
 | `svg` | one SVG per item of `math.items` |
 | `cache`, `css` | MathJax's shared glyph definitions and stylesheet |
 
-The viewer uses `math.json` only when its `key` matches the document's `math.key` and it has one SVG per formula. Otherwise, or when the file is missing, MathJax draws the formulas in the browser: the text appears first, the formulas nearest the reader are drawn first, and the reading position is held still. `math.json` is a cache: deleting it loses nothing, and `l2m_render.py` / `l2m_viewer.py` draw it again when it is missing or out of date.
+The viewer uses `math.json` only when its `key` matches the document's `math.key` and it has one SVG per formula. Otherwise, or when the file is missing, MathJax draws the formulas in the browser: the text appears first, the formulas nearest the reader are drawn first, and the reading position is held still. `math.json` is a cache: deleting it loses nothing, and `epsilon_render.py` / `epsilon_viewer.py` draw it again when it is missing or out of date.
 
 ## A site
 
-`l2m_viewer.py build site/ a.l2m b.l2m ...` copies documents into `site/papers/<name>/`, writes `site/library.json` (the name, title, authors and path of each paper) and copies the viewer next to them. `index.html?p=<name>` opens a paper; without `?p` the page lists the library.
+`epsilon_viewer.py build site/ a.l2m b.l2m ...` copies documents into `site/papers/<name>/`, writes `site/library.json` (the name, title, authors and path of each paper) and copies the viewer next to them. `index.html?p=<name>` opens a paper; without `?p` the page lists the library.

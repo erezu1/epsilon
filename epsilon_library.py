@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""l2m_library: a library of latex2mobile papers kept in a folder (the private repo erezu1/l2m-library).
+"""epsilon_library: a library of Epsilon papers kept in a folder (the private repo erezu1/epsilon-library).
 
-    python3 l2m_library.py convert 2609.28331 2609.28280     # arXiv papers: fetch, convert, add
-    python3 l2m_library.py convert outdated                  # reconvert papers made by an older converter
-    python3 l2m_library.py add-draft path/to/paper.tex        # copy a LaTeX project in, convert it
-    python3 l2m_library.py drafts                            # convert drafts whose sources changed
-    python3 l2m_library.py feed                              # refresh feed.json (new papers in your categories)
-    python3 l2m_library.py remove 2609.28331 bf_any_N         # take papers out (their files and sources)
-    python3 l2m_library.py list
+    python3 epsilon_library.py convert 2609.28331 2609.28280     # arXiv papers: fetch, convert, add
+    python3 epsilon_library.py convert outdated                  # reconvert papers made by an older converter
+    python3 epsilon_library.py add-draft path/to/paper.tex        # copy a LaTeX project in, convert it
+    python3 epsilon_library.py drafts                            # convert drafts whose sources changed
+    python3 epsilon_library.py feed                              # refresh feed.json (new papers in your categories)
+    python3 epsilon_library.py remove 2609.28331 bf_any_N         # take papers out (their files and sources)
+    python3 epsilon_library.py list
 
 Options: --library DIR (default: the current folder), --push (commit and push the changes with git).
 
@@ -40,9 +40,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from latex2mobile import __version__ as CONVERTER  # noqa: E402
+from epsilon_convert import __version__ as CONVERTER  # noqa: E402
 
-UA = "l2m-library/1.0 (+https://github.com/erezu1/l2m-app)"
+UA = "epsilon-library/1.0 (+https://github.com/erezu1/epsilon)"
 ARXIV_ID = re.compile(r"^(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?/\d{7})(v\d+)?$")
 DEFAULT_CONFIG = {"categories": ["hep-th"], "crossLists": False}
 FEED_DAYS = 30                 # how long announcements stay in feed.json
@@ -74,7 +74,7 @@ class Library:
         return c
 
     def index(self):
-        return self.read("library.json", {"name": "Papers", "papers": []})
+        return self.read("library.json", {"name": "Epsilon", "papers": []})
 
     def put(self, entry):
         lib = self.index()
@@ -187,7 +187,7 @@ def main_tex(folder):
 
 
 def run_converter(tex, out, kicker, title=None):
-    cmd = [sys.executable, str(HERE / "latex2mobile.py"), str(tex), "-o", str(out), "-q"]
+    cmd = [sys.executable, str(HERE / "epsilon_convert.py"), str(tex), "-o", str(out), "-q"]
     if kicker:
         cmd += ["--kicker", kicker]
     if title:
@@ -279,7 +279,7 @@ def add_draft(lib, tex, name=None):
     tex = Path(tex).resolve()
     name = name or tex.stem
     if not re.fullmatch(r"[\w.~-]+", name):
-        sys.exit("l2m_library: a draft name may only use letters, digits and . _ ~ -")
+        sys.exit("epsilon_library: a draft name may only use letters, digits and . _ ~ -")
     dest = lib.root / "sources" / "drafts" / name
     if dest.exists():
         shutil.rmtree(dest)
@@ -295,7 +295,7 @@ def convert_draft(lib, name):
     folder = lib.root / "sources" / "drafts" / name
     tex = main_tex(folder)
     old = lib.entry(name) or {}
-    kind = "note" if (folder / ".l2m-note").exists() else "draft"     # pushed by l2m_push.py, or a draft of yours
+    kind = "note" if (folder / ".l2m-note").exists() else "draft"     # pushed by epsilon.py, or a draft of yours
     entry = {"key": name, "path": "papers/" + name, "kind": kind, "added": old.get("added") or now(),
              "sourceHash": tree_hash(folder)}
     if tex is None:
@@ -542,7 +542,7 @@ def fetch_feed(lib, before=None):
                 try:
                     got = fetch_day(cat, day, cfg.get("crossLists"))
                 except (urllib.error.URLError, ValueError) as e:
-                    sys.exit("l2m_library: could not fetch %s for %s: %s" % (cat, day, e))
+                    sys.exit("epsilon_library: could not fetch %s for %s: %s" % (cat, day, e))
                 for i in got:
                     items.setdefault((i["id"], cat), i)      # a paper already listed keeps its day
                 time.sleep(3)
@@ -592,7 +592,7 @@ def remove(lib, keys):
     gone = []
     for key in keys:
         if not re.fullmatch(r"[\w.~-]+", key):
-            sys.exit("l2m_library: not a paper key: %r" % key)
+            sys.exit("epsilon_library: not a paper key: %r" % key)
         before = len(idx["papers"])
         idx["papers"] = [p for p in idx["papers"] if p["key"] != key]
         for d in (lib.root / "papers" / key, lib.root / "sources" / "arxiv" / key, lib.root / "sources" / "drafts" / key):
@@ -628,11 +628,11 @@ def push(lib, message):
             last = r
             break
         time.sleep(2 + 3 * attempt)
-    sys.exit("l2m_library: git push failed:\n" + ((last.stderr or last.stdout) if last else "").strip())
+    sys.exit("epsilon_library: git push failed:\n" + ((last.stderr or last.stdout) if last else "").strip())
 
 
 def main():
-    ap = argparse.ArgumentParser(description="A library of latex2mobile papers in a folder.")
+    ap = argparse.ArgumentParser(description="A library of Epsilon papers in a folder.")
     ap.add_argument("--library", default=".", help="the library folder (default: the current folder)")
     ap.add_argument("--push", action="store_true", help="commit and push the changes with git")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -669,7 +669,7 @@ def main():
             for i in ids:
                 i = re.sub(r"^(https?://)?(www\.)?arxiv\.org/(abs|pdf|html)/", "", i.strip()).removesuffix(".pdf")
                 if not ARXIV_ID.match(i):
-                    sys.exit("l2m_library: not an arXiv id: %r" % i)
+                    sys.exit("epsilon_library: not an arXiv id: %r" % i)
                 clean.append(i)
             # the app sends again the papers still waiting (a run waiting behind another can be dropped by GitHub):
             # one converted in the last half hour was done by an earlier run

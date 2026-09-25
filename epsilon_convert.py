@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""latex2mobile: turn a LaTeX article into a latex2mobile document, the paper as data.
+"""epsilon_convert: turn a LaTeX article into an Epsilon document, the paper as data.
 
-    python3 latex2mobile.py paper.tex                      # writes the folder paper.l2m/ next to paper.tex
-    python3 latex2mobile.py paper.tex --html paper.html    # ... and a one-file page to read it
-    python3 l2m_render.py paper.l2m -o paper.html          # the page, later, without LaTeX
-    python3 l2m_viewer.py build site paper.l2m ...         # a site with a library of documents
+    python3 epsilon_convert.py paper.tex                      # writes the folder paper.l2m/ next to paper.tex
+    python3 epsilon_convert.py paper.tex --html paper.html    # ... and a one-file page to read it
+    python3 epsilon_render.py paper.l2m -o paper.html          # the page, later, without LaTeX
+    python3 epsilon_viewer.py build site paper.l2m ...         # a site with a library of documents
 
 The document (see DOCUMENT.md) holds the paper's HTML, its numbering, its formulas as TeX and its
 figures, with no viewer code. How it looks and what the reading bar offers come from viewer/
@@ -812,7 +812,7 @@ class Converter:
                 return subprocess.run(cmd, cwd=self.build, env=env, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT, text=True, errors="replace", timeout=600)
             except FileNotFoundError:
-                sys.exit("latex2mobile: %s not found; is TeX installed and on PATH?" % cmd[0])
+                sys.exit("epsilon_convert: %s not found; is TeX installed and on PATH?" % cmd[0])
 
         latex = [engine, "-interaction=nonstopmode", "-file-line-error", stem + ".tex"]
         shipped = self.srcdir / (self.src.stem + ".bbl")
@@ -839,7 +839,7 @@ class Converter:
         r = run(latex)
         if not aux.exists():
             tail = "\n".join(r.stdout.splitlines()[-25:])
-            sys.exit("latex2mobile: LaTeX produced no .aux file. End of the log:\n" + tail)
+            sys.exit("epsilon_convert: LaTeX produced no .aux file. End of the log:\n" + tail)
         if r.returncode != 0:
             errs = [l for l in r.stdout.splitlines() if re.match(r"^.*:\d+: ", l)]
             self.warn("LaTeX reported errors (the page may still be fine): " + (errs[0] if errs else "see log"))
@@ -2433,7 +2433,7 @@ class Converter:
         b = text.find("\\begin{document}")
         e = text.rfind("\\end{document}")
         if b < 0:
-            sys.exit("latex2mobile: no \\begin{document} found")
+            sys.exit("epsilon_convert: no \\begin{document} found")
         pre = text[:b]
         body = text[b + len("\\begin{document}"):(e if e > b else len(text))]
         self.parse_preamble(pre)
@@ -2454,7 +2454,7 @@ class Converter:
             self.build = Path(self.args.keep_build).resolve()
             self.build.mkdir(parents=True, exist_ok=True)
         else:
-            tmp = tempfile.mkdtemp(prefix="latex2mobile-")
+            tmp = tempfile.mkdtemp(prefix="epsilon-")
             self.build = Path(tmp)
         try:
             aux, bbl = self.compile(pre_c + "\\begin{document}" + body_c + "\\end{document}\n", "l2mdoc")
@@ -2491,7 +2491,7 @@ class Converter:
             save_doc(doc, folder, cache)
             self.info("wrote %s (%d formulas, %d footnotes)" % (folder, len(doc["math"]["items"]), len(doc["footnotes"])))
             if self.args.html:
-                from l2m_render import bundle
+                from epsilon_render import bundle
                 bundle(doc, cache, Path(self.args.html), artifact=self.args.artifact, info=self.info)
         finally:
             if tmp:
@@ -2530,7 +2530,7 @@ class Converter:
 def draw_math(doc, warn=None, info=None):
     """Draw every formula of a document once with MathJax in node: the math.json cache (see DOCUMENT.md)."""
     m = doc["math"]
-    tmp = Path(tempfile.mkdtemp(prefix="latex2mobile-math-"))
+    tmp = Path(tempfile.mkdtemp(prefix="epsilon-math-"))
     job, res = tmp / "job.json", tmp / "out.json"
     job.write_text(json.dumps({"items": m["items"], "macros": m["macros"], "packages": m["packages"]}))
     if info:
@@ -2539,9 +2539,9 @@ def draw_math(doc, warn=None, info=None):
         r = subprocess.run(["node", str(HERE / "render_math.js"), str(job), str(res)],
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=1200)
     except FileNotFoundError:
-        sys.exit("latex2mobile: node not found; install Node.js")
+        sys.exit("epsilon_convert: node not found; install Node.js")
     if r.returncode != 0 or not res.exists():
-        sys.exit("latex2mobile: math rendering failed:\n" + r.stdout[-3000:])
+        sys.exit("epsilon_convert: math rendering failed:\n" + r.stdout[-3000:])
     out = json.loads(res.read_text())
     shutil.rmtree(tmp, ignore_errors=True)
     if warn:
@@ -2632,9 +2632,9 @@ def load_doc(path):
     folder = path if path.is_dir() else path.parent
     doc = json.loads((folder / "paper.json" if path.is_dir() else path).read_text())
     if doc.get("format") != DOC_FORMAT:
-        sys.exit("latex2mobile: %s is not a latex2mobile document" % path)
+        sys.exit("epsilon_convert: %s is not an Epsilon document" % path)
     if doc.get("version", 0) > DOC_VERSION:
-        sys.exit("latex2mobile: %s uses document version %s; this tool reads up to %d"
+        sys.exit("epsilon_convert: %s uses document version %s; this tool reads up to %d"
                  % (path, doc.get("version"), DOC_VERSION))
     mime = {v: k for k, v in IMAGE_EXT.items()}
 
@@ -2651,11 +2651,11 @@ def load_doc(path):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Convert a LaTeX article into a latex2mobile document (paper.json, "
+    ap = argparse.ArgumentParser(description="Convert a LaTeX article into an Epsilon document (paper.json, "
                                              "figures and drawn formulas), optionally also a one-file HTML page.")
     ap.add_argument("input", help="the main .tex file")
     ap.add_argument("-o", "--output", metavar="DIR", help="the document folder (default: paper.l2m next to paper.tex)")
-    ap.add_argument("--html", metavar="FILE", help="also write a one-file page (the same as l2m_render.py DIR -o FILE)")
+    ap.add_argument("--html", metavar="FILE", help="also write a one-file page (the same as epsilon_render.py DIR -o FILE)")
     ap.add_argument("--artifact", action="store_true",
                     help="with --html: write a page fragment without <html>/<head>/<body>, for a Claude artifact")
     ap.add_argument("--kicker", help='small line above the title, for example "Draft"')

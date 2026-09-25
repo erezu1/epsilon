@@ -1,4 +1,4 @@
-"""Harvmac (plain TeX, as many older hep-th papers are written) turned into LaTeX, for latex2mobile.
+"""Harvmac (plain TeX, as many older hep-th papers are written) turned into LaTeX, for Epsilon.
 
 The paper's own definitions are kept (in the preamble); harvmac's commands become their LaTeX counterparts:
 \\Title and the centred lines after it (title, authors, affiliations, abstract up to \\Date), \\newsec / \\subsec /

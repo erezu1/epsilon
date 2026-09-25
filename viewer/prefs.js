@@ -1,4 +1,4 @@
-// latex2mobile reading preferences: font, text size, appearance (light/dark/system) and tone.
+// Epsilon reading preferences: font, text size, appearance (light/dark/system) and tone.
 // L2M_initPrefs(theme) applies the reader's saved choices before anything is drawn; the options
 // themselves come from theme.json, and theme.css styles the data-size / data-tone / data-theme values.
 (function () {

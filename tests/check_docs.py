@@ -5,7 +5,7 @@
 import subprocess, sys, time
 from pathlib import Path
 
-render = Path(__file__).resolve().parent.parent / "l2m_render.py"
+render = Path(__file__).resolve().parent.parent / "epsilon_render.py"
 folder = Path(sys.argv[1])
 bad = 0
 for d in sorted(p for p in folder.iterdir() if (p / "paper.l2m").is_dir()):

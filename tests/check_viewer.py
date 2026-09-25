@@ -63,7 +63,7 @@ def main():
     browser_math = "--browser-math" in sys.argv
     papers = sorted(p for p in folder.iterdir() if (p / "paper.l2m" / "paper.json").exists() and (p / "paper.html").exists())
     tmp = Path(tempfile.mkdtemp(prefix="l2m-viewer-check-"))
-    cmd = [sys.executable, str(HERE.parent / "l2m_viewer.py"), "build", str(tmp / "site"), "--local-mathjax", "-q"]
+    cmd = [sys.executable, str(HERE.parent / "epsilon_viewer.py"), "build", str(tmp / "site"), "--local-mathjax", "-q"]
     if browser_math:
         cmd.append("--no-math-cache")
     subprocess.run(cmd + [str(p / "paper.l2m") for p in papers], check=True)

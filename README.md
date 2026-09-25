@@ -1,4 +1,4 @@
-# latex2mobile
+# Epsilon
 
 Turns a LaTeX article into a paper you can read comfortably on a phone.
 
@@ -6,11 +6,11 @@ It works in three separate parts:
 
 | part | what it is | made by |
 | --- | --- | --- |
-| **document** | the paper as data: its HTML, numbering, formulas (as TeX, plus drawn once), figures | `latex2mobile.py`, the only step that runs LaTeX |
+| **document** | the paper as data: its HTML, numbering, formulas (as TeX, plus drawn once), figures | `epsilon_convert.py`, the only step that runs LaTeX |
 | **theme** | how it looks and what the reading bar offers: `viewer/theme.json`, `viewer/theme.css` | you edit it |
 | **viewer** | draws a document with a theme in the browser: `viewer/viewer.js`, `viewer/nav.js` | shared by every paper |
 
-Change the theme (a font, a colour, which buttons the bar has) and every paper follows, without converting anything again. A paper can be read through a site with a library (`l2m_viewer.py`) or packed into one self-contained `.html` file (`l2m_render.py`).
+Change the theme (a font, a colour, which buttons the bar has) and every paper follows, without converting anything again. A paper can be read through a site with a library (`epsilon_viewer.py`) or packed into one self-contained `.html` file (`epsilon_render.py`).
 
 - **Numbering matches the PDF.** Sections, equations (including `align` rows), theorems, figures, tables and citations get the numbers LaTeX itself prints. The tool adds hidden `\label`s to a copy of your source and compiles that copy in a temporary folder. Your own files are never changed.
 - **Math is drawn once, ahead of time,** with MathJax, and stored with the document, so a paper opens instantly and looks the same everywhere. The TeX of every formula is kept too, so the viewer can draw it itself when needed.
@@ -27,7 +27,7 @@ Change the theme (a font, a colour, which buttons the bar has) and every paper f
   - a jump-to-top button;
   - a settings button (also at the top right of the title block): choose the font (STIX Two Text, Literata, Source Serif 4, IBM Plex Sans), the text size (small, medium, large), Light, Dark or System appearance, and a Neutral or Warm tone (Warm has its own light and dark versions). Choices are remembered in the reader's browser, and the reading position is kept when the font changes.
 - **Links remember where you were.** Tapping an equation number, a section, a citation or a footnote is a real history step. The browser's back button, or the bar's back button, returns to the exact spot you left, and the target briefly highlights when you land on it.
-- **A library.** `l2m_viewer.py` puts many documents behind one page: a list of papers, each opening in place, with back returning to the list. See below.
+- **A library.** `epsilon_viewer.py` puts many documents behind one page: a list of papers, each opening in place, with back returning to the list. See below.
 
 ## Setup (once)
 
@@ -38,30 +38,30 @@ You need:
 - optionally, `pdftoppm` from poppler, for PDF figures (`brew install poppler`).
 
 ```bash
-cd latex_mobile
+cd epsilon
 npm install
 ```
 
 ## Usage
 
 ```bash
-python3 latex2mobile.py path/to/paper.tex
+python3 epsilon_convert.py path/to/paper.tex
 ```
 
 This writes the document folder `path/to/paper.l2m/` (see [DOCUMENT.md](DOCUMENT.md)). To read it:
 
 ```bash
-python3 l2m_render.py path/to/paper.l2m -o paper.html
+python3 epsilon_render.py path/to/paper.l2m -o paper.html
 ```
 
-packs it with the viewer into one file that works offline. `--html paper.html` on the first command does both at once. Options of `latex2mobile.py`:
+packs it with the viewer into one file that works offline. `--html paper.html` on the first command does both at once. Options of `epsilon_convert.py`:
 
 | option | effect |
 | --- | --- |
 | `-o DIR` | the document folder (default: `paper.l2m` next to `paper.tex`) |
 | `--html FILE` | also write a one-file page |
 | `--artifact` | with `--html`: a page fragment (no `<html>/<head>/<body>`) for publishing as a Claude artifact |
-| `--kicker "Draft"` | small line above the title (`l2m_render.py --kicker` changes it later) |
+| `--kicker "Draft"` | small line above the title (`epsilon_render.py --kicker` changes it later) |
 | `--title "..."` | override the title |
 | `--engine xelatex` | use `xelatex` or `lualatex` to obtain the numbering |
 | `--no-math` | don't draw the formulas ahead of time; the viewer draws them in the browser |
@@ -72,7 +72,7 @@ Warnings about unknown commands, missing references or formulas MathJax could no
 Try it on the example:
 
 ```bash
-python3 latex2mobile.py examples/sample.tex --html examples/sample.html --kicker Example
+python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kicker Example
 ```
 
 ## The theme
@@ -89,7 +89,7 @@ python3 latex2mobile.py examples/sample.tex --html examples/sample.html --kicker
 | `icons` | the SVG icons |
 | `greekFont`, `mathjax` | the font for polytonic Greek, and where MathJax is loaded from |
 
-`viewer/theme.css` is the look: colours are tokens at the top, with dark and warm sets; `data-size`, `data-tone` and `data-theme` on the page carry the reader's choices. A new size or tone needs an entry in `theme.json` and its values in `theme.css`. On a site, edit the site's copies and reload; for one-file pages, run `l2m_render.py` again.
+`viewer/theme.css` is the look: colours are tokens at the top, with dark and warm sets; `data-size`, `data-tone` and `data-theme` on the page carry the reader's choices. A new size or tone needs an entry in `theme.json` and its values in `theme.css`. On a site, edit the site's copies and reload; for one-file pages, run `epsilon_render.py` again.
 
 ## What is supported
 
@@ -121,15 +121,15 @@ python3 latex2mobile.py examples/sample.tex --html examples/sample.html --kicker
 
 ## The reading app and the private library
 
-- **The app** is `viewer/`, published by GitHub Pages at https://erezu1.github.io/l2m-app/. It has your library (with search), *New* (today's papers in your arXiv categories, each with *Convert*), the paper view (with *arXiv*, *PDF* and *Keep offline*), and Settings. It can be added to a phone's home screen and works offline for saved papers.
-- **The papers** live in the private repo `erezu1/l2m-library`, which the app reads through GitHub's API with a token typed into Settings (kept on that device only). Make it at GitHub → Settings → Developer settings → Fine-grained tokens: repository access *only erezu1/l2m-library*, permissions *Contents: read and write* and *Actions: read and write*.
+- **The app** is `viewer/`, published by GitHub Pages at https://erezu1.github.io/epsilon/. It has your library (with search), *New* (today's papers in your arXiv categories, each with *Convert*), the paper view (with *arXiv*, *PDF* and *Keep offline*), and Settings. It can be added to a phone's home screen and works offline for saved papers.
+- **The papers** live in the private repo `erezu1/epsilon-library`, which the app reads through GitHub's API with a token typed into Settings (kept on that device only). Make it at GitHub → Settings → Developer settings → Fine-grained tokens: repository access *only erezu1/epsilon-library*, permissions *Contents: read and write* and *Actions: read and write*.
 - **Converting** happens on GitHub: the library's *convert* workflow fetches the arXiv source, runs the converter with TeX Live and commits the result (about 3 minutes). The *feed* workflow refreshes `feed.json` every weekday after arXiv's announcement; the categories and whether to include cross-lists are set in the app's Settings (stored in the library's `config.json`).
-- **From this computer**, `l2m_library.py` does the same in a clone of the library:
+- **From this computer**, `epsilon_library.py` does the same in a clone of the library:
 
 ```bash
-python3 l2m_library.py --library library convert 2609.28331 --push      # an arXiv paper
-python3 l2m_library.py --library library add-draft path/to/paper.tex --push   # your own LaTeX project
-python3 l2m_library.py --library library convert outdated --push       # after improving the converter
+python3 epsilon_library.py --library library convert 2609.28331 --push      # an arXiv paper
+python3 epsilon_library.py --library library add-draft path/to/paper.tex --push   # your own LaTeX project
+python3 epsilon_library.py --library library convert outdated --push       # after improving the converter
 ```
 
 `add-draft` copies only what the paper needs (the main file, what it inputs, its figures, `.bib`/`.bbl`/`.sty`/`.cls`/`.bst`), converts it here, and pushes; GitHub then sees the draft is already converted.
@@ -137,10 +137,10 @@ python3 l2m_library.py --library library convert outdated --push       # after i
 ## A site with a library
 
 ```bash
-python3 latex2mobile.py a.tex
-python3 latex2mobile.py b.tex
-python3 l2m_viewer.py build site a.l2m b.l2m
-python3 l2m_viewer.py serve site
+python3 epsilon_convert.py a.tex
+python3 epsilon_convert.py b.tex
+python3 epsilon_viewer.py build site a.l2m b.l2m
+python3 epsilon_viewer.py serve site
 ```
 
 Then open `http://localhost:8000/` for the library, or `http://localhost:8000/?p=a` for one paper. Papers open in place; the back button moves between the library and the papers, and inside a paper it steps back through the links you followed. Adding papers to an existing site keeps the ones already there.
@@ -149,18 +149,18 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 
 ## Publishing as a Claude artifact
 
-- One paper: `l2m_render.py paper.l2m -o page.html --artifact`, then publish `page.html`.
-- A library: `l2m_viewer.py build site ... --artifact` writes `index.html` with the viewer inline; publish it with the site's other files. An artifact's address cannot carry `?p=`, so a link from outside always opens the library.
+- One paper: `epsilon_render.py paper.l2m -o page.html --artifact`, then publish `page.html`.
+- A library: `epsilon_viewer.py build site ... --artifact` writes `index.html` with the viewer inline; publish it with the site's other files. An artifact's address cannot carry `?p=`, so a link from outside always opens the library.
 
 ## Files
 
 | file | role |
 | --- | --- |
-| `latex2mobile.py` | the converter: LaTeX to a document (command-line entry point) |
+| `epsilon_convert.py` | the converter: LaTeX to a document (command-line entry point) |
 | `render_math.js` | draws formulas to SVG with MathJax in node (called by the converter) |
-| `l2m_render.py` | packs one document and the viewer into a single `.html` |
-| `l2m_viewer.py` | builds and serves a site of documents with a library |
-| `l2m_library.py` | manages the private library: arXiv papers, drafts, the feed |
+| `epsilon_render.py` | packs one document and the viewer into a single `.html` |
+| `epsilon_viewer.py` | builds and serves a site of documents with a library |
+| `epsilon_library.py` | manages the private library: arXiv papers, drafts, the feed |
 | `viewer/app.js`, `viewer/sw.js`, `viewer/manifest.webmanifest` | the reading app: library, new papers, settings, offline copies |
 | `viewer/theme.json`, `viewer/theme.css` | the theme |
 | `viewer/viewer.js` | draws a document: bar, contents, settings, footnote sheet, figure viewer, formulas |

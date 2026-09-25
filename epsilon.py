@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Push a LaTeX note into the Papers app (the library repo on GitHub), where it is converted and shows in the
+"""Push a LaTeX note into the Epsilon app (the library repo on GitHub), where it is converted and shows in the
 library. The same --id updates the same note, in place, as often as you like.
 
-    l2m_push.py NOTE.tex --id my-note          a whole LaTeX file (with its figures, .bib, ... beside it)
-    l2m_push.py FOLDER --id my-note            a LaTeX project folder (its main .tex is found)
-    l2m_push.py BODY.tex --id my-note --title "Notes on X"
+    epsilon.py NOTE.tex --id my-note          a whole LaTeX file (with its figures, .bib, ... beside it)
+    epsilon.py FOLDER --id my-note            a LaTeX project folder (its main .tex is found)
+    epsilon.py BODY.tex --id my-note --title "Notes on X"
                                                a note's body only (no \\documentclass): a standard preamble
                                                (amsmath, amssymb, mathtools, amsthm, graphicx, tikz, hyperref)
                                                is put around it
-    cat body.tex | l2m_push.py - --id my-note --title "..."    the same, from standard input
-    l2m_push.py --remove my-note               take the note out of the library
-    l2m_push.py --list                         the notes and drafts in the library
+    cat body.tex | epsilon.py - --id my-note --title "..."    the same, from standard input
+    epsilon.py --remove my-note               take the note out of the library
+    epsilon.py --list                         the notes and drafts in the library
 
 It waits for the conversion (a minute or two) and prints the link to the note, or the converter's error; with
 --no-wait it returns at once. With --here it converts on this machine first (needs TeX and Node, as
-latex2mobile.py does) and pushes the result: quicker, and errors come back at once.
+epsilon_convert.py does) and pushes the result: quicker, and errors come back at once.
 
 Ids: letters, digits and . _ ~ - (not an arXiv number). Needs git access to the library repo (gh or git
 credentials); the library is found in L2M_LIBRARY, in ./library next to this script, or cloned once into
-~/.cache/l2m-library.
+~/.cache/epsilon-library.
 """
 import argparse
 import datetime
@@ -34,10 +34,10 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import l2m_library as L  # noqa: E402
+import epsilon_library as L  # noqa: E402
 
-REPO = os.environ.get("L2M_REPO", "erezu1/l2m-library")
-APP = os.environ.get("L2M_APP", "https://erezu1.github.io/l2m-app/")
+REPO = os.environ.get("L2M_REPO", "erezu1/epsilon-library")
+APP = os.environ.get("L2M_APP", "https://erezu1.github.io/epsilon/")
 
 PREAMBLE = r"""\documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -57,7 +57,7 @@ PREAMBLE = r"""\documentclass[11pt]{article}
 
 
 def die(msg):
-    sys.exit("l2m_push: " + msg)
+    sys.exit("epsilon: " + msg)
 
 
 def git(root, *a, check=True):
@@ -71,7 +71,7 @@ def library_clone():
     for cand in [os.environ.get("L2M_LIBRARY"), str(HERE / "library")]:
         if cand and (Path(cand) / ".git").exists():
             return Path(cand)
-    cache = Path.home() / ".cache" / "l2m-library"
+    cache = Path.home() / ".cache" / "epsilon-library"
     if not (cache / ".git").exists():
         cache.parent.mkdir(parents=True, exist_ok=True)
         if shutil.which("gh"):
@@ -120,14 +120,14 @@ def stage(src, nid, title, author, dest):
                 t.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(f, t)
             if title:
-                print("l2m_push: --title is ignored for a whole document (its own \\title is used)", file=sys.stderr)
+                print("epsilon: --title is ignored for a whole document (its own \\title is used)", file=sys.stderr)
             return
     if re.search(r"^[^%\n]*\\documentclass", text, re.M):
         (dest / (nid + ".tex")).write_text(text)
     else:
         (dest / (nid + ".tex")).write_text(wrap(text, title, author))
     # the figures and bibliography it names, from the folder it came from
-    tmp = base / (".l2m-push-%d.tex" % os.getpid())
+    tmp = base / (".epsilon-%d.tex" % os.getpid())
     try:
         tmp.write_text((dest / (nid + ".tex")).read_text())
         for f in L.project_files(tmp):
@@ -169,7 +169,7 @@ def wait_for(root, nid, sha, since, timeout=900):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Push a LaTeX note into the Papers app; the same --id updates it.",
+    ap = argparse.ArgumentParser(description="Push a LaTeX note into the Epsilon app; the same --id updates it.",
                                  formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     ap.add_argument("source", nargs="?", help="a .tex file, a LaTeX folder, or - for standard input")
     ap.add_argument("--id", help="the note's identifier (the same id updates the same note)")
@@ -205,7 +205,7 @@ def main():
     check_id(a.id)
     dest = root / "sources" / "drafts" / a.id
     stage(a.source, a.id, a.title, a.author, dest)
-    (dest / ".l2m-note").write_text("pushed by l2m_push\n")
+    (dest / ".l2m-note").write_text("pushed by epsilon\n")
     sha = L.tree_hash(dest)
     old = lib.entry(a.id)
     if old and old.get("sourceHash") == sha and old.get("status") == "ok":
