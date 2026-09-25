@@ -1532,3 +1532,13 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }
+
+/* wide screens: Library and Explore slide within a strip a little wider than the page (not the whole screen),
+   fading out toward its sides, so one list gives way to the other in place */
+@media (min-width: 800px) {
+  .l2m-app-lists main {
+    width: 50rem; margin-inline: auto;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
+  }
+}

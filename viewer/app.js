@@ -1602,6 +1602,12 @@
   main.addEventListener("touchend", endSwipe);
   main.addEventListener("touchcancel", endSwipe);
 
+  // wide screens: the wheel over the margins beside the lists scrolls the list shown
+  document.addEventListener("wheel", function (e) {
+    if (!isPage(current) || panelOpen || !shell || main.contains(e.target) || shell.contains(e.target)) return;
+    var pe = main.querySelector('[data-pane="' + current + '"]');
+    if (pe) pe.scrollTop += e.deltaY;
+  }, {passive: true});
   window.addEventListener("resize", function () {
     if (shell) { setBarH(); slide(shell.querySelector(".app-tabs")); }
   });
