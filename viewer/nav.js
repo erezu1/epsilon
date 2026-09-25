@@ -332,6 +332,7 @@ window.L2M_nav = function (opts) {
     activeRef = ref;
     ref.classList.add("active");
     sheet.classList.toggle("above-peek", !!(peekOpen && peek && !peek.contains(ref)));
+    if (peekOpen) sheet.style.setProperty("--peek-h", peekH + "px");
     sheet.classList.add("open");
     sheet.setAttribute("aria-hidden", "false");
     return true;
@@ -581,36 +582,64 @@ window.L2M_nav = function (opts) {
       ticking = true;
       requestAnimationFrame(function () { ticking = false; peekTitleNow(); });
     }, {passive: true});
-    // the head drags the peek's height; it snaps to a third, a half or two thirds, and closes when dragged low
-    var drag = null;
-    peekHead.addEventListener("pointerdown", function (e) {
-      if (e.target.closest("button")) return;
-      drag = {y: e.clientY, h: peekHeight(), id: e.pointerId};
-      peekHead.setPointerCapture(e.pointerId);
+    // the head drags the peek's height; it snaps to a third, a half or two thirds, and closes when dragged low.
+    // While it is held nothing is laid out again: the peek is made as tall as it can be and only slid (a
+    // transform, which the screen does alone), and it takes its new height once, where it comes to rest.
+    var drag = null, settle = null;
+    function slide(h, max) { peek.style.transform = "translateY(" + Math.round(max - h) + "px)"; }
+    function rest() {                 // the slide ended: the height it shows becomes its height
+      if (!settle) return;
+      clearTimeout(settle.timer);
+      var h = settle.h;
+      settle = null;
       peek.classList.add("dragging");
+      setPeekHeight(h);
+      peek.style.transform = "";
+      void peek.offsetWidth;
+      peek.classList.remove("dragging");
+    }
+    peekHead.addEventListener("pointerdown", function (e) {
+      if (e.target.closest("button") || !peekOpen) return;
+      var h = window.innerHeight - peek.getBoundingClientRect().top, max = peekMax();   // where it is now, even mid-slide
+      if (settle) { clearTimeout(settle.timer); settle = null; }
+      drag = {y: e.clientY, h: h, at: h, max: max, id: e.pointerId};
+      peek.classList.add("dragging");
+      peek.style.height = max + "px";
+      slide(h, max);
+      peekHead.setPointerCapture(e.pointerId);
     });
     peekHead.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.id) return;
-      setPeekHeight(Math.max(90, Math.min(peekMax(), drag.h + drag.y - e.clientY)));
+      drag.at = Math.max(90, Math.min(drag.max, drag.h + drag.y - e.clientY));
+      slide(drag.at, drag.max);
     });
     function dragEnd(e) {
       if (!drag || e.pointerId !== drag.id) return;
-      var h = peekHeight();
+      var h = drag.at, max = drag.max;
       drag = null;
       peek.classList.remove("dragging");
       var avail = window.innerHeight - barHeight();
-      if (h < avail * 0.22) { closePeek(); return; }
-      var snaps = [0.34, 0.5, 0.66].map(function (f) { return Math.round(avail * f); });
+      if (h < avail * 0.22) { peek.style.transform = ""; closePeek(); return; }
+      var snaps = [0.34, 0.5, 0.66].map(function (f) { return Math.min(max, Math.round(avail * f)); });
       var best = snaps.reduce(function (a, b) { return Math.abs(b - h) < Math.abs(a - h) ? b : a; });
       peekUserH = best / avail;
-      setPeekHeight(best);
+      slide(best, max);
+      settle = {h: best, timer: setTimeout(rest, 340)};
     }
     peekHead.addEventListener("pointerup", dragEnd);
     peekHead.addEventListener("pointercancel", dragEnd);
   }
   function peekMax() { return window.innerHeight - barHeight() - 56; }
-  function peekHeight() { return parseFloat(getComputedStyle(root).getPropertyValue("--peek-h")) || 0; }
-  function setPeekHeight(h) { root.style.setProperty("--peek-h", Math.round(h) + "px"); }
+  // the peek's height, set on the few things that follow it (not on the page's root, which would restyle the
+  // whole paper): the peek, a note's sheet above it, and the room kept under the page to read its end
+  var peekH = 0;
+  function peekHeight() { return peekH; }
+  function setPeekHeight(h) {
+    peekH = Math.round(h);
+    if (peek) peek.style.height = peekH + "px";
+    if (sheet) sheet.style.setProperty("--peek-h", peekH + "px");
+    if (peekOpen) document.body.style.paddingBottom = (peekH + 72) + "px";
+  }
   function peekFill() {
     // a copy of the paper, its ids kept as data-pid (the page's own ids stay unique)
     var src = document.querySelector("main");
@@ -678,6 +707,8 @@ window.L2M_nav = function (opts) {
     var was = peekOpen;
     peekOpen = true;
     root.classList.add("l2m-peeking");
+    peek.style.transform = "";
+    setPeekHeight(peekH);
     peek.setAttribute("aria-hidden", "false");
     peekStack = [];
     peekBack.hidden = true;
@@ -706,7 +737,11 @@ window.L2M_nav = function (opts) {
       try { if (state().l2mPeek) { skipPop = true; history.back(); } } catch (e) {}
     }
     clearTimeout(peekCloseTimer);
-    peekCloseTimer = setTimeout(function () { if (!peekOpen) root.classList.remove("l2m-peeking"); }, 340);
+    peekCloseTimer = setTimeout(function () {
+      if (peekOpen) return;
+      root.classList.remove("l2m-peeking");
+      document.body.style.paddingBottom = "";
+    }, 340);
   }
 
   // long press: a timer on the pointer (touch, pen, or a held mouse button), and the context menu (a right click, or
@@ -941,7 +976,7 @@ window.L2M_nav = function (opts) {
       clearTimeout(fadeTimer);
       clearTimeout(saveTimer);
       root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
-      if (peek) { peek.remove(); peek = null; peekOpen = false; }
+      if (peek) { peek.remove(); peek = null; peekOpen = false; document.body.style.paddingBottom = ""; }
       clearTimeout(peekCloseTimer);
       if (window.L2M_progress === progress) window.L2M_progress = null;
     }

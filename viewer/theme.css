@@ -1689,11 +1689,11 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
   background: var(--ground); border-radius: 16px 16px 0 0; overflow: hidden;
   box-shadow: 0 -14px 36px -22px var(--bar-shadow), 0 -1px 0 var(--bar-line);
   transform: translateY(calc(100% + 24px)); visibility: hidden;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 320ms;
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 320ms; will-change: transform;
 }
 .l2m-peek.open {
   transform: none; visibility: visible;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
+  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
 }
 .l2m-peek.dragging { transition: none; }
 .peek-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
@@ -1718,7 +1718,6 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .peek-back:not([hidden]) + .peek-title { padding-left: 2px; }
-.l2m-peeking body { padding-bottom: calc(var(--peek-h, 46vh) + 72px); }
 .l2m-fnsheet.above-peek { bottom: var(--peek-h, 46vh); }
 /* a long press on an internal link is the peek's: not the browser's link menu, nor a selection */
 main a[href^="#"], .l2m-menu a[href^="#"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
