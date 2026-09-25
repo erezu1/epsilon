@@ -1321,3 +1321,8 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 @media (hover: hover) { .app-pill.app-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); } }
 @media (hover: none) { .app-pill.app-danger:active { background: color-mix(in srgb, var(--danger) 18%, transparent); } }
 .app-confirm-q { flex: 1 0 100%; }
+/* round buttons are square, so their pressed and hover circle is a circle: the row's buttons 40px, the paper
+   bar's 42px (both with the room they had) */
+.lib-rows .app-lib-row > .bar-btn { width: 40px; height: 40px; margin-top: -9px; border-radius: 50%; }
+.l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 42px; height: 42px; border-radius: 50%; }
+.l2m-bar:not(.app-bar) .bar-btn.swap { width: 44px; height: 44px; border-radius: 50%; }

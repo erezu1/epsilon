@@ -1028,6 +1028,10 @@
       var d = days[cur], h = d.offsetHeight;
       row.style.height = h + "px";              // the bar grows down to take the header in (animated)
       if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
+      // the words exactly over where they stood in the list (whatever the phone's insets and widths)
+      var rg = document.createRange(); rg.selectNodeContents(d);
+      var dx = rg.getBoundingClientRect().left - row.getBoundingClientRect().left;
+      if (dx >= 0 && dx < 200) row.style.paddingLeft = dx.toFixed(2) + "px";
       // scroll-linked crossfade: the header fades out as the next one comes up under it, and a new one fades in
       var span = h, out = 1, inn = 1;
       if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next header coming up
@@ -1042,6 +1046,7 @@
       clearTimeout(joinBar.t);
       bar.classList.remove("settled");
       row.style.height = "";                   // back to the bar alone; the header fades as it goes
+      row.style.paddingLeft = "";
       row.style.opacity = "";
       row.style.transform = "";
     }
