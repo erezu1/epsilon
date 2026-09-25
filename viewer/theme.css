@@ -1845,3 +1845,15 @@ html.l2m-marker ::highlight(l2m-find) { background-color: transparent; text-deco
 html.l2m-marker ::highlight(l2m-find-now) { background-color: transparent; text-decoration: underline var(--find-band-now);
   text-decoration-thickness: 0.68em; text-underline-offset: -0.5em; text-decoration-skip-ink: none; }
 mjx-container.l2m-find-f { border-radius: 0.35em 0.6em 0.4em 0.7em / 0.6em 0.35em 0.7em 0.4em; }
+
+/* the marker's stroke (nav.js lays one over each found word): a band with slanted ends and slightly uneven edges,
+   laid over the page and multiplied into it on light grounds (screened on dark), so the letters stay crisp */
+.l2m-find-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 1; pointer-events: none; mix-blend-mode: multiply; }
+.l2m-find-m { position: absolute; display: block; background-color: var(--find-band); transform-origin: 50% 50%;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M2 94L8 10C30 3 64 13 98 5L92 90C66 98 34 86 2 94Z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M2 94L8 10C30 3 64 13 98 5L92 90C66 98 34 86 2 94Z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat; }
+.l2m-find-m.now { background-color: var(--find-band-now); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .l2m-find-layer { mix-blend-mode: screen; } }
+:root[data-theme="dark"] .l2m-find-layer { mix-blend-mode: screen; }
+.l2m-find-g { fill: var(--find-band); }
+.l2m-find-g.now { fill: var(--find-band-now); }

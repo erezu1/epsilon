@@ -59,7 +59,7 @@
     var d = document.documentElement;
     return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
   };
-  window.L2M_fullOn = function () { return window.L2M_prefs().full !== "off"; };
+  window.L2M_fullOn = function () { return window.L2M_prefs().full === "on"; };
   window.L2M_endFade = function () { if (fadeVT) { try { fadeVT.skipTransition(); } catch (e) {} fadeVT = null; } };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
   if (/Chrome\/\d/.test(navigator.userAgent)) document.documentElement.classList.add("l2m-marker");

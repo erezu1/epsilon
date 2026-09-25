@@ -240,8 +240,41 @@ window.L2M_nav = function (opts) {
     "Γ": "Gamma", "Δ": "Delta", "Θ": "Theta", "Λ": "Lambda", "Ξ": "Xi", "Π": "Pi", "Σ": "Sigma", "Υ": "Upsilon", "Φ": "Phi",
     "Ψ": "Psi", "Ω": "Omega", "ℓ": "ell", "ℏ": "hbar", "∂": "partial", "∇": "nabla", "∞": "infty"};
   var BLOCK = "p, li, h1, h2, h3, h4, h5, h6, .display, figcaption, td, th, dt, dd, blockquote, pre, .thm, .titleblock";
+  // found words get a marker's stroke laid over them (blended, so the letters stay as they are): its ends slanted as
+  // a chisel tip leaves them, each a little tilted and a little off the line, never two quite alike
+  var findLayer = null, findLaying = 0;
+  function tilt(i) { return {a: -0.5 - ((i * 37) % 11) / 10, dy: (((i * 53) % 5) - 2) * 0.5}; }
+  function strokes() {
+    if (!findLayer) { findLayer = document.createElement("div"); findLayer.className = "l2m-find-layer"; findLayer.setAttribute("aria-hidden", "true"); }
+    if (!findLayer.parentNode) document.body.appendChild(findLayer);
+    findLayer.textContent = "";
+    var x0 = window.pageXOffset, y0 = window.pageYOffset, k = 0;
+    hits.forEach(function (h, i) {
+      if (!h.range) return;
+      h.boxes = [];
+      Array.prototype.forEach.call(h.range.getClientRects(), function (r) {
+        if (r.width < 1) return;
+        var t = tilt(k++), m = document.createElement("span");
+        m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
+        m.style.left = (r.left + x0 - 2) + "px";
+        m.style.top = (r.top + y0 + r.height * 0.2 + t.dy) + "px";
+        m.style.width = (r.width + 4) + "px";
+        m.style.height = (r.height * 0.72) + "px";
+        m.style.transform = "rotate(" + t.a + "deg)";
+        findLayer.appendChild(m);
+        h.boxes.push(m);
+      });
+    });
+  }
+  function relay() {                   // the page moved under them (a formula drawn, the window turned): laid again
+    if (!finding || findLaying) return;
+    findLaying = requestAnimationFrame(function () { findLaying = 0; if (finding && hits.length) strokes(); });
+  }
+  on(window, "resize", relay);
+  if (window.ResizeObserver) { var findRO = new ResizeObserver(relay); findRO.observe(document.querySelector("main")); }
   function findClear() {
     if (window.CSS && CSS.highlights) { CSS.highlights.delete("l2m-find"); CSS.highlights.delete("l2m-find-now"); }
+    if (findLayer) findLayer.textContent = "";
     Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-g"), function (r) { r.remove(); });
     Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-f, main .l2m-find-now"), function (e) {
       e.classList.remove("l2m-find-f", "l2m-find-now");
@@ -273,13 +306,13 @@ window.L2M_nav = function (opts) {
   function glyphMark(g) {             // a soft box behind one glyph, inside its formula (it moves with it)
     try {
       var b = g.getBBox(), pad = 50;
-      var r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      var r = document.createElementNS("http://www.w3.org/2000/svg", "path"), n = hits.length;
       r.setAttribute("class", "l2m-find-g");
-      r.setAttribute("x", b.x - pad); r.setAttribute("y", b.y - pad);
-      r.setAttribute("width", b.width + 2 * pad); r.setAttribute("height", b.height + 2 * pad);
-      r.setAttribute("rx", 60);
-      var cx = b.x + b.width / 2, cy = b.y + b.height / 2;        // slanted a little, as a marker's chisel tip leaves it
-      r.setAttribute("transform", (g.getAttribute("transform") || "") + " translate(" + cx + " " + cy + ") skewX(-12) translate(" + -cx + " " + -cy + ")");
+      r.setAttribute("d", "M0.02 0.94L0.08 0.1C0.3 0.03 0.64 0.13 0.98 0.05L0.92 0.9C0.66 0.98 0.34 0.86 0.02 0.94Z");
+      var x = b.x - pad, y = b.y - pad, w = b.width + 2 * pad, hh = b.height + 2 * pad, t = tilt(n + 7);
+      // the formula's drawing is upside down (y upwards): the stroke is turned the same way, so it slants as the text's
+      r.setAttribute("transform", (g.getAttribute("transform") || "") + " rotate(" + (-t.a) + " " + (x + w / 2) + " " + (y + hh / 2) + ")" +
+        " translate(" + x + " " + (y + hh) + ") scale(" + w + " " + -hh + ")");
       g.parentNode.insertBefore(r, g);
       return r;
     } catch (e) { return null; }
@@ -342,10 +375,7 @@ window.L2M_nav = function (opts) {
       else if (h.glyph) h.mark = glyphMark(h.glyph);
       else h.el.classList.add("l2m-find-f");
     });
-    if (window.CSS && CSS.highlights && window.Highlight && ranges.length) {
-      var hl = new Highlight(); ranges.forEach(function (r) { hl.add(r); });
-      CSS.highlights.set("l2m-find", hl);
-    }
+    if (ranges.length) strokes();
     // the first one from where the reader is
     var top = barHeight() + 4, k0 = 0;
     for (var j = 0; j < hits.length; j++) { if (hitRect(hits[j]).top >= top) { k0 = j; break; } k0 = 0; }
@@ -358,13 +388,14 @@ window.L2M_nav = function (opts) {
   function findGo(k, soft) {
     if (hitAt >= 0 && hits[hitAt]) {
       var o = hits[hitAt];
-      if (o.mark) o.mark.classList.remove("now"); else if (!o.range) o.el.classList.remove("l2m-find-now");
+      if (o.mark) o.mark.classList.remove("now"); else if (o.range) (o.boxes || []).forEach(function (b) { b.classList.remove("now"); });
+      else o.el.classList.remove("l2m-find-now");
     }
     hitAt = k;
     if (window.CSS && CSS.highlights) CSS.highlights.delete("l2m-find-now");
     if (k >= 0 && hits[k]) {
       var h = hits[k];
-      if (h.range) { if (window.Highlight) CSS.highlights.set("l2m-find-now", new Highlight(h.range)); }
+      if (h.range) (h.boxes || []).forEach(function (b) { b.classList.add("now"); });
       else if (h.mark) h.mark.classList.add("now");
       else h.el.classList.add("l2m-find-now");
       // in sight: below the bar, above the peek, a third of the way down if it has to move
@@ -466,11 +497,10 @@ window.L2M_nav = function (opts) {
   });
 
   // ---------------------------------------------------------------- full screen while reading (a phone's own
-  // bars away). Asked for as the paper opens (the tap that opened it allows it) or else at the first touch; left
-  // when the paper is. On Android, back first leaves full screen: that same press then also steps back, as it
-  // would have (unless the browser stepped back itself), and the next touch returns to full screen.
+  // bars away), when turned on. Asked for as the paper opens (the tap that opened it allows it) or else at the first
+  // touch; left when the paper is. Back leaves full screen (as the phone does), and it stays left for this paper.
   var fullMine = false, fullLeaving = false, fullArmed = false;
-  function fullWanted() { return !!(window.L2M_canFull && L2M_canFull() && ((session && session.full) || prefs().full) !== "off"); }
+  function fullWanted() { return !!(window.L2M_canFull && L2M_canFull() && ((session && session.full) || prefs().full) === "on"); }
   function fullEnter() {
     if (dead || !fullWanted() || document.fullscreenElement) return;
     try {
@@ -484,16 +514,12 @@ window.L2M_nav = function (opts) {
     if (document.fullscreenElement && fullMine) { fullLeaving = true; try { document.exitFullscreen(); } catch (e) {} }
     fullMine = false;
   }
-  var fullPopped = 0;
-  on(window, "popstate", function () { fullPopped = Date.now(); });
   on(document, "fullscreenchange", function () {
     if (document.fullscreenElement || dead) return;
     if (fullLeaving) { fullLeaving = false; return; }
     if (!fullMine) return;
-    fullMine = false;
-    fullArmed = true;                                  // left by the reader (back): the next touch comes back to it
-    var at = Date.now();
-    setTimeout(function () { if (!dead && fullPopped < at - 50) history.back(); }, 250);
+    fullMine = false;                                  // left by the reader (back): so it stays, until the next paper
+    fullArmed = false;
   });
   on(document, "pointerup", function () { if (fullArmed) fullEnter(); });
   fullArmed = true;
@@ -535,7 +561,7 @@ window.L2M_nav = function (opts) {
       curBtn.setAttribute("aria-label", "Font: " + f0.name + ", tap to choose another");
     }
     var want = {"data-theme-opt": look, "data-size-opt": session.size || DEF.size, "data-tone-opt": session.tone || DEF.tone,
-                "data-full-opt": session.full === "off" ? "off" : "on"};
+                "data-full-opt": session.full === "on" ? "on" : "off"};
     for (var attr in want) {
       var segs = el.querySelectorAll("[" + attr + "]");
       for (var m = 0; m < segs.length; m++) segs[m].setAttribute("aria-checked", segs[m].getAttribute(attr) === want[attr] ? "true" : "false");
@@ -1371,6 +1397,7 @@ window.L2M_nav = function (opts) {
       root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
       if (peek) { peek.remove(); peek = null; peekOpen = false; document.body.style.paddingBottom = ""; }
       fullLeave();
+      if (findLayer && findLayer.parentNode) findLayer.remove();
       if (window.CSS && CSS.highlights) { CSS.highlights.delete("l2m-find"); CSS.highlights.delete("l2m-find-now"); }
       clearTimeout(peekCloseTimer);
       if (window.L2M_progress === progress) window.L2M_progress = null;

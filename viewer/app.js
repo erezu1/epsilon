@@ -750,7 +750,7 @@
     var D = theme.defaults || {};
     var want = {"data-font": prefs.font || D.font, "data-size-opt": prefs.size || D.size,
                 "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone,
-                "data-full-opt": prefs.full === "off" ? "off" : "on"};
+                "data-full-opt": prefs.full === "on" ? "on" : "off"};
     Object.keys(want).forEach(function (attr) {
       Array.prototype.forEach.call(inner.querySelectorAll("[" + attr + "]"), function (b) {
         b.setAttribute("aria-checked", b.getAttribute(attr) === want[attr] ? "true" : "false");
