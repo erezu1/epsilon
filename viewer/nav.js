@@ -186,6 +186,7 @@ window.L2M_nav = function (opts) {
   }
   function closeMenu(how) {          // closes whichever panel is open; how: "pop" (by back), "jump" (a link follows)
     if (!panel) return;
+    if (window.L2M_endFade) L2M_endFade();
     if (useHistory && how !== "pop") {
       try {
         if (state().l2mPanel) {
@@ -210,6 +211,40 @@ window.L2M_nav = function (opts) {
       if (panel === name) closeMenu(); else openPanel(name);
     };
   }
+
+  // ---------------------------------------------------------------- full screen while reading (a phone's own
+  // bars away). Asked for as the paper opens (the tap that opened it allows it) or else at the first touch; left
+  // when the paper is. On Android, back first leaves full screen: that same press then also steps back, as it
+  // would have (unless the browser stepped back itself), and the next touch returns to full screen.
+  var fullMine = false, fullLeaving = false, fullArmed = false;
+  function fullWanted() { return !!(window.L2M_canFull && L2M_canFull() && ((session && session.full) || prefs().full) !== "off"); }
+  function fullEnter() {
+    if (dead || !fullWanted() || document.fullscreenElement) return;
+    try {
+      var r = document.documentElement.requestFullscreen({navigationUI: "hide"});
+      fullMine = true;
+      if (r && r.then) r.then(function () { fullArmed = false; }, function () { fullMine = false; fullArmed = true; });
+    } catch (e) { fullArmed = true; }
+  }
+  function fullLeave() {
+    fullArmed = false;
+    if (document.fullscreenElement && fullMine) { fullLeaving = true; try { document.exitFullscreen(); } catch (e) {} }
+    fullMine = false;
+  }
+  var fullPopped = 0;
+  on(window, "popstate", function () { fullPopped = Date.now(); });
+  on(document, "fullscreenchange", function () {
+    if (document.fullscreenElement || dead) return;
+    if (fullLeaving) { fullLeaving = false; return; }
+    if (!fullMine) return;
+    fullMine = false;
+    fullArmed = true;                                  // left by the reader (back): the next touch comes back to it
+    var at = Date.now();
+    setTimeout(function () { if (!dead && fullPopped < at - 50) history.back(); }, 250);
+  });
+  on(document, "pointerup", function () { if (fullArmed) fullEnter(); });
+  fullArmed = true;
+  fullEnter();
 
   // ---------------------------------------------------------------- reading settings
   var FONTS = {};
@@ -246,7 +281,8 @@ window.L2M_nav = function (opts) {
       curBtn.querySelector(".opt-note").textContent = f0.note || "";
       curBtn.setAttribute("aria-label", "Font: " + f0.name + ", tap to choose another");
     }
-    var want = {"data-theme-opt": look, "data-size-opt": session.size || DEF.size, "data-tone-opt": session.tone || DEF.tone};
+    var want = {"data-theme-opt": look, "data-size-opt": session.size || DEF.size, "data-tone-opt": session.tone || DEF.tone,
+                "data-full-opt": session.full === "off" ? "off" : "on"};
     for (var attr in want) {
       var segs = el.querySelectorAll("[" + attr + "]");
       for (var m = 0; m < segs.length; m++) segs[m].setAttribute("aria-checked", segs[m].getAttribute(attr) === want[attr] ? "true" : "false");
@@ -274,9 +310,7 @@ window.L2M_nav = function (opts) {
   function crossfade(apply) {
     var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) { apply(); return; }
-    if (document.startViewTransition) {
-      try { document.startViewTransition(apply); return; } catch (e) {}
-    }
+    if (window.L2M_fade ? L2M_fade(apply) : false) return;
     // fallback: a veil in the page color fades in, the theme changes under it, and it fades out
     var veil = document.querySelector(".l2m-veil");
     if (!veil) {
@@ -302,6 +336,14 @@ window.L2M_nav = function (opts) {
     }
     panels.settings.addEventListener("click", function (e) {
       if (e.target.closest("[data-font-toggle]")) { openFonts(!pick.classList.contains("open")); return; }
+      var fo = e.target.closest("[data-full-opt]");
+      if (fo) {
+        session.full = fo.getAttribute("data-full-opt");
+        var pf = prefs(); pf.full = session.full; savePrefs(pf);
+        refreshSettings();
+        if (session.full === "on") fullEnter(); else fullLeave();
+        return;
+      }
       var b = e.target.closest("[data-font], [data-theme-opt], [data-size-opt], [data-tone-opt]");
       if (!b) return;
       if (b.hasAttribute("data-font")) setTimeout(function () { openFonts(false); }, 260);   // chosen: the list folds away
@@ -831,7 +873,7 @@ window.L2M_nav = function (opts) {
   var lp = null;
   function internalLink(t) {
     var a = t && t.closest ? t.closest("a[href^='#']") : null;
-    if (!a || !(a.closest("main") || (menu && menu.contains(a)))) return null;
+    if (!a || !(a.closest("main") || (menu && menu.contains(a)) || (sheet && sheet.contains(a)))) return null;
     var id = decodeURIComponent(a.getAttribute("href").slice(1));
     return id && id !== "l2m-top" ? {a: a, id: id} : null;
   }
@@ -846,6 +888,11 @@ window.L2M_nav = function (opts) {
     if (peek && peek.contains(l.a)) {           // from the peek: the top view goes there
       closeSheet();
       if (document.getElementById(l.id)) navigate(l.id);
+      return;
+    }
+    if (sheet && sheet.contains(l.a)) {        // from a note's sheet: the sheet gives way to the peek
+      closeSheet();
+      openPeek(l.id, null);
       return;
     }
     openPeek(l.id, menu && menu.contains(l.a) ? null : l.a);
@@ -1068,6 +1115,7 @@ window.L2M_nav = function (opts) {
       clearTimeout(saveTimer);
       root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
       if (peek) { peek.remove(); peek = null; peekOpen = false; document.body.style.paddingBottom = ""; }
+      fullLeave();
       clearTimeout(peekCloseTimer);
       if (window.L2M_progress === progress) window.L2M_progress = null;
     }

@@ -663,6 +663,7 @@
     Array.prototype.forEach.call(shell.querySelectorAll(".app-tabs:not(.set-tabs) .seg-btn, #app-search, #app-plus"), function (b) { b.tabIndex = on ? -1 : 0; });
   }
   function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
+    if (panelOpen && window.L2M_endFade) L2M_endFade();
     if (shell && panelOpen) {             // while the panel rolls up, the bar waits (its header's words come in last)
       var cb = shell.querySelector("#app-bar");
       cb.classList.add("panel-closing");
@@ -746,7 +747,8 @@
     var prefs = window.L2M_prefs ? L2M_prefs() : {};
     var D = theme.defaults || {};
     var want = {"data-font": prefs.font || D.font, "data-size-opt": prefs.size || D.size,
-                "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone};
+                "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone,
+                "data-full-opt": prefs.full === "off" ? "off" : "on"};
     Object.keys(want).forEach(function (attr) {
       Array.prototype.forEach.call(inner.querySelectorAll("[" + attr + "]"), function (b) {
         b.setAttribute("aria-checked", b.getAttribute(attr) === want[attr] ? "true" : "false");
@@ -771,7 +773,7 @@
         requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
         return;
       }
-      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-cross]");
+      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-full-opt], [data-cross]");
       if (!b) return;
       if (b.hasAttribute("data-font")) {
         showFont(b.getAttribute("data-font"));
@@ -785,11 +787,8 @@
       var p = window.L2M_prefs ? L2M_prefs() : {};
       if (b.hasAttribute("data-font")) { p.font = b.getAttribute("data-font"); L2M_applyFont(p.font); }
       if (b.hasAttribute("data-size-opt")) { p.size = b.getAttribute("data-size-opt"); L2M_applySize(p.size); }
-      var fade = function (f) {
-        var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (document.startViewTransition && !reduced) { try { document.startViewTransition(f); return; } catch (x) {} }
-        f();
-      };
+      if (b.hasAttribute("data-full-opt")) p.full = b.getAttribute("data-full-opt");
+      var fade = function (f) { if (!(window.L2M_fade && L2M_fade(f))) f(); };
       if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); fade(function () { L2M_applyTheme(p.theme); }); }
       if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); fade(function () { L2M_applyTone(p.tone); }); }
       if (window.L2M_savePrefs) L2M_savePrefs(p);

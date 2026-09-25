@@ -40,6 +40,27 @@
   window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); };
   window.L2M_applySize = function (z) { attr("data-size", z, DEF.size); };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); };
+  // a change of colours (theme, tone) cross-fades the page; the fade shows a still picture of the page, so anything
+  // that moves meanwhile (a panel closing) cuts it short and moves in sight
+  var fadeVT = null;
+  window.L2M_fade = function (apply) {
+    var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (document.startViewTransition && !reduced) {
+      try {
+        var vt = fadeVT = document.startViewTransition(apply);
+        vt.finished.then(function () { if (fadeVT === vt) fadeVT = null; }, function () { if (fadeVT === vt) fadeVT = null; });
+        return true;
+      } catch (e) {}
+    }
+    return false;
+  };
+  // reading in full screen (on a touch screen whose browser allows it; not an iPhone): on unless turned off
+  window.L2M_canFull = function () {
+    var d = document.documentElement;
+    return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
+  };
+  window.L2M_fullOn = function () { return window.L2M_prefs().full !== "off"; };
+  window.L2M_endFade = function () { if (fadeVT) { try { fadeVT.skipTransition(); } catch (e) {} fadeVT = null; } };
   window.L2M_prefs = function () {
     try { return JSON.parse(localStorage.getItem("l2m-prefs") || "{}") || {}; } catch (e) { return {}; }
   };
