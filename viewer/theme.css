@@ -1294,3 +1294,10 @@ html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens:
   font-family: var(--ui); font-size: 0.82em; font-weight: 600; letter-spacing: 0.02em; line-height: 1.35;
   color: var(--link); background: var(--bar-current);
 }
+
+/* the page's own stand-ins, before the app starts: the library's (its bar and rows), or a paper's (its bar and
+   lines of text) when the page opens on a paper. The paper's bar is a fixed height (its title is two lines tall). */
+#boot-paper-bar, .boot-paper { display: none; }
+html.l2m-boot-paper #boot-chrome, html.l2m-boot-paper main .app-track { display: none; }
+html.l2m-boot-paper #boot-paper-bar, html.l2m-boot-paper .boot-paper { display: block; }
+html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875px); }

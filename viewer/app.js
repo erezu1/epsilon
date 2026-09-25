@@ -68,7 +68,10 @@
     root.style.setProperty("--l2m-bar-h", bar.getBoundingClientRect().height + "px");   // the page starts where it will
   }
   function dropSkelBar() { var b = document.getElementById("l2m-skel-bar"); if (b) b.remove(); }
-  function dropBoot() { var b = document.getElementById("boot-chrome"); if (b) b.remove(); }
+  function dropBoot() {                        // the page's own stand-ins (in index.html), shown until the app starts
+    ["boot-chrome", "boot-paper-bar"].forEach(function (id) { var b = document.getElementById(id); if (b) b.remove(); });
+    root.classList.remove("l2m-boot-paper");
+  }
   // INSPIRE (the high-energy physics literature database) knows papers from these archives
   function inspire(id, cats) {
     var hep = (cats || []).some(function (c) { return /^(hep-|gr-qc|nucl-|astro-ph|math-ph)/.test(c || ""); });

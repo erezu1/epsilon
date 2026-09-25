@@ -4,6 +4,17 @@
 (function () {
   "use strict";
   var root = document.documentElement;
+  // the app opened on a paper (a link to it, or reloaded while reading it): the page shows the paper's stand-ins
+  // from its first frame, not the library's (this runs before the page is drawn)
+  if (root.classList.contains("l2m-app-lists")) {
+    try {
+      var q = new URLSearchParams(location.search), st = history.state || {};
+      if (q.get("p") || q.get("doc") || (st.l2mPaper && String(st.l2mPaper).indexOf("app:") !== 0 && !q.get("v"))) {
+        root.classList.remove("l2m-app-lists");
+        root.classList.add("l2m-boot-paper");
+      }
+    } catch (e) {}
+  }
   var FONTS = {}, DEF = {};
 
   function load(key) {
