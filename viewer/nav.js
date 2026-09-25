@@ -295,7 +295,8 @@ window.L2M_nav = function (opts) {
     return w;
   }
   function texHas(tex, q) {
-    var t = (tex || "").replace(/\s+/g, ""), i = t.indexOf(q);
+    var t = texNorm(tex), i;
+    q = texNorm(q); i = t.indexOf(q);
     while (i >= 0) {
       // \phi is not the start of \phiup: after a command name the next character is no letter
       if (!(/[A-Za-z]$/.test(q) && /\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
@@ -303,19 +304,86 @@ window.L2M_nav = function (opts) {
     }
     return false;
   }
-  function glyphMark(g) {             // a soft box behind one glyph, inside its formula (it moves with it)
+  // the glyphs a piece of TeX draws, in the order a formula's drawing has them (a letter: italic or upright; a
+  // command: its symbol; braces, _ and ^ draw nothing); null when it has something this cannot tell
+  var OPS = {cdot: "22C5", times: "D7", pm: "B1", mp: "2213", sum: "2211", int: "222B", prod: "220F", oint: "222E", sqrt: "221A",
+    langle: "27E8", rangle: "27E9", dagger: "2020", ldots: "2026", cdots: "22EF", to: "2192", rightarrow: "2192", leftarrow: "2190",
+    leq: "2264", le: "2264", geq: "2265", ge: "2265", neq: "2260", ne: "2260", approx: "2248", sim: "223C", equiv: "2261",
+    propto: "221D", otimes: "2297", oplus: "2295", wedge: "2227", vee: "2228", cap: "2229", cup: "222A", in: "2208",
+    subset: "2282", mid: "2223", prime: "2032", star: "22C6", ast: "2217", circ: "2218", bullet: "2219"};
+  var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle)$/;
+  var SYM = {"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
+    "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"};
+  function hex(c) { return c.toString(16).toUpperCase(); }
+  var FONTCMD = /^(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm|operatorname)$/;
+  function glyphsOf(q) {
+    var out = [], i = 0, m, wildTo = -1;              // letters in \mathcal{...} and the like: drawn in their own fonts
+    while (i < q.length) {
+      var c = q.charAt(i);
+      if ((m = /^\\([A-Za-z]+|.)/.exec(q.slice(i)))) {
+        var name = m[1]; i += m[0].length;
+        if (FONTCMD.test(name)) {
+          if (q.charAt(i) === "{") {
+            for (var d = 0, e = i; e < q.length; e++) { if (q.charAt(e) === "{") d++; else if (q.charAt(e) === "}" && !--d) break; }
+            wildTo = e;
+          } else wildTo = i + 1;
+          continue;
+        }
+        if (GLYPH[name]) out.push([GLYPH[name]]);
+        else if (OPS[name]) out.push([OPS[name]]);
+        else if (name === "{" || name === "}") out.push([hex(name.charCodeAt(0))]);
+        else if (!QUIET.test(name)) return null;
+        continue;
+      }
+      i++;
+      if (i - 1 < wildTo && /[A-Za-z0-9]/.test(c)) { out.push(["*"]); continue; }
+      if (/[A-Za-z]/.test(c)) {
+        var k = c.charCodeAt(0), it = c === "h" ? "210E" : hex((c < "a" ? 0x1D434 + k - 65 : 0x1D44E + k - 97));
+        out.push([it, hex(k)]);
+      } else if (/[0-9]/.test(c)) out.push([hex(c.charCodeAt(0))]);
+      else if (SYM[c]) out.push([SYM[c]].concat(c === "-" ? ["2D"] : c === "|" ? ["2223"] : []));
+      else if (/[\s_^{}&~]/.test(c)) continue;
+      else return null;
+    }
+    return out.length ? out : null;
+  }
+  // one marker's stroke over the given glyphs (or the whole formula), drawn inside the formula's own picture, so it
+  // scrolls and scales with it: behind the glyphs, at least as tall as the text round it
+  function glyphMark(f, gs) {
     try {
-      var b = g.getBBox(), pad = 50;
-      var r = document.createElementNS("http://www.w3.org/2000/svg", "path"), n = hits.length;
-      r.setAttribute("class", "l2m-find-g");
-      r.setAttribute("d", "M0.02 0.94L0.08 0.1C0.3 0.03 0.64 0.13 0.98 0.05L0.92 0.9C0.66 0.98 0.34 0.86 0.02 0.94Z");
-      var x = b.x - pad, y = b.y - pad, w = b.width + 2 * pad, hh = b.height + 2 * pad, t = tilt(n + 7);
-      // the formula's drawing is upside down (y upwards): the stroke is turned the same way, so it slants as the text's
-      r.setAttribute("transform", (g.getAttribute("transform") || "") + " rotate(" + (-t.a) + " " + (x + w / 2) + " " + (y + hh / 2) + ")" +
-        " translate(" + x + " " + (y + hh) + ") scale(" + w + " " + -hh + ")");
-      g.parentNode.insertBefore(r, g);
-      return r;
+      var svg = f.querySelector("svg");
+      if (!svg) return null;
+      var L = Infinity, T = Infinity, R = -Infinity, B = -Infinity;
+      (gs && gs.length ? gs : [svg]).forEach(function (g) {
+        var r = g.getBoundingClientRect();
+        L = Math.min(L, r.left); T = Math.min(T, r.top); R = Math.max(R, r.right); B = Math.max(B, r.bottom);
+      });
+      var fs = parseFloat(getComputedStyle(f).fontSize) || 16, cy = (T + B) / 2, hh = Math.max(B - T + 2, fs * 1.05);
+      T = cy - hh / 2; B = cy + hh / 2; L -= 2; R += 2;
+      var M = svg.getScreenCTM().inverse(), pt = svg.createSVGPoint();
+      pt.x = L; pt.y = T; var a = pt.matrixTransform(M);
+      pt.x = R; pt.y = B; var b = pt.matrixTransform(M);
+      var x = a.x, y = a.y, w = b.x - a.x, h = b.y - a.y, t = tilt(hits.length + 7);
+      var p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute("class", "l2m-find-g");
+      p.setAttribute("d", "M0.02 0.94L0.08 0.1C0.3 0.03 0.64 0.13 0.98 0.05L0.92 0.9C0.66 0.98 0.34 0.86 0.02 0.94Z");
+      p.setAttribute("transform", "rotate(" + t.a + " " + (x + w / 2) + " " + (y + h / 2) + ") translate(" + x + " " + (y + t.dy * h / hh) + ") scale(" + w + " " + h + ")");
+      svg.insertBefore(p, svg.firstChild);
+      return p;
     } catch (e) { return null; }
+  }
+  var MACROS = opts.macros || {}, expanded = {};
+  function expand(t) {
+    for (var pass = 0; pass < 3; pass++) {
+      var t2 = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return typeof MACROS[n] === "string" ? MACROS[n] + " " : x; });
+      if (t2 === t) break;
+      t = t2;
+    }
+    return t;
+  }
+  function texNorm(t) {
+    t = expand(t || "").replace(/\\(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm)\s+([A-Za-z0-9])/g, "\\$1{$2}");
+    return t.replace(/\s+/g, "").replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
   }
   function findRun() {
     findClear();
@@ -356,15 +424,32 @@ window.L2M_nav = function (opts) {
       }
     }
     if (what.glyph || what.tex) {
+      var seq = what.glyph ? [[what.glyph]] : glyphsOf(texNorm(what.tex));
       forms.forEach(function (f) {
-        var gl = what.glyph && f.el.tagName !== "L2M-MATH" ? f.el.querySelectorAll('[data-c="' + what.glyph + '"]') : [];
-        if (gl.length) {
-          Array.prototype.forEach.call(gl, function (g, k) { found.push({at: f.at + k * 1e-4, el: f.el, glyph: g}); });
-        } else if (what.tex && !what.glyph && texHas(opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "", what.tex)) {
-          found.push({at: f.at, el: f.el});
-        } else if (what.glyph && f.el.tagName === "L2M-MATH" && texHas(opts.tex ? opts.tex(f.el.getAttribute("n")) : "", what.tex)) {
-          found.push({at: f.at, el: f.el});            // not drawn yet: by its TeX
+        var drawn = f.el.tagName !== "L2M-MATH", tex = opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "";
+        // a single symbol: wherever it is drawn (a paper's own macros for it too); more TeX: in formulas whose TeX has it
+        if (!what.glyph && !texHas(tex, what.tex)) return;
+        var got = 0;
+        if (drawn && seq) {
+          var gl = f.el.querySelectorAll("[data-c]"), codes = Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
+          for (var i = 0; i + seq.length <= codes.length; i++) {
+            var ok = true;
+            for (var j = 0; j < seq.length && ok; j++) ok = seq[j][0] === "*" || seq[j].indexOf(codes[i + j]) >= 0;
+            if (!ok && seq.length > 2) {               // the same glyphs in another order (a script's two parts)
+              var left = seq.slice();
+              ok = true;
+              for (var jj = 0; jj < seq.length && ok; jj++) {
+                var at = -1;
+                for (var kk = 0; kk < left.length; kk++) if (left[kk][0] === "*" || left[kk].indexOf(codes[i + jj]) >= 0) { at = kk; break; }
+                if (at < 0) ok = false; else left.splice(at, 1);
+              }
+            }
+            if (!ok) continue;
+            found.push({at: f.at + (got++) * 1e-4, el: f.el, glyphs: Array.prototype.slice.call(gl, i, i + seq.length)});
+            i += seq.length - 1;
+          }
         }
+        if (!got && (!what.glyph || texHas(tex, what.tex))) found.push({at: f.at, el: f.el});   // the formula as a whole
       });
     }
     found.sort(function (x, y) { return x.at - y.at; });
@@ -372,8 +457,7 @@ window.L2M_nav = function (opts) {
     var ranges = [];
     hits.forEach(function (h) {
       if (h.range) ranges.push(h.range);
-      else if (h.glyph) h.mark = glyphMark(h.glyph);
-      else h.el.classList.add("l2m-find-f");
+      else h.mark = glyphMark(h.el, h.glyphs);
     });
     if (ranges.length) strokes();
     // the first one from where the reader is
@@ -382,14 +466,13 @@ window.L2M_nav = function (opts) {
     findGo(hits.length ? k0 : -1, true);
   }
   function hitRect(h) {
-    var el = h.range || h.mark || h.glyph || h.el;
+    var el = h.range || h.mark || h.el;
     return el.getBoundingClientRect();
   }
   function findGo(k, soft) {
     if (hitAt >= 0 && hits[hitAt]) {
       var o = hits[hitAt];
       if (o.mark) o.mark.classList.remove("now"); else if (o.range) (o.boxes || []).forEach(function (b) { b.classList.remove("now"); });
-      else o.el.classList.remove("l2m-find-now");
     }
     hitAt = k;
     if (window.CSS && CSS.highlights) CSS.highlights.delete("l2m-find-now");
@@ -397,11 +480,10 @@ window.L2M_nav = function (opts) {
       var h = hits[k];
       if (h.range) (h.boxes || []).forEach(function (b) { b.classList.add("now"); });
       else if (h.mark) h.mark.classList.add("now");
-      else h.el.classList.add("l2m-find-now");
       // in sight: below the bar, above the peek, a third of the way down if it has to move
       var r = hitRect(h), top = barHeight() + 12, bottom = window.innerHeight - (peekOpen ? peekH : 0) - 24;
       if (r.top < top || r.bottom > bottom) window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - top - (bottom - top) * 0.3));
-      var at = h.glyph || (h.range && h.range.startContainer.parentElement), eq = at && at.closest && at.closest(".eqbody");
+      var at = (h.glyphs && h.mark) || (h.range && h.range.startContainer.parentElement), eq = at && at.closest && at.closest(".eqbody");
       if (eq) {                                           // a wide formula scrolled sideways to it
         var er = eq.getBoundingClientRect(), gr = hitRect(h);
         if (gr.left < er.left + 16 || gr.right > er.right - 16) eq.scrollLeft += gr.left - er.left - er.width / 2 + gr.width / 2;
