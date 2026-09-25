@@ -100,6 +100,7 @@ window.L2M_nav = function (opts) {
     if (opts.leaving && opts.leaving()) return;    // the host is taking the reader out of the paper
     if (skipPop) { skipPop = false; return; }
     if (panel) { closeMenu("pop"); return; }       // back closes the open panel, nothing else
+    if (peekOpen && !(e.state && e.state.l2mPeek)) { closePeek("pop"); closeSheet(); return; }   // then the peek
     var st = e.state;
     if (st && st.l2mPaper !== undefined && st.l2mPaper !== KEY) return;   // another paper's entry: the host switches
     if (st && typeof st.l2mIdx === "number") {
@@ -317,6 +318,7 @@ window.L2M_nav = function (opts) {
     if (activeRef) activeRef.classList.remove("active");
     activeRef = ref;
     ref.classList.add("active");
+    sheet.classList.toggle("above-peek", !!(peekOpen && peek && !peek.contains(ref)));
     sheet.classList.add("open");
     sheet.setAttribute("aria-hidden", "false");
     return true;
@@ -525,10 +527,236 @@ window.L2M_nav = function (opts) {
     on(window, "resize", function () { if (viewerOpen()) { fitStage(); applyZoom(false); } });
   }
 
+
+  // ---------------------------------------------------------------- the peek: a second view of the paper, below
+  // A long press on a link (an equation, a section, a theorem, a figure, a citation, a note; or an entry of the
+  // contents) opens its target in a sheet rising from the bottom, while the reading stays where it is above; a long
+  // press in the peek opens its target above instead. The bar stays the top view's. Back closes the peek (its own
+  // jumps step back with its own back button); it keeps no place of its own.
+  var peek = null, peekMain = null, peekScroll = null, peekHead = null, peekTitle = null, peekBack = null;
+  var peekOpen = false, peekStack = [], peekHeads = [], peekCloseTimer = null, peekUserH = null;
+  function peekBuild() {
+    if (peek) return;
+    var I = theme.icons || {};
+    peek = document.createElement("div");
+    peek.className = "l2m-peek";
+    peek.id = "l2m-peek";
+    peek.setAttribute("role", "region");
+    peek.setAttribute("aria-label", "Second view of the paper");
+    peek.setAttribute("aria-hidden", "true");
+    peek.innerHTML = '<div class="peek-scroll"><main class="peek-main"></main></div>' +
+      '<div class="peek-head"><span class="peek-grab" aria-hidden="true"></span><div class="peek-row">' +
+      '<button type="button" class="bar-btn peek-back" aria-label="Back in the second view" hidden>' + (I.back || "&lsaquo;") + "</button>" +
+      '<span class="peek-title"></span>' +
+      '<button type="button" class="bar-btn peek-close" aria-label="Close the second view">' + (I.close || "&times;") + "</button></div></div>";
+    document.body.appendChild(peek);
+    peekMain = peek.querySelector(".peek-main");
+    peekScroll = peek.querySelector(".peek-scroll");
+    peekHead = peek.querySelector(".peek-head");
+    peekTitle = peek.querySelector(".peek-title");
+    peekBack = peek.querySelector(".peek-back");
+    peek.querySelector(".peek-close").addEventListener("click", function () { closePeek(); });
+    peekBack.addEventListener("click", function () {
+      if (!peekStack.length) return;
+      peekScroll.scrollTo(0, peekStack.pop());
+      peekBack.hidden = !peekStack.length;
+      peekTitleNow();
+    });
+    var ticking = false;
+    peekScroll.addEventListener("scroll", function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () { ticking = false; peekTitleNow(); });
+    }, {passive: true});
+    // the head drags the peek's height; it snaps to a third, a half or two thirds, and closes when dragged low
+    var drag = null;
+    peekHead.addEventListener("pointerdown", function (e) {
+      if (e.target.closest("button")) return;
+      drag = {y: e.clientY, h: peekHeight(), id: e.pointerId};
+      peekHead.setPointerCapture(e.pointerId);
+      peek.classList.add("dragging");
+    });
+    peekHead.addEventListener("pointermove", function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      setPeekHeight(Math.max(90, Math.min(peekMax(), drag.h + drag.y - e.clientY)));
+    });
+    function dragEnd(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var h = peekHeight();
+      drag = null;
+      peek.classList.remove("dragging");
+      var avail = window.innerHeight - barHeight();
+      if (h < avail * 0.22) { closePeek(); return; }
+      var snaps = [0.34, 0.5, 0.66].map(function (f) { return Math.round(avail * f); });
+      var best = snaps.reduce(function (a, b) { return Math.abs(b - h) < Math.abs(a - h) ? b : a; });
+      peekUserH = best / avail;
+      setPeekHeight(best);
+    }
+    peekHead.addEventListener("pointerup", dragEnd);
+    peekHead.addEventListener("pointercancel", dragEnd);
+  }
+  function peekMax() { return window.innerHeight - barHeight() - 56; }
+  function peekHeight() { return parseFloat(getComputedStyle(root).getPropertyValue("--peek-h")) || 0; }
+  function setPeekHeight(h) { root.style.setProperty("--peek-h", Math.round(h) + "px"); }
+  function peekFill() {
+    // a copy of the paper, its ids kept as data-pid (the page's own ids stay unique)
+    var src = document.querySelector("main");
+    peekMain.innerHTML = src.innerHTML;
+    Array.prototype.forEach.call(peekMain.querySelectorAll("[id]"), function (n) {
+      n.setAttribute("data-pid", n.id);
+      n.removeAttribute("id");
+    });
+    Array.prototype.forEach.call(peekMain.querySelectorAll(".fnref.active"), function (n) { n.classList.remove("active"); });
+    peekHeads = Array.prototype.filter.call(peekMain.querySelectorAll("h2[data-pid], h3[data-pid]"), function (h) {
+      return !h.closest(".titleblock");
+    });
+    peekMain.l2mFilled = true;
+  }
+  function peekFind(id) {
+    if (!peekMain) return null;
+    var all = peekMain.querySelectorAll("[data-pid]");
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute("data-pid") === id) return all[i];
+    return null;
+  }
+  function peekLabel(el) {
+    var d = el.closest(".display");
+    if (d) { var n = d.querySelector(".eqno"); return "Equation " + (n ? n.textContent.trim() : ""); }
+    if (/^H[1-6]$/.test(el.tagName)) return el.textContent.replace(/\s+/g, " ").trim();
+    var li = el.closest("li");
+    if (el.closest(".footnotes")) { var fb = li && li.querySelector(".fnback"); return "Note " + (fb ? fb.textContent.trim() : ""); }
+    if (el.closest(".references")) { var rn = li && li.querySelector(".refnum"); return "Reference " + (rn ? rn.textContent.trim() : ""); }
+    var f = el.closest("figure");
+    if (f) { var c = f.querySelector(".capname"); return c ? c.textContent.replace(/[.:]\s*$/, "").trim() : "Figure"; }
+    var t = el.closest(".thm, .defn, .remark");
+    if (t) { var tn = t.querySelector(".thm-name"); return tn ? tn.textContent.replace(/[.:]\s*$/, "").trim() : "Statement"; }
+    return null;
+  }
+  function peekTitleNow() {
+    if (!peek) return;
+    var line = peekScroll.getBoundingClientRect().top + peekHead.offsetHeight + 8, cur = null;
+    for (var k = 0; k < peekHeads.length; k++) {
+      if (peekHeads[k].getBoundingClientRect().top <= line) cur = peekHeads[k]; else break;
+    }
+    if (peekTitle.l2mFixed && Math.abs(peekScroll.scrollTop - peekTitle.l2mFixedAt) < 40) return;   // the target's name, until one scrolls on
+    peekTitle.l2mFixed = false;
+    peekTitle.innerHTML = cur ? cur.innerHTML : docTitle;
+  }
+  function peekGo(id, push) {
+    var el = peekFind(id);
+    if (!el) return false;
+    if (push) { peekStack.push(peekScroll.scrollTop); peekBack.hidden = false; }
+    var y = el.getBoundingClientRect().top - peekScroll.getBoundingClientRect().top + peekScroll.scrollTop - peekHead.offsetHeight - 12;
+    peekScroll.scrollTo(0, Math.max(0, y));
+    flash(el);
+    var label = peekLabel(el);
+    if (label) { peekTitle.textContent = label; peekTitle.l2mFixed = true; peekTitle.l2mFixedAt = peekScroll.scrollTop; }
+    else { peekTitle.l2mFixed = false; peekTitleNow(); }
+    return true;
+  }
+  function openPeek(id, from) {
+    peekBuild();
+    if (!peekMain.l2mFilled) peekFill();
+    if (!peekFind(id)) return false;
+    clearTimeout(peekCloseTimer);
+    closeMenu("jump");
+    closeSheet();
+    var avail = window.innerHeight - barHeight();
+    setPeekHeight(Math.min(peekMax(), Math.round(avail * (peekUserH || 0.48))));
+    var was = peekOpen;
+    peekOpen = true;
+    root.classList.add("l2m-peeking");
+    peek.setAttribute("aria-hidden", "false");
+    peekStack = [];
+    peekBack.hidden = true;
+    peekGo(id, false);
+    if (!was) {
+      void peek.offsetWidth;
+      peek.classList.add("open");
+      if (useHistory) { try { if (!state().l2mPeek) history.pushState(assign(state(), {l2mPeek: true}), ""); } catch (e) {} }
+    }
+    // the link it came from stays in sight above: moved up, if the peek would cover it
+    if (from && !peek.contains(from)) {
+      var r = from.getBoundingClientRect(), top = barHeight(), bottom = window.innerHeight - peekHeight();
+      if (r.bottom > bottom - 16 || r.top < top) {
+        var want = top + (bottom - top) * 0.35;
+        window.scrollTo({top: window.pageYOffset + r.top - want, behavior: "smooth"});
+      }
+    }
+    return true;
+  }
+  function closePeek(how) {           // how: "pop" (closed by back)
+    if (!peekOpen) return;
+    peekOpen = false;
+    peek.classList.remove("open");
+    peek.setAttribute("aria-hidden", "true");
+    if (how !== "pop" && useHistory) {
+      try { if (state().l2mPeek) { skipPop = true; history.back(); } } catch (e) {}
+    }
+    clearTimeout(peekCloseTimer);
+    peekCloseTimer = setTimeout(function () { if (!peekOpen) root.classList.remove("l2m-peeking"); }, 340);
+  }
+
+  // long press: a timer on the pointer (touch, pen, or a held mouse button), and the context menu (a right click, or
+  // a browser's own long press) taken over for internal links
+  var lp = null;
+  function internalLink(t) {
+    var a = t && t.closest ? t.closest("a[href^='#']") : null;
+    if (!a || !(a.closest("main") || (menu && menu.contains(a)))) return null;
+    var id = decodeURIComponent(a.getAttribute("href").slice(1));
+    return id && id !== "l2m-top" ? {a: a, id: id} : null;
+  }
+  function eatClick() {
+    var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener("click", stop, true); };
+    document.addEventListener("click", stop, true);
+    setTimeout(function () { document.removeEventListener("click", stop, true); }, 700);
+  }
+  function longPress(l) {
+    if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+    eatClick();
+    if (peek && peek.contains(l.a)) {           // from the peek: the top view goes there
+      closeSheet();
+      if (document.getElementById(l.id)) navigate(l.id);
+      return;
+    }
+    openPeek(l.id, menu && menu.contains(l.a) ? null : l.a);
+  }
+  function lpCancel() { if (lp && lp.t) clearTimeout(lp.t); if (lp && !lp.fired) lp = null; }
+  on(document, "pointerdown", function (e) {
+    if (e.button !== 0) return;
+    var l = internalLink(e.target);
+    if (!l) return;
+    lp = {x: e.clientX, y: e.clientY, l: l, fired: false};
+    lp.t = setTimeout(function () { if (lp && !lp.fired) { lp.fired = true; longPress(lp.l); } }, 460);
+  });
+  on(document, "pointermove", function (e) {
+    if (lp && !lp.fired && Math.abs(e.clientX - lp.x) + Math.abs(e.clientY - lp.y) > 10) lpCancel();
+  }, {passive: true});
+  on(document, "pointerup", function () { if (lp && !lp.fired) lpCancel(); else if (lp) setTimeout(function () { lp = null; }, 700); });
+  on(document, "pointercancel", lpCancel);
+  on(document, "scroll", lpCancel, {passive: true, capture: true});
+  on(document, "contextmenu", function (e) {
+    var l = internalLink(e.target);
+    if (!l) return;
+    e.preventDefault();
+    if (lp && lp.fired) return;                 // the long press has already opened it
+    if (lp && lp.t) clearTimeout(lp.t);
+    lp = {l: l, fired: true};
+    longPress(l);
+    setTimeout(function () { lp = null; }, 700);
+  });
+
   // ---------------------------------------------------------------- clicks and keys
   on(document, "click", function (e) {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var a = e.target.closest ? e.target.closest("a[href^='#']") : null;
+    // in the peek: a note opens its sheet, a figure its viewer, any other link moves the peek (not the page)
+    if (a && peek && peek.contains(a)) {
+      if (a.closest(".fnref") && openSheet(a)) { e.preventDefault(); return; }
+      var pid = decodeURIComponent(a.getAttribute("href").slice(1));
+      var ptarget = document.getElementById(pid), pfig = ptarget ? outerFigure(ptarget) : null;
+      if (pfig && openViewer(pfig)) { e.preventDefault(); return; }
+      if (peekGo(pid, true)) { e.preventDefault(); closeSheet(); return; }
+    }
     if (a && a.closest(".fnref") && openSheet(a)) {
       e.preventDefault();
       return;
@@ -558,7 +786,11 @@ window.L2M_nav = function (opts) {
     if (sheet && sheet.classList.contains("open") && !sheet.contains(e.target)) closeSheet();
   });
   on(document, "keydown", function (e) {
-    if (e.key === "Escape") { closeViewer(); closeMenu(); closeSheet(); }
+    if (e.key === "Escape") {
+      var nothing = !viewerOpen() && !panel && !(sheet && sheet.classList.contains("open"));
+      closeViewer(); closeMenu(); closeSheet();
+      if (nothing) closePeek();
+    }
   });
   backBtn.addEventListener("click", function () {
     if (panel) { closeMenu(); return; }
@@ -695,7 +927,9 @@ window.L2M_nav = function (opts) {
       offs = [];
       clearTimeout(fadeTimer);
       clearTimeout(saveTimer);
-      root.classList.remove("l2m-noscroll", "l2m-settings-open");
+      root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
+      if (peek) { peek.remove(); peek = null; peekOpen = false; }
+      clearTimeout(peekCloseTimer);
       if (window.L2M_progress === progress) window.L2M_progress = null;
     }
   };
