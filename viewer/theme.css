@@ -1473,3 +1473,24 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
 }
 .app-bar.joined.settled:not(.menu-open) .app-bar-day { transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* the bar's tabs and icon change as a smooth split-flap, at the panel's own pace: opening (the panel rolling down),
+   the old ones go down and out while the new ones come down from above; closing, all go the other way (up) */
+.app-tabswap, .app-lead { overflow: hidden; clip-path: inset(0 -24px); }
+.app-tabswap > .app-tabs, .app-lead > .app-logo, .app-lead > .app-close {
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease, visibility 0s linear 300ms;
+}
+.app-tabswap > .set-tabs, .app-lead > .app-close { transform: translateY(-70%); opacity: 0; visibility: hidden; }
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs), .app-bar.set-mode .app-lead > .app-logo {
+  transform: translateY(70%); opacity: 0; visibility: hidden;
+}
+.app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close,
+.app-tabswap > .app-tabs:not(.set-tabs), .app-lead > .app-logo {
+  transform: none; opacity: 1; visibility: visible;
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease 40ms, visibility 0s;
+}
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs), .app-bar.set-mode .app-lead > .app-logo,
+.app-bar:not(.set-mode) .app-tabswap > .set-tabs, .app-bar:not(.set-mode) .app-lead > .app-close {
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, visibility 0s linear 300ms;
+}
+@media (prefers-reduced-motion: reduce) { .app-tabswap > *, .app-lead > * { transition-duration: 0.01s !important; } }
