@@ -1825,14 +1825,12 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 mjx-container.l2m-find-f { background-color: var(--find); border-radius: 4px; box-shadow: 0 0 0 3px var(--find); }
 mjx-container.l2m-find-f.l2m-find-now { background-color: var(--find-now); box-shadow: 0 0 0 3px var(--find-now); }
 
-/* the search fields' underline: the bar's own line (as under the chosen tab), black, round, as thick and as low */
+/* the search fields sit in a box of their own (their thin underline as before) */
 .find-box { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; }
 .app-searchbar, .l2m-bar.finding .bar-find { align-self: stretch; }
-.find-box .app-field, .app-searchbar .find-box .app-field, .bar-find .find-box .app-field { flex: 1 1 auto; min-width: 0; border-bottom: 0; }
+.find-box .app-field, .app-searchbar .find-box .app-field, .bar-find .find-box .app-field { flex: 1 1 auto; min-width: 0; }
 .bar-find .find-box { margin: 0 6px 0 14px; }
 .bar-find .find-box .app-field { margin: 0; }
-.find-box::after { content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: var(--line, 3px); border-radius: 999px;
-  background: var(--ink); pointer-events: none; }
 .app-searchbar .find-box { margin-left: 10px; }
 .app-searchbar .find-box .app-field { margin: 0; }
 
