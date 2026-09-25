@@ -331,8 +331,6 @@ window.L2M_nav = function (opts) {
     if (activeRef) activeRef.classList.remove("active");
     activeRef = ref;
     ref.classList.add("active");
-    sheet.classList.toggle("above-peek", !!(peekOpen && peek && !peek.contains(ref)));
-    if (peekOpen) sheet.style.setProperty("--peek-h", peekH + "px");
     sheet.classList.add("open");
     sheet.setAttribute("aria-hidden", "false");
     return true;
@@ -631,13 +629,12 @@ window.L2M_nav = function (opts) {
   }
   function peekMax() { return window.innerHeight - barHeight() - 56; }
   // the peek's height, set on the few things that follow it (not on the page's root, which would restyle the
-  // whole paper): the peek, a note's sheet above it, and the room kept under the page to read its end
+  // whole paper): the peek, and the room kept under the page to read its end
   var peekH = 0;
   function peekHeight() { return peekH; }
   function setPeekHeight(h) {
     peekH = Math.round(h);
     if (peek) peek.style.height = peekH + "px";
-    if (sheet) sheet.style.setProperty("--peek-h", peekH + "px");
     if (peekOpen) document.body.style.paddingBottom = (peekH + 72) + "px";
   }
   function peekFill() {
