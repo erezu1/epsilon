@@ -1606,3 +1606,39 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 :root { --line: 3px; }
 .swap-ind, .app-bar .app-tabs .sel-ind, .set-tabs .sel-ind, .l2m-bar .bar-progress, .app-progress, .lib-rows > li[data-read]::after { height: var(--line); }
 .l2m-bar .bar-progress > i { box-shadow: 0 0 3px color-mix(in srgb, var(--progress) 45%, transparent), 0 1px 1.5px rgb(0 0 0 / 0.14); }
+
+/* into a paper and back: the bar's glass stays (only its height changes); its contents change in turn, the old ones
+   fading out as they drift the page's way, then the new ones fading in from the other side */
+.l2m-vt .l2m-bar.show .bar-inner { view-transition-name: l2m-bar-content; }
+html.l2m-vt::view-transition-group(l2m-bar-content) { animation-duration: 380ms; animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); }
+html.l2m-vt::view-transition-old(l2m-bar-content), html.l2m-vt::view-transition-new(l2m-bar-content) {
+  height: 100%; width: 100%; object-fit: none; object-position: 50% 50%;
+}
+html.l2m-vt::view-transition-old(l2m-bar-content) { animation: l2m-bc-out-fwd 170ms cubic-bezier(0.4, 0, 1, 1) both; }
+html.l2m-vt::view-transition-new(l2m-bar-content) { animation: l2m-bc-in-fwd 260ms cubic-bezier(0, 0, 0.2, 1) 150ms both; }
+html.l2m-vt.l2m-vt-back::view-transition-old(l2m-bar-content) { animation-name: l2m-bc-out-back; }
+html.l2m-vt.l2m-vt-back::view-transition-new(l2m-bar-content) { animation-name: l2m-bc-in-back; }
+html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-bar) { animation-duration: 380ms; }
+@keyframes l2m-bc-out-fwd { to { opacity: 0; transform: translateX(-14px); } }
+@keyframes l2m-bc-in-fwd { from { opacity: 0; transform: translateX(18px); } }
+@keyframes l2m-bc-out-back { to { opacity: 0; transform: translateX(14px); } }
+@keyframes l2m-bc-in-back { from { opacity: 0; transform: translateX(-18px); } }
+
+/* pull to refresh: a round glass chip under the bar with the refresh arrow (turning with the pull, spinning while
+   the list is refreshed); the browser's own pull-to-reload kept off the lists */
+.app-pane, html.l2m-app-lists, html.l2m-app-lists body { overscroll-behavior-y: contain; }
+.app-pull {
+  position: fixed; left: 50%; top: var(--l2m-bar-h, 64px); z-index: 39; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--muted); pointer-events: none; opacity: 0;
+  transform: translate(-50%, -44px) scale(0.6);
+  background: var(--glass-solid); box-shadow: 0 2px 10px -2px var(--bar-shadow), 0 0 0 1px var(--bar-line);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, color 160ms ease;
+}
+.app-pull.no-anim { transition: color 160ms ease; }
+.app-pull > span { display: grid; transition: transform 200ms ease; }
+.app-pull.no-anim > span { transition: none; }
+.app-pull svg { width: 20px; height: 20px; }
+.app-pull.armed, .app-pull.spinning { color: var(--progress); }
+.app-pull.spinning > span { animation: l2m-spin 0.8s linear infinite; }
+.app-pull.leaving { transition: transform 240ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms ease; }
+@media (prefers-reduced-motion: reduce) { .app-pull.spinning > span { animation-duration: 2.4s; } }

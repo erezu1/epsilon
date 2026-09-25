@@ -1255,9 +1255,6 @@
     var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
       (feedCheck ? " &middot; checking arXiv&hellip;" :
         feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "");
-    var refreshBtn = src && src.run ? '<button type="button" class="bar-btn app-refresh' + (feedCheck ? " spinning" : "") + '" id="feed-now" ' +
-      (feedCheck ? "disabled " : "") + 'aria-label="' + (feedCheck ? "Checking for new papers" : "Check for new papers") + '">' +
-      ((theme.icons || {}).refresh || "&#8635;") + "</button>" : "";
     var older = "";
     if (order.length > shown) {
       older = '<p class="app-row app-older"><button type="button" class="app-pill" id="feed-older">' +
@@ -1266,7 +1263,7 @@
       older = '<p class="app-row app-older">' + (fetchingDay ? '<span class="app-pill app-busy">' + SPIN + "Fetching the day before</span>" :
         '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
     }
-    box.innerHTML = '<div class="app-feedbar"><p class="app-note app-small">' + meta + "</p>" + refreshBtn + "</div>" +
+    box.innerHTML = '<div class="app-feedbar"><p class="app-note app-small">' + meta + "</p></div>" +
       (feedCheck ? '<div class="app-progress indet app-feed-progress" role="progressbar" aria-label="Checking arXiv"><span></span></div>' : "") +
       (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>") + older;
     var ob = box.querySelector("#feed-older");
@@ -1299,8 +1296,6 @@
     });
     // a date pinned under the bar joins it: one glass block, the shadow under the date
     listenJoin("app:new");
-    var r = document.getElementById("feed-now");
-    if (r) r.addEventListener("click", checkFeed);
   }
   function home() {
     closePanel("jump");
@@ -1308,9 +1303,12 @@
     if (current !== "app:library") go("library");
     var pe = pane("app:library").parentNode;
     if (pe.scrollTop > 0) pe.scrollTo({top: 0, behavior: "smooth"});
-    if (!src) return;
+    return refreshLists();
+  }
+  function refreshLists() {                  // the lists and reading places fetched afresh (redrawn if they changed)
+    if (!src) return Promise.resolve();
     var before = listText.join("\u0000"), order = listState();
-    freshLists().then(function (t) {
+    return freshLists().then(function (t) {
       var changed = t.join("\u0000") !== before;
       if (changed) { var oldFeed = feed; useLists(t); if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); } }
       return pullReading().then(function () { if ((changed || listState() !== order) && isPage(current)) refresh(); });
@@ -1319,11 +1317,11 @@
   // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
   var feedCheck = null;
   function checkFeed() {
-    if (feedCheck || !src || !src.run) return;
+    if (feedCheck || !src || !src.run) return Promise.resolve();
     var was = feed && feed.updated;
     feedCheck = {tries: 0};
     if (isPage(current)) renderNew();
-    src.run("feed.yml", {}).then(function () {
+    return src.run("feed.yml", {}).then(function () {
       feedCheck.timer = setInterval(function () {
         getJSON("feed.json", true).then(function (f) {
           if (f && f.updated && f.updated !== was) {
@@ -1618,6 +1616,74 @@
   }
   main.addEventListener("touchend", endSwipe);
   main.addEventListener("touchcancel", endSwipe);
+
+  // pull to refresh: at the top of a list, pulling down brings a round refresh chip down from under the bar; its arrow
+  // turns with the pull; let go past the mark and it spins while the list is refreshed (Library: the lists fetched
+  // afresh; Explore: GitHub asked to check arXiv), else it goes back
+  var PULL_AT = 72, pull = null;
+  function pullChip() {
+    var c = document.getElementById("app-pull");
+    if (!c && shell) {
+      c = document.createElement("div");
+      c.id = "app-pull"; c.className = "app-pull"; c.setAttribute("aria-hidden", "true");
+      c.innerHTML = "<span>" + ((theme.icons || {}).refresh || "&#8635;") + "</span>";
+      shell.appendChild(c);
+    }
+    return c;
+  }
+  function pullShow(d, instant) {
+    var c = pullChip(); if (!c) return;
+    var f = Math.min(1, d / PULL_AT);
+    c.classList.toggle("no-anim", !!instant);
+    c.style.transform = "translate(-50%, " + (Math.min(d, PULL_AT * 1.5) - 44) + "px) scale(" + (0.6 + 0.4 * Math.min(1, f * 1.2)) + ")";
+    c.style.opacity = String(Math.min(1, f * 1.4));
+    c.firstChild.style.transform = "rotate(" + (d * 3.2) + "deg)";
+    c.classList.toggle("armed", d >= PULL_AT);
+  }
+  function pullHide() {
+    var c = pullChip(); if (!c) return;
+    c.classList.remove("no-anim", "armed", "spinning");
+    c.classList.add("leaving");
+    c.style.transform = "translate(-50%, " + (PULL_AT - 44) + "px) scale(0.2)";
+    c.style.opacity = "0";
+    setTimeout(function () { c.classList.remove("leaving"); c.style.transform = "translate(-50%, -44px) scale(0.6)"; }, 260);
+  }
+  main.addEventListener("touchstart", function (e) {
+    var pe = e.target.closest && e.target.closest(".app-pane");
+    pull = null;
+    if (!pe || !isPage(current) || panelOpen || e.touches.length !== 1 || pe.scrollTop > 0 || !src) return;
+    if (shell && shell.querySelector("#app-bar").classList.contains("searching")) return;
+    if (pullChip().classList.contains("spinning")) return;
+    pull = {y: e.touches[0].clientY, x: e.touches[0].clientX, pane: pe, d: 0, on: false};
+  }, {passive: true});
+  main.addEventListener("touchmove", function (e) {
+    if (!pull) return;
+    var dy = e.touches[0].clientY - pull.y, dx = e.touches[0].clientX - pull.x;
+    if (!pull.on) {
+      if (Math.abs(dx) > Math.abs(dy) || dy < 6 || pull.pane.scrollTop > 0) { if (Math.abs(dx) > 8 || dy < -6) pull = null; return; }
+      pull.on = true;
+    }
+    e.preventDefault();
+    pull.d = Math.max(0, dy * 0.55);           // it gives, then resists
+    pullShow(pull.d, true);
+  }, {passive: false});
+  function pullEnd() {
+    if (!pull || !pull.on) { pull = null; return; }
+    var p0 = pull; pull = null;
+    if (p0.d < PULL_AT) { pullShow(0, false); return; }
+    var c = pullChip();
+    c.classList.remove("no-anim");
+    c.classList.add("spinning");
+    c.style.transform = "translate(-50%, " + (PULL_AT - 44) + "px) scale(1)";
+    c.style.opacity = "1";
+    c.firstChild.style.transform = "";
+    var t0 = Date.now(), job = current === "app:new" ? checkFeed() : refreshLists();
+    Promise.resolve(job).catch(function () {}).then(function () {
+      setTimeout(pullHide, Math.max(0, 700 - (Date.now() - t0)));   // it spins at least a moment, so it is seen
+    });
+  }
+  main.addEventListener("touchend", pullEnd);
+  main.addEventListener("touchcancel", pullEnd);
 
   // wide screens: the wheel over the margins beside the lists scrolls the list shown
   document.addEventListener("wheel", function (e) {
