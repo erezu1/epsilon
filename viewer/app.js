@@ -1298,6 +1298,8 @@
     listenJoin("app:new");
   }
   function home() {
+    var lg = shell && shell.querySelector(".app-logo");
+    if (lg) { lg.classList.remove("tapped"); void lg.getBoundingClientRect(); lg.classList.add("tapped"); }
     closePanel("jump");
     searching(false);
     if (current !== "app:library") go("library");
@@ -1307,6 +1309,20 @@
   }
   function refreshLists() {                  // the lists and reading places fetched afresh (redrawn if they changed)
     if (!src) return Promise.resolve();
+    var pe = main.querySelector('[data-pane="app:library"]'), bar = pe && pe.querySelector(".lib-refresh");
+    if (pe && !bar) {
+      bar = document.createElement("div");
+      bar.className = "app-progress indet lib-refresh"; bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", "Refreshing");
+      bar.innerHTML = "<span></span>";
+      pe.insertBefore(bar, pe.firstChild);
+    }
+    if (bar) { void bar.offsetWidth; bar.classList.add("on"); }
+    var t0 = Date.now();
+    return refreshNow().then(function () {
+      setTimeout(function () { if (bar) bar.classList.remove("on"); }, Math.max(0, 700 - (Date.now() - t0)));
+    }, function () { if (bar) bar.classList.remove("on"); });
+  }
+  function refreshNow() {
     var before = listText.join("\u0000"), order = listState();
     return freshLists().then(function (t) {
       var changed = t.join("\u0000") !== before;
@@ -1631,11 +1647,19 @@
     }
     return c;
   }
+  function pullList(d, instant) {           // the list itself is drawn down with the pull
+    var inner = pull && pull.pane ? pull.pane.querySelector(".app-pane-in") : pullList.el;
+    if (!inner) return;
+    pullList.el = inner;
+    inner.style.transition = instant ? "none" : "transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+    inner.style.transform = d ? "translateY(" + d + "px)" : "";
+  }
   function pullShow(d, instant) {
     var c = pullChip(); if (!c) return;
     var f = Math.min(1, d / PULL_AT);
+    pullList(d, instant);
     c.classList.toggle("no-anim", !!instant);
-    c.style.transform = "translate(-50%, " + (Math.min(d, PULL_AT * 1.5) - 44) + "px) scale(" + (0.6 + 0.4 * Math.min(1, f * 1.2)) + ")";
+    c.style.transform = "translate(-50%, " + (d / 2 - 20) + "px) scale(" + (0.6 + 0.4 * Math.min(1, f * 1.2)) + ")";
     c.style.opacity = String(Math.min(1, f * 1.4));
     c.firstChild.style.transform = "rotate(" + (d * 3.2) + "deg)";
     c.classList.toggle("armed", d >= PULL_AT);
@@ -1644,8 +1668,9 @@
     var c = pullChip(); if (!c) return;
     c.classList.remove("no-anim", "armed", "spinning");
     c.classList.add("leaving");
-    c.style.transform = "translate(-50%, " + (PULL_AT - 44) + "px) scale(0.2)";
+    c.style.transform = "translate(-50%, -20px) scale(0.2)";
     c.style.opacity = "0";
+    pullList(0, false);
     setTimeout(function () { c.classList.remove("leaving"); c.style.transform = "translate(-50%, -44px) scale(0.6)"; }, 260);
   }
   main.addEventListener("touchstart", function (e) {
@@ -1674,7 +1699,9 @@
     var c = pullChip();
     c.classList.remove("no-anim");
     c.classList.add("spinning");
-    c.style.transform = "translate(-50%, " + (PULL_AT - 44) + "px) scale(1)";
+    pullList.el = p0.pane.querySelector(".app-pane-in");
+    pullList(PULL_AT * 0.8, false);           // the list holds a little way down while it refreshes
+    c.style.transform = "translate(-50%, " + (PULL_AT * 0.4 - 20) + "px) scale(1)";
     c.style.opacity = "1";
     c.firstChild.style.transform = "";
     var t0 = Date.now(), job = current === "app:new" ? checkFeed() : refreshLists();

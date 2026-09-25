@@ -1652,3 +1652,16 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
   -webkit-mask-image: linear-gradient(to bottom, transparent 18px, #000 23px, #000 47px, transparent 52px) !important;
   mask-image: linear-gradient(to bottom, transparent 18px, #000 23px, #000 47px, transparent 52px) !important;
 }
+
+/* Library refreshing: Explore's loading bar at the top of the list, fading in and out */
+.app-pane { position: relative; }
+.app-pane > .lib-refresh {
+  position: absolute; z-index: 1; top: calc(var(--l2m-bar-h, 64px) + 4px); left: 50%; transform: translateX(-50%);
+  width: calc(min(40rem, 100%) - 36px); opacity: 0; transition: opacity 220ms ease;
+}
+.app-pane > .lib-refresh.on { opacity: 1; }
+
+/* the icon tapped: a small press and spring back (and the library's loading bar runs while the lists come) */
+.app-lead > .app-logo.tapped { animation: l2m-tap 460ms cubic-bezier(0.3, 0.7, 0.25, 1); }
+@keyframes l2m-tap { 0% { scale: 1; } 30% { scale: 0.82; } 70% { scale: 1.06; } 100% { scale: 1; } }
+@media (prefers-reduced-motion: reduce) { .app-lead > .app-logo.tapped { animation: none; } }
