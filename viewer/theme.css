@@ -1380,7 +1380,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 }
 /* wide screens: the paper bar's title grows with the text (the bar keeps room for two lines of it) */
 @media (min-width: 720px) {
-  .l2m-bar:not(.app-bar) .bar-title { font-size: 19px; }
+  .l2m-bar:not(.app-bar) .bar-title { font-size: 21px; }
   html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 75.3875px); }
 }
 
@@ -1767,3 +1767,7 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 @keyframes l2m-ind-in { from { opacity: 0; translate: -12px 0; } to { opacity: 1; translate: none; } }
 .app-bar.search-out .swap-ind { animation: l2m-ind-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 @media (prefers-reduced-motion: reduce) { .app-bar.search-out .swap-ind { animation: none; } }
+
+/* a paper's bar: the section title's letters (their caps and lowercase together) on the same middle as the back
+   chevron and the settings icon (a text box's middle is above its letters' middle, room kept for descenders) */
+.l2m-bar:not(.app-bar) .bar-title-inner { top: 0.12em; }
