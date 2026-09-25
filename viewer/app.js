@@ -1721,33 +1721,46 @@
   main.addEventListener("touchend", pullEnd);
   main.addEventListener("touchcancel", pullEnd);
 
-  // desktop: the same pull by scrolling up past the top of a list (trackpad or wheel); a pause past the mark refreshes
-  var wheelPull = null;
-  main.addEventListener("wheel", function (e) {
+  // desktop: the same pull by dragging the list down with the mouse, from its top (scrolling never pulls); the drag
+  // begins only once the pointer has moved down, so a click on a link, or selecting text, stays as it was
+  var mousePull = null;
+  main.addEventListener("pointerdown", function (e) {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
     var pe = e.target.closest && e.target.closest(".app-pane");
-    // a pull is a gesture of its own: a scroll gesture (wheel events with no pause of 350ms) may pull only if it began
-    // with the list already resting at its top; one that reaches the top on the way up, momentum and all, stops there
-    if (pe) {
-      var now = Date.now();
-      if (now - (pe.l2mWheelAt || 0) >= 350) pe.l2mFromTop = pe.scrollTop <= 0;
-      pe.l2mWheelAt = now;
-    }
-    if (!pe || !isPage(current) || panelOpen || !src || pull) return;
+    if (!pe || !isPage(current) || panelOpen || !src || pe.scrollTop > 0 || pull) return;
     if (pullChip() && pullChip().classList.contains("spinning")) return;
-    if (!wheelPull && (pe.scrollTop > 0 || e.deltaY >= 0 || !pe.l2mFromTop)) return;
-    if (!wheelPull) wheelPull = {pane: pe, d: 0};
+    mousePull = {pane: pe, x: e.clientX, y: e.clientY, id: e.pointerId, on: false};
+  });
+  window.addEventListener("pointermove", function (e) {
+    if (!mousePull || e.pointerId !== mousePull.id) return;
+    var dy = e.clientY - mousePull.y, dx = e.clientX - mousePull.x;
+    if (!mousePull.on) {
+      if (Math.abs(dx) > 10 || dy < -6) { mousePull = null; return; }      // sideways or up: not a pull
+      if (dy < 8) return;
+      mousePull.on = true;
+      document.documentElement.classList.add("l2m-pulling");           // no text selection meanwhile
+      var sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges();
+    }
     e.preventDefault();
-    wheelPull.d = Math.max(0, Math.min(PULL_AT * 1.6, wheelPull.d - e.deltaY * 0.45));
-    pull = {pane: wheelPull.pane, on: true, d: wheelPull.d};
-    pullShow(wheelPull.d, true);
+    mousePull.d = Math.max(0, (dy - 8) * 0.55);
+    pull = {pane: mousePull.pane, on: true, d: mousePull.d};
+    pullShow(mousePull.d, true);
     pull = null;
-    clearTimeout(wheelPull.t);
-    wheelPull.t = setTimeout(function () {         // the scrolling has stopped: refresh, or go back
-      var w = wheelPull; wheelPull = null;
-      pull = {pane: w.pane, on: true, d: w.d};
-      pullEnd();
-    }, 220);
-  }, {passive: false});
+  });
+  function mousePullEnd(e) {
+    if (!mousePull || (e && e.pointerId !== mousePull.id)) return;
+    var m = mousePull; mousePull = null;
+    if (!m.on) return;
+    document.documentElement.classList.remove("l2m-pulling");
+    // the click this release makes is the pull's, not a link's
+    var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
+    window.addEventListener("click", stop, true);
+    setTimeout(function () { window.removeEventListener("click", stop, true); }, 300);   // (no click came: none eaten later)
+    pull = {pane: m.pane, on: true, d: m.d || 0};
+    pullEnd();
+  }
+  window.addEventListener("pointerup", mousePullEnd);
+  window.addEventListener("pointercancel", mousePullEnd);
 
   // wide screens: the wheel over the margins beside the lists scrolls the list shown
   document.addEventListener("wheel", function (e) {
