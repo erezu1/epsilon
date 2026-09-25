@@ -999,11 +999,11 @@ a.lib-title { color: var(--ink); }
 
 .app-pane .app-day.stuck { visibility: hidden; box-shadow: none; border-bottom-color: transparent; }
 /* library rows: the buttons level with the title's first line; the abstract across the whole row */
-#lib-list > li { padding: 0.85rem 0; }
-#lib-list .app-lib-row { align-items: flex-start; }
-#lib-list .app-lib-text { padding: 0; }
-#lib-list .app-lib-row > .bar-btn { margin-top: -13px; }
-#lib-list .app-confirm { margin: 0.5rem 0 0; }
+.lib-rows > li { padding: 0.85rem 0; }
+.lib-rows .app-lib-row { align-items: flex-start; }
+.lib-rows .app-lib-text { padding: 0; }
+.lib-rows .app-lib-row > .bar-btn { margin-top: -13px; }
+.lib-rows .app-confirm { margin: 0.5rem 0 0; }
 /* two-line section titles: room for letters below the line (g, y, p) */
 .l2m-bar:not(.app-bar) .bar-title-inner { line-height: 1.3; padding-bottom: 1px; }
 /* closing a panel: the bar's shadow and line ease back in as the panel rolls up (the glass still switches
@@ -1152,15 +1152,15 @@ a.lib-title { color: var(--ink); }
   transform: scaleX(0); transform-origin: 0 50%; transition: opacity 200ms ease;
 }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 0s; }
-#lib-list > li { position: relative; margin: 0; padding: 1.1rem 0; }     /* no gap between a row and the rule under it */
-#lib-list > li[data-read]::after {
+.lib-rows > li { position: relative; margin: 0; padding: 1.1rem 0; }     /* no gap between a row and the rule under it */
+.lib-rows > li[data-read]::after {
   content: ""; position: absolute; z-index: 1; left: 0; right: 0; bottom: -2px; height: 3px; border-radius: 3px;
   background: var(--link); opacity: 0.8; pointer-events: none;
   transform: scaleX(var(--read, 0)); transform-origin: 0 50%;
   transition: transform 900ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
-#lib-list > li.read-still::after { transition: none; }
-@media (prefers-reduced-motion: reduce) { #lib-list > li[data-read]::after { transition: none; } }
+.lib-rows > li.read-still::after { transition: none; }
+@media (prefers-reduced-motion: reduce) { .lib-rows > li[data-read]::after { transition: none; } }
 
 /* the font: the chosen one on its own, like a field; tapped, the others unfold under it */
 .font-pick { margin-bottom: 6px; }
@@ -1301,3 +1301,23 @@ html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens:
 html.l2m-boot-paper #boot-chrome, html.l2m-boot-paper main .app-track { display: none; }
 html.l2m-boot-paper #boot-paper-bar, html.l2m-boot-paper .boot-paper { display: block; }
 html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875px); }
+
+/* the pin button (filled while pinned), and Library's section headers (as New's days) */
+.app-pin { color: var(--muted); opacity: 0.75; }
+.app-pin[aria-pressed="true"] { color: var(--link); opacity: 1; }
+@media (hover: hover) { .app-pin:hover { opacity: 1; } }
+.app-pane-in > .lib-head:first-child { margin-top: 0.2em; }
+.lib-head + .lib-rows > li:first-child { border-top: 0; }
+.lib-rows .app-lib-row > .bar-btn { width: 40px; }
+.app-pane .lib-head { margin-top: 0.7em; }
+.app-pane .app-pane-in > .lib-head:first-child { margin-top: 0; }
+/* between Library's sections: no list gap before the next header */
+.lib-rows:has(+ .lib-head) { margin-bottom: 0; }
+/* removing a paper: two pills side by side, Remove in red */
+:root { --danger: #c62828; --danger-bg: rgba(198, 40, 40, 0.1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --danger: #f28b82; --danger-bg: rgba(242, 139, 130, 0.14); } }
+:root[data-theme="dark"] { --danger: #f28b82; --danger-bg: rgba(242, 139, 130, 0.14); }
+.app-pill.app-danger { color: var(--danger); background: var(--danger-bg); }
+@media (hover: hover) { .app-pill.app-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); } }
+@media (hover: none) { .app-pill.app-danger:active { background: color-mix(in srgb, var(--danger) 18%, transparent); } }
+.app-confirm-q { flex: 1 0 100%; }

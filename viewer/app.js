@@ -239,6 +239,24 @@
   // (its number in the paper), and how far into it. The same place on any width and font.
   // Kept on the device, and in reading.json in the library repo for the other devices.
   var reading = store("reading") || {}, readingSha = null, readingDirty = false, readingTimer = null;
+  // pinned papers stay at the top of the library: {key: {on, at}}, the latest change winning across devices
+  var pins = store("pins") || {};
+  function isPinned(k) { return !!(pins[k] && pins[k].on); }
+  function togglePin(k) {
+    pins[k] = {on: !isPinned(k), at: Date.now()};
+    store("pins", pins);
+    readingDirty = true;
+    clearTimeout(readingTimer);
+    readingTimer = setTimeout(pushReading, 1500);
+    if (isPage(current)) renderLibrary();
+  }
+  function mergePins(remote) {
+    Object.keys(remote || {}).forEach(function (k) {
+      if (!pins[k] || (remote[k].at || 0) > (pins[k].at || 0)) pins[k] = remote[k];
+    });
+    store("pins", pins);
+  }
+  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins); }
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
   // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
   // every device and at any moment, whatever is laid out yet
@@ -295,13 +313,13 @@
   }
   function pullReading() {
     if (!src || !src.readWithSha) return Promise.resolve();
-    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); },
+    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); },
                                                 function () {});
   }
   function pushReading(keepalive) {
     if (!readingDirty || !src || !src.putJSON) return;
     readingDirty = false;
-    src.putJSON("reading.json", {papers: reading}, readingSha, "Reading places", keepalive).then(function (sha) {
+    src.putJSON("reading.json", {papers: reading, pins: pins}, readingSha, "Reading places", keepalive).then(function (sha) {
       readingSha = sha || readingSha;
     }, function () {
       // someone else (another device) wrote it meanwhile: take theirs in, then write ours again
@@ -312,8 +330,8 @@
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") savePlace(current, true);
     else {
-      var order = JSON.stringify(store("opened") || {});
-      pullReading().then(function () { if (isPage(current) && JSON.stringify(store("opened") || {}) !== order) refresh(); });
+      var order = listState();
+      pullReading().then(function () { if (isPage(current) && listState() !== order) refresh(); });
     }
   });
   window.addEventListener("pagehide", function () { savePlace(current, true); });
@@ -453,9 +471,14 @@
   // search: the field takes the whole bar; it filters the library as you type
   function filterLibrary() {
     var q = shell ? shell.querySelector("#lib-q").value.trim().toLowerCase() : "";
-    Array.prototype.forEach.call(document.querySelectorAll("#lib-list li"), function (li) {
+    Array.prototype.forEach.call(document.querySelectorAll(".lib-rows li"), function (li) {
       li.hidden = !!q && (li.getAttribute("data-hay") || "").indexOf(q) < 0;
     });
+    Array.prototype.forEach.call(document.querySelectorAll(".lib-head"), function (h) {
+      var list = h.nextElementSibling;
+      h.hidden = !!list && !list.querySelector("li:not([hidden])");
+    });
+    if (shell && current === "app:library") joinBar("app:library");
   }
   function searching(on, how) {        // how: "pop" (closed by back)
     if (!shell) return;
@@ -482,8 +505,8 @@
   function setTab(name) {
     shell.querySelector("#app-plus").hidden = !(src && src.run);
     shell.querySelector("#app-search").classList.toggle("app-away", name !== "library");   // fades, keeps its place
-    if (name !== "new") shell.querySelector("#app-bar").classList.remove("joined");
-    else { var dd = document.querySelector('[data-pane="app:new"] .app-day.stuck'); shell.querySelector("#app-bar").classList.toggle("joined", !!dd); }
+    var dd = document.querySelector('[data-pane="app:' + name + '"] .app-day.stuck');
+    shell.querySelector("#app-bar").classList.toggle("joined", !!dd);
     if (name !== "library" && shell.querySelector("#app-bar").classList.contains("searching")) searching(false);
     var tabs = shell.querySelector(".app-tabs");
     Array.prototype.forEach.call(tabs.querySelectorAll(".seg-btn"), function (b) {
@@ -796,7 +819,7 @@
     }
     place(k, animate && had);
     if (animate && had) follow(340);        // the pinned date comes and goes with the slide
-    else if (pinned.apply) pinned.apply();
+    else pinned.apply();
   }
   // where each paper sat in the library list, so a new order can slide into place (not jump)
   var libTops = null;
@@ -899,7 +922,7 @@
     var waiting = Object.keys(p).filter(function (k) {
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
     });
-    var items = papers.map(function (x) {
+    function row(x) {
       var k = keyOf(x), meta = [];
       if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : "") +
                              inspireLink(x.arxiv.id, x.arxiv.categories || [x.arxiv.primary]).replace(" &middot; ", " &middot; "));
@@ -911,13 +934,17 @@
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
         (meta.length || fresh(x) ? '<span class="lib-meta">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
+        (x.status !== "failed" ? '<button type="button" class="bar-btn app-pin" data-pin="' + esc(k) + '" aria-pressed="' + isPinned(k) +
+          '" aria-label="' + (isPinned(k) ? "Pinned; tap to unpin" : "Pin to the top") + '">' + (isPinned(k) ? I.pinned || I.pin || "&#9733;" : I.pin || "&#9734;") + "</button>" : "") +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
         "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
-        '<p class="app-confirm" hidden>Remove it from the library?<button type="button" class="app-pill" data-remove-yes="' + esc(k) + '">Remove</button>' +
-        '<button type="button" class="app-link" data-remove-no>Keep</button></p></li>';
-    }).join("");
+        '<p class="app-confirm" hidden><span class="app-confirm-q">Remove it from the library?</span><button type="button" class="app-pill app-danger" data-remove-yes="' + esc(k) + '">Remove</button>' +
+        '<button type="button" class="app-pill" data-remove-no>Keep</button></p></li>';
+    }
+    var pinnedRows = papers.filter(function (x) { return isPinned(keyOf(x)); }).map(row).join("");
+    var items = papers.filter(function (x) { return !isPinned(keyOf(x)); }).map(row).join("");
     var known = {};
     ((feed && feed.items) || []).forEach(function (i) { known[arxivKey(i.id)] = i; });
     var converting = waiting.map(function (k) {
@@ -927,10 +954,19 @@
         '<span class="lib-meta">Converting on GitHub &middot; ' + (mins < 1 ? "just started" : mins + " min so far") + ", usually 2&ndash;4 minutes</span>" +
         '<div class="app-progress indet"><span></span></div></li>';
     }).join("");
-    box.innerHTML = (papers.length || converting ? '<ol class="l2m-library" id="lib-list">' + converting + items + "</ol>" :
+    // pinned papers first, under their own header; the rest under theirs (headers only once something is pinned)
+    var rest = converting + items;
+    var lists = pinnedRows ?
+      '<p class="app-day lib-head" data-k="h:pinned">Pinned</p><ol class="l2m-library lib-rows" id="lib-pinned">' + pinnedRows + "</ol>" +
+      (rest ? '<p class="app-day lib-head" data-k="h:rest">Recent</p><ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>" : "") :
+      '<ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>";
+    box.innerHTML = (papers.length || converting ? lists :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
     slideRows(box, before, box.parentNode);
     growReading(box);
+    Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
+      b.addEventListener("click", function () { togglePin(b.getAttribute("data-pin")); });
+    });
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
       b.addEventListener("click", function () {
         var c = b.closest("li").querySelector(".app-confirm");
@@ -959,9 +995,57 @@
     });
     foldAbstracts(box);
     filterLibrary();
+    listenJoin("app:library");
   }
 
   var daysShown = 1, fetchingDay = null;      // New shows the latest day, and more on request
+  // a list's section header (a day in New; Pinned / Recent in Library) passing under the bar joins it: the bar
+  // draws it, as one glass block with the shadow under it
+  function listenJoin(k) {
+    var paneEl = pane(k).parentNode;
+    if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(function () { joinBar(k); }); }, {passive: true}); }
+    joinBar(k);
+  }
+  function joinBar(k) {
+    if (!shell || !isPage(current)) return;
+    var box = pane(k), paneEl = box.parentNode;
+    // a header is pinned while its rows pass under the bar: judged from its list (the header's own position is
+    // not exact on every phone: the bar's height there includes the notch, in fractions of pixels)
+    var barH = parseFloat(getComputedStyle(root).getPropertyValue("--l2m-bar-h")) || shell.querySelector("#app-bar").getBoundingClientRect().height;
+    var days = Array.prototype.slice.call(box.querySelectorAll(".app-day")).filter(function (d) { return !d.hidden; }), cur = -1, nat = [];
+    days.forEach(function (d, i) {
+      var list = d.nextElementSibling;
+      nat[i] = list ? list.getBoundingClientRect().top - d.offsetHeight : Infinity;
+      var passed = paneEl.scrollTop > 0 && nat[i] <= barH + 0.5;
+      d.classList.toggle("stuck", passed);            // passed headers are drawn by the bar, not the list
+      if (passed) cur = i;
+    });
+    var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === k;
+    pinned.days[k] = cur >= 0 ? {h: days[cur].offsetHeight, text: days[cur].textContent, op: 1} : null;
+    if (current !== k || (sw && sw.dir === "x") || pinned.following) return;   // a move between the tabs draws it meanwhile
+    bar.classList.toggle("joined", on);
+    if (on) {
+      var d = days[cur], h = d.offsetHeight;
+      row.style.height = h + "px";              // the bar grows down to take the header in (animated)
+      if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
+      // scroll-linked crossfade: the header fades out as the next one comes up under it, and a new one fades in
+      var span = h, out = 1, inn = 1;
+      if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next header coming up
+      if (cur > 0) inn = Math.max(0, Math.min(1, (barH - nat[cur]) / span));                      // this header just arrived
+      var op = Math.min(out, inn);
+      pinned.days[k].op = op;
+      row.style.opacity = String(op);
+      // it drifts up as it leaves and rises into place as it arrives, as if the next one pushes it out
+      row.style.transform = "translateY(" + (out < 1 ? -(1 - out) * 6 : (1 - inn) * 6) + "px)";
+      if (!bar.classList.contains("settled")) { clearTimeout(joinBar.t); joinBar.t = setTimeout(function () { if (bar.classList.contains("joined")) bar.classList.add("settled"); }, 230); }
+    } else {
+      clearTimeout(joinBar.t);
+      bar.classList.remove("settled");
+      row.style.height = "";                   // back to the bar alone; the header fades as it goes
+      row.style.opacity = "";
+      row.style.transform = "";
+    }
+  }
   function renderNew() {
     var box = pane("app:new");
     var before = measureRows(box);
@@ -1037,51 +1121,7 @@
       if (abs && abs.l2mToggle) { t.classList.add("app-tappable"); t.addEventListener("click", function () { abs.l2mToggle(); }); }
     });
     // a date pinned under the bar joins it: one glass block, the shadow under the date
-    var paneEl = box.parentNode;
-    function joinBar() {
-      if (!shell) return;
-      // a day is pinned while its papers pass under the bar: judged from its list (the pinned date's own
-      // position is not exact on every phone: the bar's height there includes the notch, in fractions of pixels)
-      var barH = parseFloat(getComputedStyle(root).getPropertyValue("--l2m-bar-h")) || shell.querySelector("#app-bar").getBoundingClientRect().height;
-      // the day we are in: the last one whose date has reached the bar (where it would be, from its list:
-      // exact pixels differ on phones, whose bar includes the notch)
-      var days = Array.prototype.slice.call(box.querySelectorAll(".app-day")), cur = -1, nat = [];
-      days.forEach(function (d, k) {
-        var list = d.nextElementSibling;
-        nat[k] = list ? list.getBoundingClientRect().top - d.offsetHeight : Infinity;
-        var passed = paneEl.scrollTop > 0 && nat[k] <= barH + 0.5;
-        d.classList.toggle("stuck", passed);            // passed dates are drawn by the bar, not the list
-        if (passed) cur = k;
-      });
-      var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === "app:new";
-      pinned.apply = joinBar;
-      pinned.day = cur >= 0 ? {h: days[cur].offsetHeight, text: days[cur].textContent} : null;
-      if ((sw && sw.dir === "x") || pinned.following) return;   // a move between the tabs draws it meanwhile
-      bar.classList.toggle("joined", on);
-      if (on) {
-        var d = days[cur], h = d.offsetHeight;
-        row.style.height = h + "px";              // the bar grows down to take the date in (animated)
-        if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
-        // scroll-linked crossfade: the date fades out as the next one comes up under it, and a new one fades in
-        var span = h, out = 1, inn = 1;
-        if (cur + 1 < days.length) out = Math.max(0, Math.min(1, (nat[cur + 1] - barH) / span));   // the next date coming up
-        if (cur > 0) inn = Math.max(0, Math.min(1, (barH - nat[cur]) / span));                      // this date just arrived
-        var op = Math.min(out, inn);
-        pinned.day.op = op;
-        row.style.opacity = String(op);
-        // it drifts up as it leaves and rises into place as it arrives, as if the next day pushes it out
-        row.style.transform = "translateY(" + (out < 1 ? -(1 - out) * 6 : (1 - inn) * 6) + "px)";
-        if (!bar.classList.contains("settled")) { clearTimeout(joinBar.t); joinBar.t = setTimeout(function () { if (bar.classList.contains("joined")) bar.classList.add("settled"); }, 230); }
-      } else {
-        clearTimeout(joinBar.t);
-        bar.classList.remove("settled");
-        row.style.height = "";                   // back to the bar alone; the date fades as it goes
-        row.style.opacity = "";
-        row.style.transform = "";
-      }
-    }
-    if (!paneEl.l2mJoin) { paneEl.l2mJoin = true; paneEl.addEventListener("scroll", function () { requestAnimationFrame(joinBar); }, {passive: true}); }
-    joinBar();
+    listenJoin("app:new");
     var r = document.getElementById("feed-now");
     if (r) r.addEventListener("click", checkFeed);
   }
@@ -1316,23 +1356,29 @@
   // swiping sideways on Library / New: the strip with both lists follows the finger
   var sw = null;
   // New's pinned date, while a swipe moves between the tabs: the bar grows and shrinks with the finger
-  var pinned = {day: null, apply: null};
+  // each list's pinned header, known while the other list shows, so a swipe can bring it in bit by bit
+  var pinned = {days: {}, apply: function () { if (isPage(current)) joinBar(current); }};
   function pinnedMix(pageAt) {                // pageAt: where the track is, 0 = Library, 1 = New (in between while swiping)
-    if (!shell || !pinned.day) return;
-    var f = Math.max(0, Math.min(1, 1 - Math.abs(ORDER.indexOf("app:new") - pageAt)));
-    var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), d = pinned.day;
+    var dl = pinned.days["app:library"], dn = pinned.days["app:new"];
+    if (!shell || !(dl || dn)) return;
+    var wn = Math.max(0, Math.min(1, pageAt)), wl = 1 - wn;
+    var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day");
+    var h = wl * (dl ? dl.h : 0) + wn * (dn ? dn.h : 0), pad = 19 * (wl * (dl ? 1 : 0) + wn * (dn ? 1 : 0));
+    // the words: the nearer list's header; where both lists have one, it fades out and the other's in at the middle
+    var near = wn >= wl ? dn : dl, far = wn >= wl ? dl : dn, w = Math.max(wn, wl), d = near || far;
+    var op = near ? (near.op === undefined ? 1 : near.op) * (far ? 2 * w - 1 : w) : (far.op === undefined ? 1 : far.op) * (1 - w);
     if (row.textContent !== d.text) row.innerHTML = "<span>" + esc(d.text) + "</span>";
     bar.classList.add("joined");
     bar.classList.remove("settled");
     row.style.transition = "none";
-    row.style.height = d.h * f + "px";
-    row.style.paddingTop = 19 * f + "px";
-    row.style.opacity = String((d.op === undefined ? 1 : d.op) * f);
+    row.style.height = h + "px";
+    row.style.paddingTop = pad + "px";
+    row.style.opacity = String(op);
     row.style.transform = "";
   }
   function follow(ms) {                     // the track is sliding by itself: the bar follows it frame by frame
     var t = main.querySelector(".app-track"), end = Date.now() + ms;
-    if (!t || !pinned.day) { pinnedSettle(); return; }
+    if (!t || !(pinned.days["app:library"] || pinned.days["app:new"])) { pinnedSettle(); return; }
     pinned.following = true;
     (function frame() {
       var m = new DOMMatrix(getComputedStyle(t).transform), w = main.clientWidth || 1;
@@ -1345,7 +1391,7 @@
     if (!shell) return;
     var row = shell.querySelector(".app-bar-day");
     row.style.transition = row.style.paddingTop = "";
-    if (pinned.apply) pinned.apply();
+    pinned.apply();
   }
   main.addEventListener("touchstart", function (e) {
     var t = main.querySelector(".app-track");
@@ -1457,7 +1503,7 @@
     watch();
     if (!src) return;
     // then, quietly: the fresh lists and the reading places from the other devices
-    var before = listText.join("\u0000"), order = JSON.stringify(store("opened") || {});
+    var before = listText.join("\u0000"), order = listState();
     freshLists().then(function (t) {
       var changed = t.join("\u0000") !== before;
       if (changed) {
@@ -1466,7 +1512,7 @@
         if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); }
       }
       return pullReading().then(function () {
-        if ((changed || JSON.stringify(store("opened") || {}) !== order) && isPage(current)) refresh();
+        if ((changed || listState() !== order) && isPage(current)) refresh();
       });
     });
   }).catch(function (e) {
