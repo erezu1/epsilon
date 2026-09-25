@@ -1726,3 +1726,7 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
 main a[href^="#"], .l2m-menu a[href^="#"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 @media (min-width: 800px) { .l2m-peek { left: calc((100% - 46rem) / 2); right: calc((100% - 46rem) / 2); } }
 @media (prefers-reduced-motion: reduce) { .l2m-peek, .l2m-peek.open { transition-duration: 0.01s; } }
+
+/* a paper's placeholder (the grey lines, until the paper is drawn): exactly the screen, never scrolled */
+html.l2m-boot-paper, html:has(main > .skel-paper) { overflow: hidden; overscroll-behavior: none; }
+html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; overflow: hidden; box-sizing: border-box; }
