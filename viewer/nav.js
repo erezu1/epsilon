@@ -576,6 +576,7 @@ window.L2M_nav = function (opts) {
     });
     var ticking = false;
     peekScroll.addEventListener("scroll", function () {
+      if (peekStale(true)) peekRefresh();
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(function () { ticking = false; peekTitleNow(); });
@@ -583,13 +584,24 @@ window.L2M_nav = function (opts) {
     // the head drags the peek's height; it snaps to a third, a half or two thirds, and closes when dragged low.
     // While it is held nothing is laid out again: the peek is made as tall as it can be and only slid (a
     // transform, which the screen does alone), and it takes its new height once, where it comes to rest.
+    // Above the highest place it pulls back (it follows less and less, as a rubber band) and on release springs
+    // back to it.
     var drag = null, settle = null;
+    var SPRING = "transform 460ms linear(0, 0.262, 0.470, 0.631, 0.753, 0.843, 0.908, 0.954, 0.984, 1.004, 1.016, " +
+      "1.022, 1.024, 1.023, 1.022, 1.019, 1.017, 1.014, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1)";
     function slide(h, max) { peek.style.transform = "translateY(" + Math.round(max - h) + "px)"; }
+    function snaps(max) {
+      var avail = window.innerHeight - barHeight();
+      return [0.34, 0.5, 0.66].map(function (f) { return Math.min(max, Math.round(avail * f)); });
+    }
+    function band(x, d) { return d * (1 - 1 / (x * 0.55 / d + 1)); }          // how far it goes for x pulled
+    function unband(y, d) { y = Math.min(y, d - 1); return d / 0.55 * y / (d - y); }
     function rest() {                 // the slide ended: the height it shows becomes its height
       if (!settle) return;
       clearTimeout(settle.timer);
       var h = settle.h;
       settle = null;
+      peek.style.transition = "";
       peek.classList.add("dragging");
       setPeekHeight(h);
       peek.style.transform = "";
@@ -600,7 +612,9 @@ window.L2M_nav = function (opts) {
       if (e.target.closest("button") || !peekOpen) return;
       var h = window.innerHeight - peek.getBoundingClientRect().top, max = peekMax();   // where it is now, even mid-slide
       if (settle) { clearTimeout(settle.timer); settle = null; }
-      drag = {y: e.clientY, h: h, at: h, max: max, id: e.pointerId};
+      peek.style.transition = "";
+      var top = snaps(max)[2], raw = h > top ? top + unband(h - top, max - top) : h;   // (caught above: the pull it shows)
+      drag = {y: e.clientY, h: raw, at: h, max: max, top: top, id: e.pointerId};
       peek.classList.add("dragging");
       peek.style.height = max + "px";
       slide(h, max);
@@ -608,7 +622,8 @@ window.L2M_nav = function (opts) {
     });
     peekHead.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.id) return;
-      drag.at = Math.max(90, Math.min(drag.max, drag.h + drag.y - e.clientY));
+      var raw = drag.h + drag.y - e.clientY;
+      drag.at = Math.max(90, raw > drag.top ? drag.top + band(raw - drag.top, drag.max - drag.top) : raw);
       slide(drag.at, drag.max);
     });
     function dragEnd(e) {
@@ -618,11 +633,11 @@ window.L2M_nav = function (opts) {
       peek.classList.remove("dragging");
       var avail = window.innerHeight - barHeight();
       if (h < avail * 0.22) { peek.style.transform = ""; closePeek(); return; }
-      var snaps = [0.34, 0.5, 0.66].map(function (f) { return Math.min(max, Math.round(avail * f)); });
-      var best = snaps.reduce(function (a, b) { return Math.abs(b - h) < Math.abs(a - h) ? b : a; });
+      var best = snaps(max).reduce(function (a, b) { return Math.abs(b - h) < Math.abs(a - h) ? b : a; });
       peekUserH = best / avail;
+      peek.style.transition = SPRING;
       slide(best, max);
-      settle = {h: best, timer: setTimeout(rest, 340)};
+      settle = {h: best, timer: setTimeout(rest, 480)};
     }
     peekHead.addEventListener("pointerup", dragEnd);
     peekHead.addEventListener("pointercancel", dragEnd);
@@ -651,24 +666,65 @@ window.L2M_nav = function (opts) {
     });
     peekMain.l2mFilled = true;
   }
+  // the page draws its formulas after it opens (nearest first): a copy made meanwhile keeps some undrawn, so it
+  // is made again once the page has drawn more, keeping in place what the peek shows
+  function peekStale(all) {           // all: only once the page has drawn every formula (while scrolling the peek)
+    var left = peekMain && peekMain.l2mFilled ? peekMain.getElementsByTagName("l2m-math").length : 0;
+    var page = left ? document.querySelector("main").getElementsByTagName("l2m-math").length : 0;
+    return left > 0 && (all ? page === 0 : page < left);
+  }
+  var PEEK_BLOCKS = "p, li, h2, h3, h4, .display, figure, .thm, .defn, .remark, table, blockquote";
+  function peekRefresh() {
+    var line = peekScroll.getBoundingClientRect().top + peekHead.offsetHeight, blocks = peekMain.querySelectorAll(PEEK_BLOCKS), k = -1, off = 0;
+    for (var i = 0; i < blocks.length; i++) {
+      var r = blocks[i].getBoundingClientRect();
+      if (r.bottom > line) { k = i; off = r.top - line; break; }
+    }
+    peekFill();
+    if (k >= 0) {
+      var b = peekMain.querySelectorAll(PEEK_BLOCKS)[k];
+      if (b) peekScroll.scrollTop += b.getBoundingClientRect().top - line - off;
+    }
+  }
   function peekFind(id) {
     if (!peekMain) return null;
     var all = peekMain.querySelectorAll("[data-pid]");
     for (var i = 0; i < all.length; i++) if (all[i].getAttribute("data-pid") === id) return all[i];
     return null;
   }
+  // the name of what a link led to, as HTML: a title's formulas come along (its text alone would drop them)
+  function peekText(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+  function peekName(el) {             // an element's own HTML, without a closing "." or ":"
+    var c = el.cloneNode(true), w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT), last = null;
+    while (w.nextNode()) if (w.currentNode.nodeValue.trim()) last = w.currentNode;
+    if (last) last.nodeValue = last.nodeValue.replace(/[.:]\s*$/, "");
+    return c.innerHTML.trim();
+  }
   function peekLabel(el) {
     var d = el.closest(".display");
-    if (d) { var n = d.querySelector(".eqno"); return "Equation " + (n ? n.textContent.trim() : ""); }
-    if (/^H[1-6]$/.test(el.tagName)) return el.textContent.replace(/\s+/g, " ").trim();
+    if (d) { var n = d.querySelector(".eqno"); return "Equation " + (n ? peekText(n.textContent.trim()) : ""); }
+    if (/^H[1-6]$/.test(el.tagName)) return el.innerHTML;
     var li = el.closest("li");
-    if (el.closest(".footnotes")) { var fb = li && li.querySelector(".fnback"); return "Note " + (fb ? fb.textContent.trim() : ""); }
-    if (el.closest(".references")) { var rn = li && li.querySelector(".refnum"); return "Reference " + (rn ? rn.textContent.trim() : ""); }
+    if (el.closest(".footnotes")) { var fb = li && li.querySelector(".fnback"); return "Note " + (fb ? peekText(fb.textContent.trim()) : ""); }
+    if (el.closest(".references")) { var rn = li && li.querySelector(".refnum"); return "Reference " + (rn ? peekText(rn.textContent.trim()) : ""); }
     var f = el.closest("figure");
-    if (f) { var c = f.querySelector(".capname"); return c ? c.textContent.replace(/[.:]\s*$/, "").trim() : "Figure"; }
+    if (f) { var c = f.querySelector(".capname"); return c ? peekName(c) : "Figure"; }
     var t = el.closest(".thm, .defn, .remark");
-    if (t) { var tn = t.querySelector(".thm-name"); return tn ? tn.textContent.replace(/[.:]\s*$/, "").trim() : "Statement"; }
+    if (t) { var tn = t.querySelector(".thm-name"); return tn ? peekName(tn) : "Statement"; }
     return null;
+  }
+  var peekFade = null, peekNext = null;
+  function peekTitleSet(html) {
+    if (html === peekNext) return;
+    peekNext = html;
+    if (!peek.classList.contains("open")) { peekTitle.innerHTML = html; return; }
+    if (peekFade) return;                 // a fade is running; it takes the latest
+    peekTitle.classList.add("fading");
+    peekFade = setTimeout(function () {
+      peekFade = null;
+      peekTitle.innerHTML = peekNext;
+      peekTitle.classList.remove("fading");
+    }, 140);
   }
   function peekTitleNow() {
     if (!peek) return;
@@ -678,7 +734,7 @@ window.L2M_nav = function (opts) {
     }
     if (peekTitle.l2mFixed && Math.abs(peekScroll.scrollTop - peekTitle.l2mFixedAt) < 40) return;   // the target's name, until one scrolls on
     peekTitle.l2mFixed = false;
-    peekTitle.innerHTML = cur ? cur.innerHTML : docTitle;
+    peekTitleSet(cur ? cur.innerHTML : docTitle);
   }
   function peekGo(id, push) {
     var el = peekFind(id);
@@ -688,13 +744,13 @@ window.L2M_nav = function (opts) {
     peekScroll.scrollTo(0, Math.max(0, y));
     flash(el);
     var label = peekLabel(el);
-    if (label) { peekTitle.textContent = label; peekTitle.l2mFixed = true; peekTitle.l2mFixedAt = peekScroll.scrollTop; }
+    if (label) { peekTitleSet(label); peekTitle.l2mFixed = true; peekTitle.l2mFixedAt = peekScroll.scrollTop; }
     else { peekTitle.l2mFixed = false; peekTitleNow(); }
     return true;
   }
   function openPeek(id, from) {
     peekBuild();
-    if (!peekMain.l2mFilled) peekFill();
+    if (!peekMain.l2mFilled || peekStale()) peekFill();
     if (!peekFind(id)) return false;
     clearTimeout(peekCloseTimer);
     closeMenu("jump");

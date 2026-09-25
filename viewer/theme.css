@@ -1718,6 +1718,10 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .peek-back:not([hidden]) + .peek-title { padding-left: 2px; }
+.peek-title mjx-container { font-size: 130%; }
+.peek-title { transition: opacity 140ms ease; }
+.peek-title.fading { opacity: 0; }          /* formulas in a title: the height of its capitals */
+.peek-title mjx-container > svg { max-width: none; }
 /* a long press on an internal link is the peek's: not the browser's link menu, nor a selection */
 main a[href^="#"], .l2m-menu a[href^="#"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 @media (min-width: 800px) { .l2m-peek { left: calc((100% - 46rem) / 2); right: calc((100% - 46rem) / 2); } }
