@@ -214,7 +214,10 @@ def convert_arxiv(lib, aid, refetch=True):
         unpack((src_dir / "src.bin").read_bytes(), Path(tmp))
         tex = main_tex(tmp)
         if tex is None:
-            entry.update(status="failed", error="no LaTeX source (PDF only, or an unusual layout)")
+            plain = any(re.search(r"^\s*\\input\s+(harvmac|lanlmac|phyzzx|amstex|jnl)\b|\\bye(?![A-Za-z])", f.read_text(errors="replace"), re.M)
+                        for f in Path(tmp).rglob("*.tex"))
+            entry.update(status="failed", error="written in plain TeX, not LaTeX (the converter reads LaTeX only)" if plain else
+                         "no LaTeX source (PDF only, or an unusual layout)")
         else:
             out = lib.root / "papers" / key
             if out.exists():

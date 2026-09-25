@@ -42,7 +42,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 AUTO = "l2m-auto-"
-__version__ = "0.4"
+__version__ = "0.5"
 DOC_FORMAT = "l2m-doc"   # the document this tool writes (see DOCUMENT.md)
 DOC_VERSION = 1
 
@@ -210,6 +210,17 @@ def read_group(s, i, newlines=True):
         return None, i
     k = match_brace(s, j)
     return s[j + 1:k - 1], k
+
+
+def find_env_end(s, env, i):
+    """The end (after \\end{ENV}) of the environment whose body starts at i, nested ones counted."""
+    pat = re.compile(r"\\(begin|end)\s*\{%s\}" % re.escape(env))
+    depth = 1
+    for m in pat.finditer(s, i):
+        depth += 1 if m.group(1) == "begin" else -1
+        if depth == 0:
+            return m.end()
+    return None
 
 
 def read_arg(s, i):
@@ -403,6 +414,7 @@ class Converter:
         self.label_anchor = {}
         self.bibcite = {}
         self.math_items = []
+        self.pics = []                  # picture environments (TikZ, ...), drawn by LaTeX: {"src", "math"}
         self.pending_fn = []
         self.fn_count = 0
         self.headings = []
@@ -951,6 +963,7 @@ class Converter:
     # ------------------------------------------------------------------ math
     def math(self, tex, display):
         tex = re.sub(r"\\label\s*\{[^}]*\}", "", tex)
+        tex = self.take_pictures(tex, True)
         tex = re.sub(r"\\eqref\s*\{([^}]*)\}", lambda m: "\\text{(%s)}" % (self.number(m.group(1)) or "??"), tex)
         tex = re.sub(r"\\ref\s*\{([^}]*)\}", lambda m: "\\text{%s}" % (self.number(m.group(1)) or "??"), tex)
         tex = tex.strip()
@@ -2174,8 +2187,8 @@ class Converter:
         if env == "thebibliography":
             return [self.bibliography_html("\\begin{thebibliography}" + body + "\\end{thebibliography}")], False
         if env in PICTURES:
-            self.warn("%s environments are not rendered (placeholder shown)" % env)
-            return ['<div class="omitted">[%s omitted in the HTML version]</div>' % html.escape(env)], False
+            self.pics.append({"src": "\\begin{%s}%s\\end{%s}" % (env, body, env), "math": False, "env": env})
+            return ["\x00PICB%d\x00" % (len(self.pics) - 1)], False
         if env == "minipage":
             _, k = read_opt(body, 0)
             _, k = read_opt(body, k)
@@ -2189,6 +2202,152 @@ class Converter:
             return self.convert_block(body), False
         self.warn("unknown environment %s (its content is kept)" % env)
         return self.convert_block(body), False
+
+    # ------------------------------------------------------------------ pictures
+    PIC_ENV_RE = re.compile(r"\\begin\s*\{(%s)\}" % "|".join(re.escape(e) for e in PICTURES))
+
+    def take_pictures(self, tex, inmath):
+        """Pictures inside TEX set aside (for LaTeX to draw), each left as a numbered mark."""
+        out, i = [], 0
+        while True:
+            m = self.PIC_ENV_RE.search(tex, i)
+            if not m:
+                out.append(tex[i:])
+                return "".join(out)
+            env = m.group(1)
+            end = find_env_end(tex, env, m.end())
+            if end is None:
+                out.append(tex[i:])
+                return "".join(out)
+            self.pics.append({"src": tex[m.start():end], "math": inmath, "env": env})
+            out.append(tex[i:m.start()] + "\x01PIC%d\x01" % (len(self.pics) - 1))
+            i = end
+
+    def draw_pictures(self, pre):
+        """Draw every picture with LaTeX (the paper's own preamble; each on its own tight page by the preview
+        package), as SVG (or PNG) with its size: height, depth and width in points."""
+        if not self.pics:
+            return []
+        doc = (pre + "\n\\usepackage[active,tightpage]{preview}\n\\setlength\\PreviewBorder{0pt}\n\\begin{document}\n" +
+               "".join("\\sbox0{%s}\\typeout{L2MPIC %d \\the\\ht0\\space\\the\\dp0\\space\\the\\wd0}"
+                       "\\begin{preview}\\usebox0\\end{preview}\n" % ((("$\\displaystyle %s$" % p["src"]) if p["math"] else p["src"]), k)
+                       for k, p in enumerate(self.pics)) + "\\end{document}\n")
+        (self.build / "l2mpics.tex").write_text(doc)
+        env = os.environ.copy()
+        for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS"):
+            env[var] = str(self.srcdir) + os.pathsep + env.get(var, "")
+        self.info("drawing %d pictures with %s ..." % (len(self.pics), self.args.engine))
+        try:
+            subprocess.run([self.args.engine, "-interaction=nonstopmode", "l2mpics.tex"], cwd=self.build, env=env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        log = (self.build / "l2mpics.log").read_text(errors="replace") if (self.build / "l2mpics.log").exists() else ""
+        pdf = self.build / "l2mpics.pdf"
+        sizes = {int(n) + 1: (float(h), float(d), float(w))
+                 for n, h, d, w in re.findall(r"L2MPIC (\d+) (-?[\d.]+)pt\s*(-?[\d.]+)pt\s*(-?[\d.]+)pt", log)}
+        pages = re.search(r"Output written on l2mpics\.pdf \((\d+) page", log)
+        if not pdf.exists() or len(sizes) != len(self.pics) or not pages or int(pages.group(1)) != len(self.pics):
+            self.warn("pictures could not be drawn by LaTeX (placeholders shown)")
+            return [None] * len(self.pics)
+        out = []
+        for k in range(len(self.pics)):
+            h, d, w = sizes[k + 1]
+            uri = None
+            if shutil.which("pdftocairo"):
+                f = self.build / ("pic-%d.svg" % k)
+                subprocess.run(["pdftocairo", "-svg", "-f", str(k + 1), "-l", str(k + 1), str(pdf), str(f)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+                if f.exists():
+                    uri = "data:image/svg+xml;base64," + base64.b64encode(f.read_bytes()).decode()
+            elif shutil.which("pdftoppm"):
+                f = self.build / ("pic-%d" % k)
+                subprocess.run(["pdftoppm", "-png", "-r", "300", "-f", str(k + 1), "-l", str(k + 1), "-singlefile", str(pdf), str(f)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+                if f.with_suffix(".png").exists():
+                    uri = "data:image/png;base64," + base64.b64encode(f.with_suffix(".png").read_bytes()).decode()
+            if not uri or w <= 0:
+                self.warn("a picture could not be drawn (placeholder shown)")
+                out.append(None)
+            else:
+                out.append({"uri": uri, "h": h, "d": d, "w": w})
+        return out
+
+    def place_pictures(self, drawn, page_body):
+        """Put the drawn pictures back: in running text as images, in formulas as boxes of their size (the
+        picture itself goes into the drawn formula, see draw_math)."""
+        fs = self.font_pt()
+        pictures = {}
+        for item in self.math_items:
+            def box(m):
+                k = int(m.group(1))
+                p = drawn[k] if k < len(drawn) else None
+                if not p:
+                    return "\\text{[picture]}"
+                pictures[str(k)] = p["uri"]
+                return "\\class{l2mpic-%d}{\\rule[%.4fem]{%.4fem}{%.4fem}}" % (k, -p["d"] / fs, p["w"] / fs, (p["h"] + p["d"]) / fs)
+            item["tex"] = re.sub(r"\x01PIC(\d+)\x01", box, item["tex"])
+
+        def block(m):
+            k = int(m.group(1))
+            p = drawn[k] if k < len(drawn) else None
+            if not p:
+                return '<div class="omitted">[%s omitted in the HTML version]</div>' % html.escape(self.pics[k]["env"])
+            return '<div class="l2m-pic"><img src="%s" alt="" style="width:%.3fem"></div>' % (p["uri"], p["w"] / fs)
+        page_body = re.sub(r"\x00PICB(\d+)\x00", block, page_body)
+        self.all_fn = [(n, re.sub(r"\x00PICB(\d+)\x00", block, h)) for n, h in self.all_fn]
+        self.math_pictures = pictures
+        return page_body
+
+    def font_pt(self):
+        m = re.search(r"\\documentclass\s*\[([^\]]*)\]", self.preamble_text or "")
+        f = re.search(r"(?<![\d.])(\d+(?:\.\d+)?)pt", m.group(1)) if m else None
+        return float(f.group(1)) if f else 10.0
+
+    # ------------------------------------------------------------------ a title block made by hand
+    def find_handmade_title(self, body):
+        """A paper without \\title often sets its title by hand before the abstract, as a group in a large size
+        ({\\LARGE \\bf ...}), usually followed by the authors in bold: taken as title and authors, and dropped."""
+        stop = min([k for k in (body.find("\\begin{abstract}"), body.find("\\section")) if k >= 0] or [min(len(body), 6000)])
+        head = body[:stop]
+        m = re.search(r"\{\s*\\(?:LARGE|Large|huge|Huge)(?![A-Za-z])", head)
+        if not m:
+            return body
+        g, end = read_group(head, m.start())
+        if g is None:
+            return body
+        title = re.sub(r"\\(?:LARGE|Large|huge|Huge|large|bf|bfseries|textbf|sc|scshape)(?![A-Za-z])", "", g).strip()
+        title = re.sub(r"\\\\(\[[^\]]*\])?", " ", title)
+        if not (3 <= len(plain_text(title)) <= 400):
+            return body
+        self.meta["title"] = title
+        cut = [(m.start(), end)]
+        a = re.compile(r"\{\s*\\(?:bf|bfseries|large|Large|sc|scshape)(?![A-Za-z])").search(head, end)
+        if a and a.start() - end < 600:
+            ag, aend = read_group(head, a.start())
+            if ag:
+                names = re.sub(r"^\s*\\(?:bf|bfseries|large|Large|sc|scshape)(?![A-Za-z])", "", ag).strip()
+                parts, depth, inmath, cur = [], 0, False, ""
+                for ch in names:
+                    if ch == "$":
+                        inmath = not inmath
+                    elif ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                    if ch == "," and depth == 0 and not inmath:
+                        parts.append(cur); cur = ""
+                    else:
+                        cur += ch
+                parts.append(cur)
+                parts = [re.sub(r"^\s*and\s+", "", x).strip() for x in parts]
+                parts = [y.strip() for x in parts for y in re.split(r"\s+and\s+|\\and(?![A-Za-z])", x) if y.strip()]
+                if parts and all(len(plain_text(x)) < 80 for x in parts):
+                    self.meta["authors"].extend(parts)
+                    cut.append((a.start(), aend))
+        for s0, e0 in reversed(cut):
+            body = body[:s0] + body[e0:]
+        return body
 
     # ------------------------------------------------------------------ title block
     def title_block(self):
@@ -2265,6 +2424,7 @@ class Converter:
         pre = text[:b]
         body = text[b + len("\\begin{document}"):(e if e > b else len(text))]
         self.parse_preamble(pre)
+        self.preamble_text = pre
         # aliases of definition commands, e.g. \let\newc\newcommand or \def\nc{\newcommand}
         defcmds = {"\\newcommand", "\\renewcommand", "\\providecommand", "\\def", "\\DeclareMathOperator"}
         aliases = {k: d["body"].strip() for k, d in self.macros.items() if d["body"].strip() in defcmds}
@@ -2290,6 +2450,8 @@ class Converter:
                 self.bbl_numbers(bbl)
             # subequations only affects numbering, which LaTeX already did; authors sometimes let it cross items
             body = re.sub(r"\\(begin|end)\s*\{subequations\}", "", body)
+            if not re.search(r"\\title\s*[\[{]", text):
+                body = self.find_handmade_title(body)
             blocks = self.convert_block(body)
             refs = self.bibliography_html(bbl) if bbl else ""
             titleblock = self.title_block()
@@ -2305,6 +2467,7 @@ class Converter:
             elif refs and "thebibliography" not in body:
                 page_body += refs
             self.pop_footnotes()
+            page_body = self.place_pictures(self.draw_pictures(pre_c), page_body)
             notes = self.notes_html()
             if notes:
                 k = page_body.find('<section class="references"')
@@ -2345,7 +2508,7 @@ class Converter:
             "labels": {k: {"number": v, "id": self.id_map.get(k)}
                        for k, v in self.labels.items() if not k.startswith(AUTO)},
             "footnotes": [{"n": n, "html": enc(h)} for n, h in self.all_fn],
-            "math": math_section(self.math_items, macros, packages),
+            "math": math_section(self.math_items, macros, packages, getattr(self, "math_pictures", None)),
             "warnings": dict(self.warnings),
         }
 
@@ -2373,8 +2536,27 @@ def draw_math(doc, warn=None, info=None):
             warn("math error: %s  in  %s" % (e["message"], e["tex"][:100].replace("\n", " ")))
         for k in out["undefined"]:
             warn("math uses an undefined macro (shown in red): %s" % m["items"][k]["tex"][:100].replace("\n", " "))
+    svg = out["out"]
+    if m.get("pictures"):
+        svg = [put_pictures(x, m["pictures"]) for x in svg]
     return {"format": "l2m-math", "version": 1, "key": m.get("key"), "mathjax": mathjax_version(),
-            "svg": out["out"], "cache": out["cache"], "css": out["css"]}
+            "svg": svg, "cache": out["cache"], "css": out["css"]}
+
+
+def put_pictures(svg, pictures):
+    """A formula holding pictures: each was drawn as a box of its size (\\class{l2mpic-N}{\\rule...}); the box
+    becomes the picture (drawn upright: MathJax's drawing is flipped upside down)."""
+    def swap(m):
+        k = m.group(1)
+        uri = pictures.get(k)
+        r = re.search(r'<rect[^>]*?width="([\d.]+)" height="([\d.]+)"[^>]*></rect>', m.group(2))
+        if not uri or not r:
+            return m.group(0)
+        w, h = r.group(1), r.group(2)
+        img = ('<g transform="translate(0,%s) scale(1,-1)"><image href="%s" x="0" y="0" width="%s" height="%s" '
+               'preserveAspectRatio="none"></image></g>' % (h, uri, w, h))
+        return m.group(0).replace(r.group(0), img)
+    return re.sub(r'<g data-mml-node="mpadded" class="\s*l2mpic-(\d+)">(.*?</rect>)', swap, svg, flags=re.S)
 
 
 def mathjax_version():
@@ -2395,9 +2577,14 @@ def load_math(folder, doc):
           and len(c.get("svg", [])) == len(doc["math"]["items"]))
     return c if ok else None
 
-def math_section(items, macros, packages):
-    """The document's formulas; `key` fingerprints them, so a cache of rendered formulas can be checked."""
+def math_section(items, macros, packages, pictures=None):
+    """The document's formulas; `key` fingerprints them, so a cache of rendered formulas can be checked.
+    `pictures`: the pictures drawn by LaTeX that formulas hold (by number; see draw_math)."""
     m = {"items": items, "macros": macros, "packages": packages}
+    if pictures:
+        m["pictures"] = pictures
+        if "html" not in packages:
+            packages.append("html")
     m["key"] = hashlib.sha1(json.dumps(m, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:20]
     return m
 
