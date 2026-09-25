@@ -435,6 +435,36 @@ window.L2M_nav = function (opts) {
     });
   }
 
+  // ---------------------------------------------------------------- copying: formulas as their LaTeX
+  // A selection with formulas in it is copied with each formula as its TeX ($...$ in a line, \[...\] on its own);
+  // a formula counts whole, even when the selection only reaches into it.
+  on(document, "copy", function (e) {
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed || !opts.tex || !e.clipboardData) return;
+    var range = sel.getRangeAt(0), main = document.querySelector("main");
+    if (!main || !main.contains(range.commonAncestorContainer)) return;
+    function formulaOf(n) { var el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest && el.closest("mjx-container[data-n]"); }
+    var r = range.cloneRange(), a = formulaOf(r.startContainer), b = formulaOf(r.endContainer);
+    if (a) r.setStartBefore(a);
+    if (b) r.setEndAfter(b);
+    var frag = r.cloneContents();
+    var forms = frag.querySelectorAll("mjx-container[data-n]");
+    if (!forms.length) return;
+    Array.prototype.forEach.call(forms, function (f) {
+      var tex = (opts.tex(f.getAttribute("data-n")) || "").trim()     // (a picture drawn in a formula: named, not its stand-in)
+        .replace(/\\class\{l2mpic-\d+\}\{\\rule(\[[^\]]*\])?\{[^}]*\}\{[^}]*\}\}/g, "\\text{[picture]}");
+      f.replaceWith(document.createTextNode(f.getAttribute("display") === "true" ? "\\[" + tex + "\\]" : "$" + tex + "$"));
+    });
+    var box = document.createElement("div");       // laid out off screen, so its text keeps its paragraphs
+    box.style.cssText = "position:fixed;left:-9999px;top:0;width:600px;white-space:normal";
+    box.appendChild(frag);
+    document.body.appendChild(box);
+    var text = box.innerText;
+    box.remove();
+    e.clipboardData.setData("text/plain", text.replace(/\n{3,}/g, "\n\n").trim());
+    e.preventDefault();
+  });
+
   // ---------------------------------------------------------------- full screen while reading (a phone's own
   // bars away). Asked for as the paper opens (the tap that opened it allows it) or else at the first touch; left
   // when the paper is. On Android, back first leaves full screen: that same press then also steps back, as it
