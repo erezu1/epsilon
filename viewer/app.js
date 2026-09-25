@@ -614,6 +614,8 @@
   }
   function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
     if (!panelOpen || !shell) { panelOpen = false; return; }
+    // the keyboard goes down with the panel, not after it (a text field in it keeps focus otherwise)
+    if (document.activeElement && shell.contains(document.activeElement) && document.activeElement.blur) document.activeElement.blur();
     try {
       if (how !== "pop" && (history.state || {}).l2mPanel) {
         if (how === "jump") { var st = Object.assign({}, history.state); delete st.l2mPanel; history.replaceState(st, ""); }
