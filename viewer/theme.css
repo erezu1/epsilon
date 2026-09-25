@@ -1642,3 +1642,13 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 .app-pull.spinning > span { animation: l2m-spin 0.8s linear infinite; }
 .app-pull.leaving { transition: transform 240ms cubic-bezier(0.4, 0, 1, 1), opacity 200ms ease; }
 @media (prefers-reduced-motion: reduce) { .app-pull.spinning > span { animation-duration: 2.4s; } }
+/* the flip's two soft edges mirror each other about the tabs' text (19-43px in the bar): each 5px, ending at the
+   text's top and bottom (the bottom one at the underline) */
+.app-tabswap {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 22px, #000 27px, #000 51px, transparent 56px) !important;
+  mask-image: linear-gradient(to bottom, transparent 22px, #000 27px, #000 51px, transparent 56px) !important;
+}
+.app-lead {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 18px, #000 23px, #000 47px, transparent 52px) !important;
+  mask-image: linear-gradient(to bottom, transparent 18px, #000 23px, #000 47px, transparent 52px) !important;
+}
