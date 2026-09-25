@@ -517,21 +517,22 @@ ol.fnlist li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 ol.fnlist .fnback { flex: 0 0 auto; min-width: 1.4em; font-variant-numeric: lining-nums; }
 ol.fnlist .fn-text { min-width: 0; }
 
-/* where a link lands: a brief highlight */
-.l2m-flash { outline: 3px solid transparent; outline-offset: 3px; border-radius: 6px; animation: l2mflash 1.8s ease-out; }
-.thm.l2m-flash { animation-name: l2mring; }
-@keyframes l2mflash {
-  0% { outline-color: var(--flash-ring); background-color: var(--flash); }
-  100% { outline-color: transparent; background-color: transparent; }
-}
-@keyframes l2mring {
-  0% { outline-color: var(--flash-ring); }
-  100% { outline-color: transparent; }
-}
+/* where a link lands: a soft mark over the block (placed by nav.js), in the progress bar's blue, with feathered
+   edges and no border; it comes up quickly and fades slowly. It tints what is under it: multiplied on light
+   grounds (the ink stays black), screened on dark ones (the ink stays light). */
+.l2m-mark { position: absolute; z-index: 1; pointer-events: none; border-radius: 12px;
+  background: color-mix(in srgb, var(--progress) 15%, transparent);
+  box-shadow: 0 0 14px 5px color-mix(in srgb, var(--progress) 11%, transparent);
+  mix-blend-mode: multiply; opacity: 0; animation: l2mmark 2.2s cubic-bezier(0.3, 0, 0.3, 1) forwards; }
+@keyframes l2mmark { 0% { opacity: 0; } 9%, 36% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .l2m-mark { mix-blend-mode: screen;
+  background: color-mix(in srgb, var(--progress) 17%, transparent); box-shadow: 0 0 14px 5px color-mix(in srgb, var(--progress) 12%, transparent); } }
+:root[data-theme="dark"] .l2m-mark { mix-blend-mode: screen;
+  background: color-mix(in srgb, var(--progress) 17%, transparent); box-shadow: 0 0 14px 5px color-mix(in srgb, var(--progress) 12%, transparent); }
+.peek-main { position: relative; }
 @media (prefers-reduced-motion: reduce) {
   .l2m-bar, .l2m-menu, .l2m-fnsheet, .bar-title-inner, .bar-btn.swap .ico, .opt-check, .seg-btn, .l2m-veil, .sel-ind, [data-act="settings"] svg { transition-duration: 0.01s; }
   ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.01s; }
-  .l2m-flash { animation-duration: 0.01s; }
 }
 
 /* figure and table viewer */

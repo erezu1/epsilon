@@ -56,11 +56,24 @@ window.L2M_nav = function (opts) {
   function yOf(el) { return Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - offset()); }
   function scrollToY(y) { window.scrollTo(0, y); }
 
+  // where a link lands: a soft mark laid over the block for a moment, tinting what is under it (so an
+  // equation's own grounds and fades cannot hide it), in the progress bar's blue
   function flash(el) {
     var t = el.closest(".display, .thm, .defn, .remark, figure, li, h2, h3, h4, h5, p") || el;
-    t.classList.remove("l2m-flash");
-    void t.offsetWidth;
-    t.classList.add("l2m-flash");
+    var box = t.closest(".peek-main") || document.body;
+    var old = box.querySelector(":scope > .l2m-mark");
+    if (old) old.remove();
+    var r = t.getBoundingClientRect(), b = box.getBoundingClientRect(), page = box === document.body;
+    var x0 = page ? window.pageXOffset : -b.left, y0 = page ? window.pageYOffset : -b.top;
+    var m = document.createElement("div");
+    m.className = "l2m-mark";
+    m.setAttribute("aria-hidden", "true");
+    m.style.left = (r.left + x0 - 8) + "px";
+    m.style.top = (r.top + y0 - 5) + "px";
+    m.style.width = (r.width + 16) + "px";
+    m.style.height = (r.height + 10) + "px";
+    m.addEventListener("animationend", function () { m.remove(); });
+    box.appendChild(m);
   }
 
   function saveHere() {
