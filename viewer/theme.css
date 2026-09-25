@@ -1730,3 +1730,13 @@ main a[href^="#"], .l2m-menu a[href^="#"] { -webkit-touch-callout: none; -webkit
 /* a paper's placeholder (the grey lines, until the paper is drawn): exactly the screen, never scrolled */
 html.l2m-boot-paper, html:has(main > .skel-paper) { overflow: hidden; overscroll-behavior: none; }
 html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; overflow: hidden; box-sizing: border-box; }
+
+/* wide formulas, tables and code: no scroll bar standing under them (their edge shadows show there is more);
+   with a mouse, a thin one while the pointer is over them */
+.eqbody, .table-wrap, pre { scrollbar-width: none; }
+.eqbody::-webkit-scrollbar, .table-wrap::-webkit-scrollbar, pre::-webkit-scrollbar { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .eqbody:hover, .table-wrap:hover, pre:hover { scrollbar-width: thin; }
+  .eqbody:hover::-webkit-scrollbar, .table-wrap:hover::-webkit-scrollbar, pre:hover::-webkit-scrollbar { display: block; height: 6px; }
+  .eqbody:hover::-webkit-scrollbar-thumb, .table-wrap:hover::-webkit-scrollbar-thumb, pre:hover::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+}
