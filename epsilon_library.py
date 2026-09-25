@@ -94,7 +94,8 @@ def http_get(url, tries=3):
             with urllib.request.urlopen(req, timeout=60) as r:
                 return r.read()
         except (urllib.error.URLError, TimeoutError) as e:
-            if k == tries - 1:
+            # a refusal (4xx, but "too many requests") will not change on asking again
+            if k == tries - 1 or (isinstance(e, urllib.error.HTTPError) and 400 <= e.code < 500 and e.code != 429):
                 raise
             say("  retrying %s (%s)" % (url, e))
             time.sleep(5 * (k + 1))
@@ -133,13 +134,19 @@ def abs_meta(aid):
             "primary": prim.group(1) if prim else (cats[0] if cats else None), "categories": cats, "published": date[:10]}
 
 
+API_REFUSED = False          # the arXiv API turns some machines away (GitHub's): then only the paper's page
+
+
 def arxiv_meta(aid):
     """Title, authors, abstract, categories and dates from the arXiv API (or the paper's page)."""
-    try:
-        return api_meta(aid)
-    except (urllib.error.URLError, ET.ParseError) as e:
-        say("  the arXiv API refused (%s); reading the paper's page" % e)
-        return abs_meta(aid)
+    global API_REFUSED
+    if not API_REFUSED:
+        try:
+            return api_meta(aid)
+        except (urllib.error.URLError, ET.ParseError) as e:
+            say("  the arXiv API refused (%s); reading the paper's page" % e)
+            API_REFUSED = True
+    return abs_meta(aid)
 
 
 def api_meta(aid):
@@ -202,10 +209,9 @@ def convert_arxiv(lib, aid, refetch=True):
     src_dir = lib.root / "sources" / "arxiv" / key
     say("%s: %s" % (key, "fetching" if refetch else "reconverting"))
     meta = arxiv_meta(aid)
-    time.sleep(3)                                  # arXiv asks for a pause between requests
+    time.sleep(1)                                  # arXiv asks for a pause between requests
     if refetch or not (src_dir / "src.bin").exists():
         raw = http_get("https://arxiv.org/e-print/" + aid)
-        time.sleep(3)
         src_dir.mkdir(parents=True, exist_ok=True)
         (src_dir / "src.bin").write_bytes(raw)
     entry = {"key": key, "path": "papers/" + key, "kind": "arxiv", "title": meta["title"],
