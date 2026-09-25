@@ -591,8 +591,15 @@
         convert(ids);
       });
     } else {
-      inner.innerHTML = panelHTML();
+      // two tabs: System (the library, the feed, this device) and View (how papers and lists look)
+      var tab = store("setTab") === "view" ? "view" : "system";
+      inner.innerHTML = '<div class="seg app-tabs set-tabs" role="tablist" aria-label="Settings"><span class="sel-ind" aria-hidden="true"></span>' +
+        '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="' + (tab === "system") + '"><span>System</span></button>' +
+        '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="' + (tab === "view") + '"><span>View</span></button></div>' +
+        '<div class="set-view"><div class="set-track"><div class="set-pane" data-set="system">' + panelHTML() + "</div>" +
+        '<div class="set-pane l2m-settings" data-set="view">' + (window.L2M_readingSettings ? L2M_readingSettings(theme) : "") + "</div></div></div>";
       bindPanel(inner);
+      bindSetTabs(inner, tab);
     }
     el.classList.add("open");
     el.setAttribute("aria-hidden", "false");
@@ -624,6 +631,59 @@
     root.classList.remove("l2m-settings-open");
     panelOpen = false;
   }
+  // the settings' tabs: the underline slides, the panes slide sideways (a swipe too), the panel takes each one's height
+  function bindSetTabs(inner, tab) {
+    var tabs = inner.querySelector(".set-tabs"), view = inner.querySelector(".set-view"), track = inner.querySelector(".set-track");
+    var panes = Array.prototype.slice.call(inner.querySelectorAll(".set-pane")), names = ["system", "view"];
+    function fit(animate) {
+      var h = panes[names.indexOf(tab)].offsetHeight;
+      if (!animate) view.style.transition = "none";
+      view.style.height = h + "px";
+      if (!animate) { void view.offsetWidth; view.style.transition = ""; }
+    }
+    function show(name, animate) {
+      tab = name;
+      store("setTab", name);
+      Array.prototype.forEach.call(tabs.querySelectorAll("[data-set-tab]"), function (b) { b.setAttribute("aria-checked", b.getAttribute("data-set-tab") === name ? "true" : "false"); });
+      slide(tabs);
+      track.style.transition = animate ? "" : "none";
+      track.style.transform = "translateX(" + (-50 * names.indexOf(name)) + "%)";
+      panes.forEach(function (p, i) { p.setAttribute("aria-hidden", i === names.indexOf(name) ? "false" : "true"); });
+      fit(animate);
+      requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
+    }
+    tabs.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-set-tab]");
+      if (b) show(b.getAttribute("data-set-tab"), true);
+    });
+    // a pane changing its own height (the font list unfolding, the category picker) resizes the panel with it
+    if (window.ResizeObserver) new ResizeObserver(function () { fit(true); }).observe(panes[0]), new ResizeObserver(function () { fit(true); }).observe(panes[1]);
+    var sw0 = null;
+    view.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 1) return;
+      sw0 = {x: e.touches[0].clientX, y: e.touches[0].clientY, dir: null, w: view.clientWidth, i: names.indexOf(tab)};
+    }, {passive: true});
+    view.addEventListener("touchmove", function (e) {
+      if (!sw0) return;
+      var dx = e.touches[0].clientX - sw0.x, dy = e.touches[0].clientY - sw0.y;
+      if (!sw0.dir && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) sw0.dir = Math.abs(dx) > 1.2 * Math.abs(dy) ? "x" : "y";
+      if (sw0.dir !== "x") return;
+      e.preventDefault();
+      var next = sw0.i - Math.sign(dx);
+      if (next < 0 || next > 1) dx *= 0.25;
+      track.style.transition = "none";
+      track.style.transform = "translateX(" + (-sw0.i * sw0.w + dx) + "px)";
+    }, {passive: false});
+    function end(e) {
+      if (!sw0 || sw0.dir !== "x") { sw0 = null; return; }
+      var dx = (e.changedTouches ? e.changedTouches[0].clientX : sw0.x) - sw0.x, to = sw0.i - Math.sign(dx), s0 = sw0;
+      sw0 = null;
+      if (to >= 0 && to <= 1 && Math.abs(dx) > s0.w * 0.2) show(names[to], true); else show(names[s0.i], true);
+    }
+    view.addEventListener("touchend", end);
+    view.addEventListener("touchcancel", end);
+    requestAnimationFrame(function () { show(tab, false); });
+  }
   function bindPanel(inner) {
     var prefs = window.L2M_prefs ? L2M_prefs() : {};
     var D = theme.defaults || {};
@@ -634,9 +694,32 @@
         b.setAttribute("aria-checked", b.getAttribute(attr) === want[attr] ? "true" : "false");
       });
     });
+    var fonts = {};
+    (theme.fonts || []).forEach(function (f) { fonts[f.key] = f; });
+    function showFont(key) {
+      var cur = inner.querySelector(".font-current"), f = fonts[key];
+      if (!cur || !f) return;
+      var nm = cur.querySelector(".opt-name");
+      nm.textContent = f.name; nm.style.fontFamily = f.stack;
+      cur.querySelector(".opt-note").textContent = f.note || "";
+    }
+    showFont(want["data-font"]);
     inner.addEventListener("click", function (e) {
+      var t = e.target.closest("[data-font-toggle]");
+      if (t) {
+        var pick = t.closest(".font-pick"), on = !pick.classList.contains("open");
+        pick.classList.toggle("open", on);
+        t.setAttribute("aria-expanded", on ? "true" : "false");
+        requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
+        return;
+      }
       var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-cross]");
       if (!b) return;
+      if (b.hasAttribute("data-font")) {
+        showFont(b.getAttribute("data-font"));
+        var fp = b.closest(".font-pick");
+        setTimeout(function () { fp.classList.remove("open"); fp.querySelector(".font-current").setAttribute("aria-expanded", "false"); }, 260);
+      }
       var group = b.closest(".seg, .opt-list");
       Array.prototype.forEach.call(group.querySelectorAll('[role="radio"]'), function (x) { x.setAttribute("aria-checked", x === b ? "true" : "false"); });
       slide(group);
@@ -644,8 +727,13 @@
       var p = window.L2M_prefs ? L2M_prefs() : {};
       if (b.hasAttribute("data-font")) { p.font = b.getAttribute("data-font"); L2M_applyFont(p.font); }
       if (b.hasAttribute("data-size-opt")) { p.size = b.getAttribute("data-size-opt"); L2M_applySize(p.size); }
-      if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); L2M_applyTheme(p.theme); }
-      if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); L2M_applyTone(p.tone); }
+      var fade = function (f) {
+        var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (document.startViewTransition && !reduced) { try { document.startViewTransition(f); return; } catch (x) {} }
+        f();
+      };
+      if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); fade(function () { L2M_applyTheme(p.theme); }); }
+      if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); fade(function () { L2M_applyTone(p.tone); }); }
       if (window.L2M_savePrefs) L2M_savePrefs(p);
       setBarH();
       requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });

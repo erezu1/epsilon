@@ -57,7 +57,7 @@
       '<span class="opt-name" style="font-family:' + esc(cur.stack) + '">' + esc(cur.name) + '</span><span class="opt-note">' + esc(cur.note) + "</span>" +
       '<span class="opt-chev">' + (I.chevron || "&#9662;") + "</span></button>" +
       '<div class="font-drop"><div class="opt-list" role="radiogroup" aria-label="Font"><span class="sel-ind" aria-hidden="true"></span>' + fonts + "</div></div></div>" : "";
-    return fontPick + group("Text size", "seg", sizes) + group("Appearance", "seg", looks) + group("Tone", "seg", tones);
+    return group("Appearance", "seg", looks) + group("Tone", "seg", tones) + group("Text size", "seg", sizes) + fontPick;
   }
   window.L2M_readingSettings = readingSettings;
 
