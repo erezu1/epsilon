@@ -1147,6 +1147,7 @@
       '<ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>";
     box.innerHTML = (papers.length || converting ? lists :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
+    foldAbstracts(box);                        // (before the rows are measured: the "More" buttons take room)
     slideRows(box, before, box.parentNode);
     growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
@@ -1177,7 +1178,6 @@
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove-yes]"), function (b) {
       b.addEventListener("click", function () { removePaper(b.getAttribute("data-remove-yes"), b); });
     });
-    foldAbstracts(box);
     filterLibrary();
     listenJoin("app:library");
   }
@@ -1399,7 +1399,6 @@
   }
 
   function showPaper(key) {
-    libTops = measureLibrary() || libTops;      // the order as it was, for the slide on the way back
     dropShell();
     var read = store("opened") || {};           // reading order, kept on this device
     read[key] = Date.now();
@@ -1495,6 +1494,9 @@
   }
   function showNow(k, save, slideIn) {
     var was = current;
+    // leaving the library for a paper: where its rows sit, taken before anything changes the page's layout (the
+    // lists' own width goes with l2m-app-lists), for the slide on the way back
+    if (was === "app:library" && !isPage(k)) libTops = measureLibrary() || libTops;
     close(save);
     current = k;
     if (slideIn) enter(isPage(k) ? -1 : 1);
