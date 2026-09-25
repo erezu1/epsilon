@@ -620,6 +620,11 @@
   function setMode(on) {
     if (!shell) return;
     var bar = shell.querySelector("#app-bar");
+    if (bar.classList.contains("set-mode") !== on) {        // while the tabs flip, their edges fade softly
+      bar.classList.add("flapping");
+      clearTimeout(setMode.t);
+      setMode.t = setTimeout(function () { bar.classList.remove("flapping"); }, 560);
+    }
     bar.classList.toggle("set-mode", on);
     shell.querySelector("#set-tabs").setAttribute("aria-hidden", on ? "false" : "true");
     shell.querySelector(".app-tabs:not(.set-tabs)").setAttribute("aria-hidden", on ? "true" : "false");

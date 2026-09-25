@@ -1494,3 +1494,23 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, visibility 0s linear 300ms;
 }
 @media (prefers-reduced-motion: reduce) { .app-tabswap > *, .app-lead > * { transition-duration: 0.01s !important; } }
+
+/* the flip, slower and soft-edged: while it runs the tab area fades out toward its top and bottom (no hard cut) */
+.app-tabswap, .app-lead { overflow: visible; clip-path: none; }
+.app-bar.flapping .app-tabswap, .app-bar.flapping .app-lead {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 30%, #000 70%, transparent 100%);
+}
+.app-tabswap > .app-tabs, .app-lead > .app-logo, .app-lead > .app-close,
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs), .app-bar.set-mode .app-lead > .app-logo,
+.app-bar:not(.set-mode) .app-tabswap > .set-tabs, .app-bar:not(.set-mode) .app-lead > .app-close {
+  transition: transform 440ms cubic-bezier(0.25, 0.8, 0.25, 1), opacity 320ms ease, visibility 0s linear 440ms;
+}
+.app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close,
+.app-bar:not(.set-mode) .app-tabswap > .app-tabs:not(.set-tabs), .app-bar:not(.set-mode) .app-lead > .app-logo {
+  transition: transform 440ms cubic-bezier(0.25, 0.8, 0.25, 1), opacity 360ms ease 80ms, visibility 0s;
+}
+.app-tabswap > .set-tabs, .app-lead > .app-close { transform: translateY(-55%); }
+.app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs), .app-bar.set-mode .app-lead > .app-logo { transform: translateY(55%); }
+.app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close,
+.app-bar:not(.set-mode) .app-tabswap > .app-tabs:not(.set-tabs), .app-bar:not(.set-mode) .app-lead > .app-logo { transform: none; }
