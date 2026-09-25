@@ -1407,3 +1407,6 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   box-shadow: 0 0 7px color-mix(in srgb, var(--progress) 60%, transparent), 0 1.5px 2px rgb(0 0 0 / 0.18); }
 .lib-rows > li[data-read]::after { background: var(--progress); opacity: 0.9; }
 .app-progress span { background: var(--progress); }
+/* the reading underline fades out as a panel opens, and back in as it closes */
+.l2m-bar .bar-progress { transition: opacity 240ms ease 60ms; }
+.l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 160ms ease; }
