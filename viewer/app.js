@@ -439,8 +439,8 @@
       '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="true" tabindex="-1"><span>System</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="false" tabindex="-1"><span>View</span></button></div></span>' +
       '<span class="app-spacer"></span>' +
-      '<div class="app-searchbar"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
-      'autocomplete="off" autocapitalize="off" spellcheck="false"><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
+      '<div class="app-searchbar"><span class="find-box"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
+      'autocomplete="off" autocapitalize="off" spellcheck="false"></span><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
       (I.close || "&times;") + "</button></div>" +
       '<button type="button" class="bar-btn" id="app-search" aria-label="Search your library">' + (I.search || "?") + "</button>" +
       '<button type="button" class="bar-btn" id="app-plus" aria-label="Add a paper" aria-expanded="false" aria-controls="app-addp">' + (I.add || "+") + "</button>" +

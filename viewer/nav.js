@@ -277,8 +277,9 @@ window.L2M_nav = function (opts) {
       r.setAttribute("class", "l2m-find-g");
       r.setAttribute("x", b.x - pad); r.setAttribute("y", b.y - pad);
       r.setAttribute("width", b.width + 2 * pad); r.setAttribute("height", b.height + 2 * pad);
-      r.setAttribute("rx", 90);
-      if (g.getAttribute("transform")) r.setAttribute("transform", g.getAttribute("transform"));
+      r.setAttribute("rx", 60);
+      var cx = b.x + b.width / 2, cy = b.y + b.height / 2;        // slanted a little, as a marker's chisel tip leaves it
+      r.setAttribute("transform", (g.getAttribute("transform") || "") + " translate(" + cx + " " + cy + ") skewX(-12) translate(" + -cx + " " + -cy + ")");
       g.parentNode.insertBefore(r, g);
       return r;
     } catch (e) { return null; }
