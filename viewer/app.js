@@ -1097,6 +1097,7 @@
       if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : "") +
                              inspireLink(x.arxiv.id, x.arxiv.categories || [x.arxiv.primary]).replace(" &middot; ", " &middot; "));
       else if (x.kind === "draft") meta.push("your draft");
+      else if (x.kind === "note") meta.push("note");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
       var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;
@@ -1711,6 +1712,27 @@
   }
   main.addEventListener("touchend", pullEnd);
   main.addEventListener("touchcancel", pullEnd);
+
+  // desktop: the same pull by scrolling up past the top of a list (trackpad or wheel); a pause past the mark refreshes
+  var wheelPull = null;
+  main.addEventListener("wheel", function (e) {
+    var pe = e.target.closest && e.target.closest(".app-pane");
+    if (!pe || !isPage(current) || panelOpen || !src || pull) return;
+    if (pullChip() && pullChip().classList.contains("spinning")) return;
+    if (!wheelPull && (pe.scrollTop > 0 || e.deltaY >= 0)) return;
+    if (!wheelPull) wheelPull = {pane: pe, d: 0};
+    e.preventDefault();
+    wheelPull.d = Math.max(0, Math.min(PULL_AT * 1.6, wheelPull.d - e.deltaY * 0.45));
+    pull = {pane: wheelPull.pane, on: true, d: wheelPull.d};
+    pullShow(wheelPull.d, true);
+    pull = null;
+    clearTimeout(wheelPull.t);
+    wheelPull.t = setTimeout(function () {         // the scrolling has stopped: refresh, or go back
+      var w = wheelPull; wheelPull = null;
+      pull = {pane: w.pane, on: true, d: w.d};
+      pullEnd();
+    }, 220);
+  }, {passive: false});
 
   // wide screens: the wheel over the margins beside the lists scrolls the list shown
   document.addEventListener("wheel", function (e) {

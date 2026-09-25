@@ -294,7 +294,8 @@ def convert_draft(lib, name):
     folder = lib.root / "sources" / "drafts" / name
     tex = main_tex(folder)
     old = lib.entry(name) or {}
-    entry = {"key": name, "path": "papers/" + name, "kind": "draft", "added": old.get("added") or now(),
+    kind = "note" if (folder / ".l2m-note").exists() else "draft"     # pushed by l2m_push.py, or a draft of yours
+    entry = {"key": name, "path": "papers/" + name, "kind": kind, "added": old.get("added") or now(),
              "sourceHash": tree_hash(folder)}
     if tex is None:
         entry.update(status="failed", error="no main .tex file", title=name, authors=[])
@@ -698,7 +699,7 @@ def main():
     elif a.cmd == "redraw":
         idx = lib.index()
         for p in idx["papers"]:
-            if p.get("kind") == "draft" and not p.get("abstract"):
+            if p.get("kind") in ("draft", "note") and not p.get("abstract"):
                 tex = main_tex(lib.root / "sources" / "drafts" / p["key"])
                 if tex:
                     p["abstract"] = tex_abstract(tex)
