@@ -460,6 +460,14 @@
     var logo = holder.querySelector(".app-logo");
     logo.setAttribute("role", "button"); logo.setAttribute("tabindex", "0"); logo.setAttribute("aria-label", "Library, from the top");
     logo.addEventListener("click", home);
+    logo.addEventListener("pointerdown", function () { logo.classList.remove("tapped"); logo.classList.add("pressed"); });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (ev) {
+      logo.addEventListener(ev, function () {
+        if (!logo.classList.contains("pressed")) return;
+        logo.classList.remove("pressed");
+        void logo.getBoundingClientRect(); logo.classList.add("tapped");
+      });
+    });
     logo.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); home(); } });
     holder.querySelector("#search-close").addEventListener("click", function () { searching(false); });
     holder.querySelector("#lib-q").addEventListener("input", filterLibrary);
@@ -1299,8 +1307,6 @@
     listenJoin("app:new");
   }
   function home() {
-    var lg = shell && shell.querySelector(".app-logo");
-    if (lg) { lg.classList.remove("tapped"); void lg.getBoundingClientRect(); lg.classList.add("tapped"); }
     closePanel("jump");
     searching(false);
     if (current !== "app:library") go("library");
@@ -1697,18 +1703,10 @@
     if (!pull || !pull.on) { pull = null; return; }
     var p0 = pull; pull = null;
     if (p0.d < PULL_AT) { pullShow(0, false); return; }
-    var c = pullChip();
-    c.classList.remove("no-anim");
-    c.classList.add("spinning");
+    // let go past the mark: the chip gives way to the list's loading bar (the list springs back at once)
     pullList.el = p0.pane.querySelector(".app-pane-in");
-    pullList(PULL_AT * 0.8, false);           // the list holds a little way down while it refreshes
-    c.style.transform = "translate(-50%, " + (PULL_AT * 0.4 - 20) + "px) scale(1)";
-    c.style.opacity = "1";
-    c.firstChild.style.transform = "";
-    var t0 = Date.now(), job = current === "app:new" ? checkFeed() : refreshLists();
-    Promise.resolve(job).catch(function () {}).then(function () {
-      setTimeout(pullHide, Math.max(0, 700 - (Date.now() - t0)));   // it spins at least a moment, so it is seen
-    });
+    pullHide();
+    if (current === "app:new") checkFeed(); else refreshLists();
   }
   main.addEventListener("touchend", pullEnd);
   main.addEventListener("touchcancel", pullEnd);
