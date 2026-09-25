@@ -392,8 +392,8 @@
           if (e && e.converted && Date.parse(e.converted) >= p[k].since - 60000) {
             delete p[k];
             changed = true;
-            toast(e.status === "ok" ? 'Ready: <a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + esc(e.title) + "</a>" :
-              "Conversion failed: " + esc(e.title || k), 8000);
+            if (e.status === "ok") toast('Ready: <a href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + esc(e.title) + "</a>", 8000);
+            else tellFailures();                     // with the converter's reason
           } else if (Date.now() - p[k].since > 30 * 60000) {
             delete p[k];
             changed = true;
@@ -916,6 +916,29 @@
     var k = keyOf(x), t = Date.parse(x.added || "");
     return x.status === "ok" && !read[k] && !(reading[k] && reading[k].at) && t > Date.now() - NEW_DAYS * 864e5;
   }
+  function confirmOpen(c, on) {
+    c.classList.toggle("open", on);
+    c.setAttribute("aria-hidden", on ? "false" : "true");
+    Array.prototype.forEach.call(c.querySelectorAll("button"), function (x) { x.tabIndex = on ? 0 : -1; });
+  }
+  // 1. papers the converter could not read: said once, as soon as the app learns of it (whichever device added them)
+  function tellFailures() {
+    if (!lib || !lib.papers) return;
+    var told = store("told") || {}, fresh = [], first = !store("toldInit");
+    lib.papers.forEach(function (x) {
+      var k = keyOf(x), mark = x.converted || x.added || "";
+      if (x.status !== "failed" || told[k] === mark) return;
+      told[k] = mark;
+      if (!first) fresh.push(x);
+    });
+    store("told", told);
+    store("toldInit", true);
+    fresh.forEach(function (x, i) {
+      setTimeout(function () {
+        toast("Could not convert <em>" + esc(x.title || keyOf(x)) + "</em>: " + esc(x.error || "the converter failed") + ".", 9000);
+      }, i * 9500);
+    });
+  }
   function renderLibrary() {
     var box = pane("app:library");
     var before = measureLibrary() || libTops;
@@ -954,8 +977,9 @@
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
         "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
-        '<p class="app-confirm" hidden><span class="app-confirm-q">Remove it from the library?</span><button type="button" class="app-pill app-danger" data-remove-yes="' + esc(k) + '">Remove</button>' +
-        '<button type="button" class="app-pill" data-remove-no>Keep</button></p></li>';
+        '<div class="app-confirm" aria-hidden="true"><div class="app-confirm-in"><span class="app-confirm-q">Remove it from the library?</span>' +
+        '<span class="app-confirm-acts"><button type="button" class="app-pill" data-remove-no tabindex="-1">Keep</button>' +
+        '<button type="button" class="app-pill app-danger" data-remove-yes="' + esc(k) + '" tabindex="-1">Remove</button></span></div></div></li>';
     }
     var pinnedRows = papers.filter(function (x) { return isPinned(keyOf(x)); }).map(row).join("");
     var items = papers.filter(function (x) { return !isPinned(keyOf(x)); }).map(row).join("");
@@ -983,8 +1007,7 @@
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
       b.addEventListener("click", function () {
-        var c = b.closest("li").querySelector(".app-confirm");
-        c.hidden = !c.hidden;
+        confirmOpen(b.closest("li").querySelector(".app-confirm"), !b.closest("li").querySelector(".app-confirm").classList.contains("open"));
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-offline]"), function (b) {
@@ -1002,7 +1025,7 @@
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove-no]"), function (b) {
-      b.addEventListener("click", function () { b.closest(".app-confirm").hidden = true; });
+      b.addEventListener("click", function () { confirmOpen(b.closest(".app-confirm"), false); });
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-remove-yes]"), function (b) {
       b.addEventListener("click", function () { removePaper(b.getAttribute("data-remove-yes"), b); });
@@ -1471,6 +1494,7 @@
   var LISTS = ["library.json", "feed.json", "config.json"], listText = [null, null, null];
   function useLists(t) {
     lib = t[0] ? JSON.parse(t[0]) : {papers: []};
+    setTimeout(tellFailures, 800);
     feed = t[1] ? JSON.parse(t[1]) : null;
     config = t[2] ? JSON.parse(t[2]) : null;
     listText = t;

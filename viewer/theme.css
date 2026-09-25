@@ -1333,3 +1333,35 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .lib-rows .app-lib-row > .bar-btn + .bar-btn { margin-left: -5px; }
 .l2m-bar:not(.app-bar) .bar-inner > .bar-btn:not(.swap) + .bar-btn:not(.swap) { margin-left: -5px; }
 .app-logo[role="button"] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* 2. the gear turns a sixth of a turn as its panel opens */
+#app-gear[aria-expanded="true"] svg { transform: rotate(60deg); }
+/* 3. the font field as wide as the other settings' controls */
+.font-pick { margin: 2px 6px 6px; }
+/* 4. removing a paper: a small tinted card that unfolds under the row (and folds away), Keep and Remove as pills */
+.lib-rows .app-confirm, .app-confirm {
+  display: grid; grid-template-rows: 0fr; opacity: 0; margin: 0; font-size: 0.92em; color: var(--ink);
+  transition: grid-template-rows 280ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease, margin-top 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lib-rows .app-confirm.open, .app-confirm.open { grid-template-rows: 1fr; opacity: 1; margin-top: 0.7rem;
+  transition: grid-template-rows 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease 60ms, margin-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.app-confirm-in {
+  min-height: 0; overflow: hidden; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px;
+  border-radius: 12px; background: var(--bar-hover); padding: 0 12px;
+  transition: padding 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.app-confirm.open .app-confirm-in { padding: 10px 10px 10px 14px; }
+.app-confirm-q { flex: 1 1 auto; font-family: var(--ui); }
+.app-confirm-acts { display: flex; gap: 8px; margin-left: auto; }
+.app-confirm .app-pill { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
+.app-confirm .app-pill.app-danger { background: var(--danger-bg); box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .app-confirm, .app-confirm-in { transition: none; } }
+
+/* 6. wider screens: the bars, panels, sheets and messages are as wide as the page, centred; the corners that meet
+   the page are rounded as a panel's are */
+@media (min-width: 800px) {
+  .l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast { left: calc((100% - 46rem) / 2); right: calc((100% - 46rem) / 2); }
+  .l2m-bar { border-radius: 0 0 16px 16px; }
+  .l2m-menu { border-radius: 0 0 16px 16px; }
+  .l2m-fnsheet, .app-toast { border-radius: 16px 16px 0 0; }
+}
