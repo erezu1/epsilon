@@ -414,7 +414,7 @@
         if (changed && isPage(current)) refresh();
         if (!Object.keys(p).length && !Object.keys(r).length) { clearInterval(watching); watching = null; }
       }).catch(function () {});
-    }, 20000);
+    }, 8000);                               // (only while a conversion or a removal is pending)
   }
 
   // ---------------------------------------------------------------- the app's own pages
