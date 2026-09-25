@@ -1599,11 +1599,11 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
    reaches the line) and toward the bar's top */
 .app-bar .bar-inner { position: relative; }
 .app-bar .bar-inner > .swap-ind { bottom: 5px; }
-.app-tabswap {
+.app-bar.flapping .app-tabswap {
   -webkit-mask-image: linear-gradient(to bottom, transparent 4px, #000 26px, #000 49px, transparent 56px) !important;
   mask-image: linear-gradient(to bottom, transparent 4px, #000 26px, #000 49px, transparent 56px) !important;
 }
-.app-lead {
+.app-bar.flapping .app-lead {
   -webkit-mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
   mask-image: linear-gradient(to bottom, transparent 2px, #000 22px, #000 47px, transparent 54px) !important;
 }
@@ -1651,11 +1651,11 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 @media (prefers-reduced-motion: reduce) { .app-pull.spinning > span { animation-duration: 2.4s; } }
 /* the flip's two soft edges mirror each other about the tabs' text (19-43px in the bar): each 5px, ending at the
    text's top and bottom (the bottom one at the underline) */
-.app-tabswap {
+.app-bar.flapping .app-tabswap {
   -webkit-mask-image: linear-gradient(to bottom, transparent 22px, #000 27px, #000 51px, transparent 56px) !important;
   mask-image: linear-gradient(to bottom, transparent 22px, #000 27px, #000 51px, transparent 56px) !important;
 }
-.app-lead {
+.app-bar.flapping .app-lead {
   -webkit-mask-image: linear-gradient(to bottom, transparent 18px, #000 23px, #000 47px, transparent 52px) !important;
   mask-image: linear-gradient(to bottom, transparent 18px, #000 23px, #000 47px, transparent 52px) !important;
 }
@@ -1760,3 +1760,10 @@ html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; ov
 
 /* buttons side by side in the settings (Connect, Forget the token): as close as a confirmation's */
 .app-settings .app-row { gap: 8px; }
+
+/* the tabs' underline goes and comes with the tabs: gone at once as the search field takes the bar, back with them
+   (the same slide and fade) as it leaves */
+.app-bar.searching .swap-ind { display: none; }
+@keyframes l2m-ind-in { from { opacity: 0; translate: -12px 0; } to { opacity: 1; translate: none; } }
+.app-bar.search-out .swap-ind { animation: l2m-ind-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) { .app-bar.search-out .swap-ind { animation: none; } }
