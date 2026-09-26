@@ -7,8 +7,12 @@
 var SHELL = "l2m-shell-v8";
 var PAGE = "./";
 var RELEASED = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js"];   // name?v=release
-var OTHERS = ["manifest.webmanifest", "icon-192.png", "apple-touch-icon.png", "favicon.png", "film.webp"];
+var OTHERS = ["offline.html", "manifest.webmanifest", "icon-192.png", "apple-touch-icon.png", "favicon.png", "film.webp"];
 var FILES = [PAGE, "index.html"].concat(RELEASED, OTHERS);
+// what a page asked for offline, with no copy of it, shows instead of the browser's error
+function offlinePage() {
+  return caches.open(SHELL).then(function (c) { return c.match("offline.html"); }).then(function (r) { return r || Response.error(); });
+}
 function releaseOf(html) { return (/app\.js\?v=([\w.-]+)/.exec(html || "") || [])[1] || ""; }
 // The fonts' files (fonts/, named by their content, so never changed) are kept in a cache of their own, across releases:
 // the ones the app opens in (the reading font and the bar's, Latin letters) and the font list's names from the start,
@@ -97,10 +101,14 @@ self.addEventListener("fetch", function (e) {
   var page = url.pathname === scope || url.pathname === scope + "index.html";
   if (page && e.request.mode !== "navigate") return;       // (the app looking for a new release: the network's answer, kept nowhere)
   var shell = page || FILES.some(function (f) { return new URL(f, self.registration.scope).pathname === url.pathname; });
-  if (!shell) return;                                       // papers and lists: app.js decides
+  if (!shell) {                                             // papers and lists: app.js decides
+    if (e.request.mode === "navigate") e.respondWith(fetch(e.request).catch(offlinePage));   // (another page of the site)
+    return;
+  }
   var saved = caches.open(SHELL);
   if (page) {
-    // the page: the network, not the browser's cache, saved as the page; the saved one if the network is slow or away
+    // the page: the network, not the browser's cache, saved as the page; the saved one if the network is slow, away
+    // or failing (and with none saved, the offline page)
     var keeping = Promise.resolve();
     var net = fetch(new Request(url.href, {cache: "no-cache", credentials: "same-origin"})).then(function (r) {
       if (r.ok) { var copy = r.clone(); keeping = saved.then(function (c) { return c.put(PAGE, copy); }); }
@@ -112,9 +120,12 @@ self.addEventListener("fetch", function (e) {
       function give(r) { if (!done && r) { done = true; resolve(r); } }
       function fallback() { return saved.then(function (c) { return c.match(PAGE); }); }
       var timer = setTimeout(function () { fallback().then(give); }, 2500);
-      net.then(function (r) { clearTimeout(timer); give(r); }, function () {
+      net.then(function (r) {
         clearTimeout(timer);
-        fallback().then(function (r) { give(r || Response.error()); });
+        if (r.ok) give(r); else fallback().then(function (s) { give(s || r); });
+      }, function () {
+        clearTimeout(timer);
+        fallback().then(function (r) { return r || offlinePage(); }).then(give);
       });
     }));
     return;

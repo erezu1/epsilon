@@ -1,0 +1,85 @@
+<!doctype html>
+<!-- Epsilon: what the service worker shows when a page of the app is asked for offline and it has no copy of it
+     (instead of the browser's own error). Self-contained: its look is inline, with the app's colours and the reader's
+     appearance and tone; it opens the page by itself when the network is back. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>Epsilon</title>
+<meta name="theme-color" content="#fafbfc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121417" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="fonts/fonts.css">
+<script>
+  (function () {
+    try {
+      var p = JSON.parse(localStorage.getItem("l2m-prefs") || "{}") || {}, r = document.documentElement;
+      if (p.theme === "light" || p.theme === "dark") r.setAttribute("data-theme", p.theme);
+      if (p.tone === "paper") r.setAttribute("data-tone", "paper");
+    } catch (e) {}
+    addEventListener("online", function () { location.reload(); });
+  })();
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #fafbfc; --ink: #16191d; --muted: #5a636e; --link: #1d5b98;
+    --pill: rgba(29, 91, 152, 0.10); --pill-on: rgba(29, 91, 152, 0.14);
+    --serif: "Newsreader", "Georgia", serif;
+    --ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #121417; --ink: #e3e6ea; --muted: #9ba4af; --link: #8db9ea;
+      --pill: rgba(141, 185, 234, 0.12); --pill-on: rgba(141, 185, 234, 0.18);
+    }
+    :root[data-tone="paper"]:not([data-theme="light"]) {
+      --ground: #1e1a15; --ink: #e9dfcf; --muted: #a99b86; --link: #e0b07a;
+      --pill: rgba(224, 176, 122, 0.10); --pill-on: rgba(224, 176, 122, 0.17);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #121417; --ink: #e3e6ea; --muted: #9ba4af; --link: #8db9ea;
+    --pill: rgba(141, 185, 234, 0.12); --pill-on: rgba(141, 185, 234, 0.18);
+  }
+  :root[data-tone="paper"] {
+    --ground: #f5efe3; --ink: #2b241d; --muted: #6f6353; --link: #8a4f1c;
+    --pill: rgba(138, 79, 28, 0.09); --pill-on: rgba(138, 79, 28, 0.15);
+  }
+  :root[data-tone="paper"][data-theme="dark"] {
+    --ground: #1e1a15; --ink: #e9dfcf; --muted: #a99b86; --link: #e0b07a;
+    --pill: rgba(224, 176, 122, 0.10); --pill-on: rgba(224, 176, 122, 0.17);
+  }
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink); font-family: var(--ui);
+    display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+    padding: calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  }
+  main { max-width: 22rem; text-align: center; }
+  svg { display: block; margin: 0 auto 22px; color: var(--ink); }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 28px; line-height: 1.2; margin: 0 0 10px; }
+  p { color: var(--muted); font-size: 16px; line-height: 1.5; margin: 0 0 24px; }
+  button {
+    border: 0; border-radius: 999px; padding: 9px 20px; background: var(--pill); color: var(--ink);
+    font: 600 15px/1.25 var(--ui); cursor: pointer; transition: background-color 150ms ease;
+  }
+  @media (hover: hover) { button:hover { background: var(--pill-on); } }
+  button:focus:not(:focus-visible) { outline: none; }
+  button:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <svg viewBox="119 117 290 290" width="56" height="56" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h1>You&rsquo;re offline</h1>
+  <p>This page isn&rsquo;t saved on this device yet, so it needs the network to open. It opens by itself as soon as you&rsquo;re back online.</p>
+  <button type="button" id="again">Try again</button>
+</main>
+<script>document.getElementById("again").addEventListener("click", function () { location.reload(); });</script>
+</body>
+</html>

@@ -283,38 +283,79 @@
       b.innerHTML = busy ? SPIN : on ? I.offlineDone || "&#10003;" : I.offline || "&darr;";
     });
   }
+  var noRoom = {};                                  // papers whose new version could not be written this session: {key: version}
   function refreshOffline(entry, soon) {
     var key = keyOf(entry);
-    if (updating[key] || !staleOffline(entry)) return;
+    if (updating[key] || !staleOffline(entry) || noRoom[key] === entry.converted) return;
     updating[key] = true;
     paintOffline(key);
     setTimeout(function () {                       // (opened: after the paper has come in)
-      keepOffline(entry, true).then(function () { delete updating[key]; paintOffline(key); },
-                                    function () { delete updating[key]; paintOffline(key); });
+      keepOffline(entry, true).then(function () { delete updating[key]; paintOffline(key); }, function (e) {
+        delete updating[key];
+        paintOffline(key);
+        if (!e.full && !e.write) return;           // (no network: tried again with the next look at the library)
+        noRoom[key] = entry.converted;
+        toast("The new version of <em>" + esc(entry.title) + "</em> could not be saved offline: " + esc(e.message) + ". " +
+              (isOffline(key) ? "The copy on it is the earlier version." : "Its offline copy is removed" + (e.full ? "; free some space and save it again." : ".")), 9000);
+        if (isPage(current)) renderLibrary();
+      });
     }, soon ? 0 : 1500);
+  }
+  function noSpace(e) {                             // the error of a write that found no room
+    var x = new Error("this device is out of storage space");
+    x.full = !e || e.name === "QuotaExceededError" || /quota|space|storage/i.test(e.message || "");
+    if (!x.full) x.message = "this device would not store it (" + (e.message || e.name || e) + ")";
+    return x;
+  }
+  function roomFor(bytes) {                         // room for BYTES more on the device (as far as the browser can tell)
+    if (!navigator.storage || !navigator.storage.estimate) return Promise.resolve();
+    return navigator.storage.estimate().then(function (s) {
+      if (s && s.quota && s.usage != null && s.quota - s.usage < bytes * 1.2 + 1e6) throw noSpace();
+    }, function () {});
+  }
+  function dropCopy(base, but) {                    // the saved files of a paper (but those named in BUT)
+    return cacheOpen().then(function (c) {
+      return c.keys().then(function (ks) {
+        return Promise.all(ks.filter(function (k) { return k.url.indexOf(cacheKey(base + "/")) === 0 && !(but && but[k.url]); })
+                             .map(function (k) { return c.delete(k); }));
+      });
+    });
   }
   function keepOffline(entry, on) {
     var key = keyOf(entry), base = entry.path || "papers/" + key, set = offlineSet();
-    if (!on) {
-      return cacheOpen().then(function (c) {
-        return c.keys().then(function (ks) {
-          return Promise.all(ks.filter(function (k) { return k.url.indexOf(cacheKey(base + "/")) === 0; }).map(function (k) { return c.delete(k); }));
-        });
-      }).then(function () { delete set[key]; store("offline", set); });
+    if (!on) return dropCopy(base).then(function () { delete set[key]; store("offline", set); });
+    // everything downloaded first, then written: a dropped connection leaves nothing half saved (and a saved copy being
+    // brought up to date stays whole); the room is checked before writing, and should a write fail anyway (the device
+    // full), no copy is left that looks saved (half of it would be the new version)
+    var files = {};
+    function grab(name, optional) {
+      return src.blob(base + "/" + name).then(function (b) { files[name] = b; }, function (e) { if (!optional) throw e; });
     }
-    var bytes = 0;
-    function grab(name) {
-      return src.blob(base + "/" + name).then(function (b) { bytes += b.size; return remember(base + "/" + name, b).then(function () { return b; }); });
-    }
-    return grab("paper.json").then(function (b) { return b.text(); }).then(function (t) {
+    return grab("paper.json").then(function () { return files["paper.json"].text(); }).then(function (t) {
       var names = {};
       t.replace(/src=\\?"images\/([^"\\]+)\\?"/g, function (m, n) { names[n] = 1; });
-      return Promise.all([grab("math.json").catch(function () {})].concat(Object.keys(names).map(function (n) { return grab("images/" + n); })));
+      return Promise.all([grab("math.json", true)].concat(Object.keys(names).map(function (n) { return grab("images/" + n); })));
     }).then(function () {
-      set = offlineSet();
-      set[key] = {bytes: bytes, saved: new Date().toISOString(), ver: entry.converted || ""};
-      store("offline", set);
-      if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+      var bytes = 0, names = Object.keys(files), keys = {}, had = (offlineSet()[key] || {}).bytes || 0;
+      names.forEach(function (n) { bytes += files[n].size; keys[cacheKey(base + "/" + n)] = 1; });
+      return roomFor(Math.max(0, bytes - had)).then(function () {        // (a copy brought up to date: written over)
+        return cacheOpen().then(function (c) {
+          return Promise.all(names.map(function (n) { return c.put(cacheKey(base + "/" + n), new Response(files[n])); }));
+        }).then(function () {
+          set = offlineSet();
+          set[key] = {bytes: bytes, saved: new Date().toISOString(), ver: entry.converted || ""};
+          store("offline", set);
+          if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
+          return dropCopy(base, keys).catch(function () {});        // (files of the earlier version no longer used)
+        }, function (e) {
+          return dropCopy(base).catch(function () {}).then(function () {
+            set = offlineSet(); delete set[key]; store("offline", set);
+            var x = noSpace(e);
+            x.write = true;
+            throw x;
+          });
+        });
+      });
     });
   }
 
@@ -1258,7 +1299,10 @@
         b.innerHTML = SPIN;
         keepOffline(entry, on).then(function () {
           toast(on ? "Saved <em>" + esc(entry.title) + "</em> for reading offline." : "The offline copy is removed.");
-        }, function (e) { toast("Could not save it: " + esc(e.message), 7000); }).then(function () {
+        }, function (e) {
+          toast("Could not save <em>" + esc(entry.title) + "</em> for reading offline: " + (e.full ? "this device is out of storage space. Free some space and try again." :
+                navigator.onLine === false || e instanceof TypeError ? "you are offline." : esc(e.message) + "."), 9000);
+        }).then(function () {
           if (isPage(current)) renderLibrary();
         });
       });

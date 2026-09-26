@@ -161,7 +161,7 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `epsilon_render.py` | packs one document and the viewer into a single `.html` |
 | `epsilon_viewer.py` | builds and serves a site of documents with a library |
 | `epsilon_library.py` | manages the private library: arXiv papers, drafts, the feed |
-| `viewer/app.js`, `viewer/sw.js`, `viewer/manifest.webmanifest` | the reading app: library, new papers, settings, offline copies |
+| `viewer/app.js`, `viewer/sw.js`, `viewer/manifest.webmanifest`, `viewer/offline.html` | the reading app: library, new papers, settings, offline copies (and the page shown offline when the app is not saved) |
 | `viewer/theme.json`, `viewer/theme.css` | the theme |
 | `viewer/fonts/`, `tools/get_fonts.py` | the fonts (from Google Fonts, SIL Open Font License), served by the app and put inside one-file pages; the tool fetches them again |
 | `viewer/viewer.js` | draws a document: bar, contents, settings, footnote sheet, figure viewer, formulas |
