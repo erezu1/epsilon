@@ -44,7 +44,7 @@
     t.l2mTimer = setTimeout(function () { t.classList.remove("on"); if (window.L2M_pinFilm) L2M_pinFilm(t, 400); }, ms || 4000);
   }
   // a message that asks: the question, and two pills (the answer one first); it stays until answered
-  function ask(html, yes, onYes) {
+  function ask(html, yes, onYes, onNo) {
     toast('<span class="app-ask"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
           '<button type="button" class="app-pill" data-ask="no">Not now</button>' +
           '<button type="button" class="app-pill app-ask-yes" data-ask="yes">' + yes + "</button></span></span>", 600000);
@@ -56,7 +56,7 @@
       clearTimeout(t.l2mTimer);
       t.classList.remove("on");
       if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
-      if (b.getAttribute("data-ask") === "yes") onYes();
+      if (b.getAttribute("data-ask") === "yes") onYes(); else if (onNo) onNo();
     };
   }
   // copying from the lists: their formulas as LaTeX ($...$), as in a paper
@@ -1417,9 +1417,9 @@
   // ---------------------------------------------------------------- the app itself kept up to date
   // An installed app can stay open for days. With every refresh of the lists, the app's page is looked at too (a
   // "not modified" when nothing changed); a newer release is fetched in the background (so it starts at once, even
-  // offline) and taken on at a moment that disturbs nothing: when the app is left (hidden), or at once when the
-  // reader asks for a refresh (the pull, the ε). Never with a panel, a search, the second view or a field open.
-  var appNext = null, appChecked = 0, appFetching = false;
+  // offline), and the reader is asked, in the lists (never while reading a paper; if one is open, when the lists come
+  // back), whether to take it on now. "Not now": not asked again for that release (the next start brings it anyway).
+  var appNext = null, appChecked = 0, appFetching = false, appAsked = null;
   var APP_FILES = ["theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js"];
   function checkApp() {
     if (!REL || appNext || appFetching || Date.now() - appChecked < 60000 || navigator.onLine === false) return;
@@ -1431,25 +1431,16 @@
       var next = m[1];
       return Promise.all(APP_FILES.map(function (f) {
         return fetch(f + "?v=" + next).then(function (r) { if (!r.ok) throw new Error(f); return r.blob(); });
-      })).then(function () { appNext = next; });
+      })).then(function () { appNext = next; offerApp(); });
     }).catch(function () {}).then(function () { appFetching = false; });
   }
-  function appSafe() {
-    var a = document.activeElement;
-    return !document.querySelector(".l2m-menu.open, .l2m-peek.open, .l2m-bar.finding, .app-bar.searching, .l2m-fnsheet.open, " +
-                                   '.l2m-viewer[aria-hidden="false"], .app-confirm.open, .app-toast.on') &&
-      !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  function offerApp() {
+    if (!appNext || appAsked === appNext || !isPage(current) || panelOpen) return;
+    if (document.querySelector(".app-toast.on, .app-bar.searching")) { setTimeout(offerApp, 5000); return; }   // (after what shows)
+    appAsked = appNext;
+    ask("A new version of Epsilon is ready.", "Update", function () { savePlace(current, true); location.reload(); });
   }
-  function applyApp() {
-    if (!appNext || !appSafe()) return false;
-    location.reload();
-    return true;
-  }
-  document.addEventListener("visibilitychange", function () {   // (after the place is saved, by the listener above)
-    if (document.visibilityState === "hidden") applyApp();
-  });
   function refreshLists() {                  // the lists and reading places fetched afresh (redrawn if they changed)
-    if (applyApp()) return Promise.resolve();  // asked for a refresh, a new release ready: it is taken on now
     if (!src) return Promise.resolve();
     var pe = main.querySelector('[data-pane="app:library"]'), bar = pe && pe.querySelector(".lib-refresh");
     if (pe && !bar) {
@@ -1645,6 +1636,7 @@
   }
   function showNow(k, save, slideIn) {
     var was = current;
+    if (isPage(k) && appNext) setTimeout(offerApp, 700);   // (a new release that came while reading: offered now)
     root.classList.remove("l2m-skel-page");
     // leaving the library for a paper: where its rows sit, taken before anything changes the page's layout (the
     // lists' own width goes with l2m-app-lists), for the slide on the way back
