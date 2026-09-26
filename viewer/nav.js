@@ -638,7 +638,7 @@ window.L2M_nav = function (opts) {
   });
   on(document, "pointerup", function () { if (fullArmed) fullEnter(); });
   fullArmed = true;
-  fullEnter();
+  setTimeout(fullEnter, 480);         // after the page's transition in (a size change midway would cut it short)
 
   // ---------------------------------------------------------------- reading settings
   var FONTS = {};
