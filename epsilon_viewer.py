@@ -86,11 +86,15 @@ def build(a):
     if a.artifact:
         for f in FILES + ["site.js"]:
             (site / f).unlink(missing_ok=True)
+        shutil.rmtree(site / "fonts", ignore_errors=True)
         (site / "index.html").write_text(artifact_page(lib["name"], viewer))
     else:
         (site / "site.js").unlink(missing_ok=True)
         for f in FILES:
             shutil.copy(viewer / f, site / f)
+        shutil.rmtree(site / "fonts", ignore_errors=True)       # the fonts, served by the site itself
+        if (viewer / "fonts").is_dir():
+            shutil.copytree(viewer / "fonts", site / "fonts")
         index = (site / "index.html").read_text().replace("<title>Papers</title>", "<title>%s</title>" % html.escape(lib["name"]))
         (site / "index.html").write_text(index)
     if not a.quiet:

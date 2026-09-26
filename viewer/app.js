@@ -1420,7 +1420,7 @@
   // offline), and the reader is asked, in the lists (never while reading a paper; if one is open, when the lists come
   // back), whether to take it on now. "Not now": not asked again for that release (the next start brings it anyway).
   var appNext = null, appChecked = 0, appFetching = false, appAsked = null;
-  var APP_FILES = ["theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js"];
+  var APP_FILES = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js"];
   function checkApp() {
     if (!REL || appNext || appFetching || Date.now() - appChecked < 60000 || navigator.onLine === false) return;
     appChecked = Date.now();
@@ -2007,5 +2007,10 @@
   });
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
     navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
+  // installed on the home screen: the app's storage (papers kept offline, the app itself) asked to be kept, not
+  // cleared when the device runs short or the app goes unused for a while (granted to installed apps without asking)
+  if ((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone) {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
   }
 })();

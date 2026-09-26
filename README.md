@@ -54,7 +54,7 @@ This writes the document folder `path/to/paper.l2m/` (see [DOCUMENT.md](DOCUMENT
 python3 epsilon_render.py path/to/paper.l2m -o paper.html
 ```
 
-packs it with the viewer into one file that works offline. The fonts go inside too (the default reading font, the bar's font and the font list's names, about 0.4 MB, downloaded once from Google Fonts and kept in `~/.cache/epsilon/fonts`); only a font the reader switches to is fetched when chosen. `--html paper.html` on the first command does both at once. Options of `epsilon_convert.py`:
+packs it with the viewer into one file that works offline. The fonts go inside too, from `viewer/fonts/` (the default reading font, the bar's font and the font list's names, about 0.4 MB); only a font the reader switches to is fetched, from Google Fonts, when chosen. `--html paper.html` on the first command does both at once. Options of `epsilon_convert.py`:
 
 | option | effect |
 | --- | --- |
@@ -83,7 +83,7 @@ python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kic
 | --- | --- |
 | `bar` | the reading bar's buttons, in order: `back`, `title` (the section title and contents button), `top`, `settings`, `library` |
 | `titleblock` | what sits by the title: `settings` (the settings button), `library` (an "All papers" link, on a site) |
-| `fonts` | the fonts to choose from: `key`, `name`, `note`, the CSS `stack`, and the Google Fonts `css` family string |
+| `fonts` | the fonts to choose from: `key`, `name`, `note`, the CSS `stack`, and the Google Fonts `css` family string (after a change, `python3 tools/get_fonts.py` fetches them into `viewer/fonts/`, which the app serves itself) |
 | `sizes`, `appearance`, `tones` | the other settings and their labels |
 | `defaults` | what a new reader starts with |
 | `icons` | the SVG icons |
@@ -163,6 +163,7 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `epsilon_library.py` | manages the private library: arXiv papers, drafts, the feed |
 | `viewer/app.js`, `viewer/sw.js`, `viewer/manifest.webmanifest` | the reading app: library, new papers, settings, offline copies |
 | `viewer/theme.json`, `viewer/theme.css` | the theme |
+| `viewer/fonts/`, `tools/get_fonts.py` | the fonts (from Google Fonts, SIL Open Font License), served by the app and put inside one-file pages; the tool fetches them again |
 | `viewer/viewer.js` | draws a document: bar, contents, settings, footnote sheet, figure viewer, formulas |
 | `viewer/nav.js` | runs an open paper: history-aware links, panels, figure zoom |
 | `viewer/prefs.js` | applies the reader's saved choices before the page is drawn |

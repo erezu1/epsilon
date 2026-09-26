@@ -18,9 +18,11 @@
   var FONTS = {}, DEF = {};
 
   var INLINE = window.L2M_FONTS_INLINE || null;       // (a one-file page carrying its fonts)
+  // the app declares all its fonts itself, from its own fonts/ (fonts.css): nothing to fetch from Google Fonts
+  function own() { return !!document.getElementById("l2m-fonts"); }
   function load(key) {
     var f = FONTS[key];
-    if (!f || !f.css || (INLINE && INLINE.keys.indexOf(key) >= 0)) return;
+    if (!f || !f.css || own() || (INLINE && INLINE.keys.indexOf(key) >= 0)) return;
     var id = "l2m-font-" + key;
     if (document.getElementById(id)) return;
     var l = document.createElement("link");
@@ -36,6 +38,7 @@
   var previews = INLINE && INLINE.previews ? 2 : 0;       // 0 not asked, 1 coming, 2 in, -1 not to be had
   window.L2M_previewFonts = function () {
     if (previews) return;
+    if (own()) { previews = 2; return; }
     var keys = Object.keys(FONTS).filter(function (k) { return FONTS[k].css; });
     if (!keys.length || !window.FontFace || !document.fonts || !window.fetch) { previews = -1; return; }
     previews = 1;
@@ -54,7 +57,7 @@
       previews = 2;
     }, function () { previews = -1; });
   };
-  window.L2M_previewReady = function () { return previews === 2; };
+  window.L2M_previewReady = function () { return previews === 2 || own(); };
   window.L2M_previewStack = function (key) { return FONTS[key] ? '"l2m-pv-' + key + '", ' + FONTS[key].stack : ""; };
   window.addEventListener("load", function () {
     setTimeout(function () { (window.requestIdleCallback || setTimeout)(function () { window.L2M_previewFonts(); }); }, 3000);
@@ -136,7 +139,7 @@
     (theme.fonts || []).forEach(function (f) { FONTS[f.key] = f; });
     DEF = theme.defaults || {};
     if (DEF.font) load(DEF.font);
-    if (theme.uiFont && !(INLINE && INLINE.ui) && !document.getElementById("l2m-font-ui")) {      // the font of the bar, panels and app lists
+    if (theme.uiFont && !(INLINE && INLINE.ui) && !own() && !document.getElementById("l2m-font-ui")) {      // the font of the bar, panels and app lists
       var l = document.createElement("link");
       l.id = "l2m-font-ui";
       l.rel = "stylesheet";
