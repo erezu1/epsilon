@@ -2,7 +2,7 @@
 // The page asks for its files by release (name?v=release): those never change, so the saved copy answers at
 // once. The page itself is asked of the network first (a new release shows at once), with the saved copy
 // after a short wait on a slow network, or offline.
-var SHELL = "l2m-shell-v6";
+var SHELL = "l2m-shell-v7";
 var FILES = ["./", "index.html", "theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js",
              "manifest.webmanifest", "icon-192.png", "apple-touch-icon.png", "favicon.png", "film.webp"];
 self.addEventListener("install", function (e) {
@@ -37,12 +37,14 @@ self.addEventListener("fetch", function (e) {
   if (url.searchParams.has("v") || /\.(png|webp)$/.test(url.pathname)) {
     // a release's file (or an image): the saved copy, else the network (and saved for next time)
     e.respondWith(caches.match(e.request).then(function (hit) {
+      // a release's file never changes: a saved one is not asked for again (images do refresh, in the background)
+      if (hit && url.searchParams.has("v")) return hit;
       var net = fetch(e.request).then(function (r) {
         if (r.ok && url.searchParams.has("v")) dropOtherReleases(url);
         return save(e.request, r);
       });
-      if (hit && /\.(png|webp)$/.test(url.pathname)) net.catch(function () {});   // icons refresh in the background
-      return hit || net;
+      if (hit) { net.catch(function () {}); return hit; }
+      return net;
     }));
     return;
   }

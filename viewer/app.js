@@ -157,7 +157,9 @@
       opts = opts || {};
       opts.headers = Object.assign({"Authorization": "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28",
                                     "Accept": "application/vnd.github+json"}, opts.headers || {});
-      opts.cache = "no-store";
+      // reading: always checked with GitHub, but an unchanged file is not sent again (it answers "not modified", and the
+      // copy the browser keeps is used; such answers do not count against GitHub's limit); writing: never kept
+      opts.cache = opts.method && opts.method !== "GET" ? "no-store" : "no-cache";
       return fetch(api + path, opts).then(function (r) {
         if (!r.ok) {
           var why = r.status === 401 ? "the token was not accepted" : r.status === 404 ? "not found (check the repo name and the token's access)" :
@@ -842,6 +844,7 @@
       var t = e.target.closest("[data-font-toggle]");
       if (t) {
         var pick = t.closest(".font-pick"), on = !pick.classList.contains("open");
+        if (on && window.L2M_loadFont) (theme.fonts || []).forEach(function (f) { L2M_loadFont(f.key); });   // (the names in their own faces)
         pick.classList.toggle("open", on);
         t.setAttribute("aria-expanded", on ? "true" : "false");
         requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
@@ -988,8 +991,11 @@
   // abstracts: the first lines, fading out; "More" (or a tap on the text) slides the rest open
   var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function foldAbstracts(box) {
-    Array.prototype.forEach.call(box.querySelectorAll(".app-abs"), function (p) {
-      if (p.scrollHeight <= p.clientHeight + 2) { p.classList.add("short"); return; }
+    // which abstracts run past their first lines: all measured first (one layout), then the buttons put in
+    var ps = Array.prototype.slice.call(box.querySelectorAll(".app-abs"));
+    var long = ps.map(function (p) { return p.scrollHeight > p.clientHeight + 2; });
+    ps.forEach(function (p, i) {
+      if (!long[i]) { p.classList.add("short"); return; }
       var b = document.createElement("button");
       b.type = "button";
       b.className = "app-toggle";
@@ -1032,6 +1038,10 @@
         return '<section class="app-pane" data-pane="' + k + '"><div class="app-pane-in"></div></section>';
       }).join("") + "</div>";
       t = main.querySelector(".app-track");
+      // the lists' own gestures (the swipe between them, the pull to refresh) may hold a touch's scrolling, so they are
+      // heard here, on the lists alone: a paper's scrolling is never kept waiting for them
+      t.addEventListener("touchmove", swipeMove, {passive: false});
+      t.addEventListener("touchmove", pullMove, {passive: false});
     }
     return t;
   }
@@ -1513,6 +1523,8 @@
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
     skelBar();
     main.innerHTML = skelPaper();
+    root.classList.add("l2m-skel-page");      // (the stand-ins fill the screen exactly; a class, not :has(), which
+                                              //  would have the whole page restyled at every change in it)
     var docP = paperFile(key, entry, "paper.json").then(function (b) { return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
     docP.then(function (doc) {
@@ -1527,6 +1539,7 @@
           if (ins) actions.push({label: "INSPIRE", href: ins});
         }
         dropSkelBar();                        // the real bar takes its place in the same frame
+        root.classList.remove("l2m-skel-page");
         view = L2M_open({doc: doc, theme: Object.assign({}, theme, {titleblock: []}), cache: cache, key: key, kicker: null,
           base: src.kind === "site" ? (entry.path || "papers/" + key) + "/" : "",
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
@@ -1542,6 +1555,7 @@
         });
       });
     }).catch(function (e) {
+      root.classList.remove("l2m-skel-page");
       buildShell(); setTab("library");
       main.innerHTML = '<p class="app-note">Cannot open this paper: ' + esc(e.message) + "</p>";
     });
@@ -1578,6 +1592,9 @@
     var cross = current !== null && current !== undefined && isPage(current) !== isPage(k);
     var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (cross && document.startViewTransition && !reduced) {
+      // leaving a paper: its second view, closed, goes first (the transition's pictures need not style a copy of the paper)
+      var pk = isPage(k) && document.getElementById("l2m-peek");
+      if (pk && !pk.classList.contains("open")) pk.remove();
       root.classList.add("l2m-vt");
       root.classList.toggle("l2m-vt-back", isPage(k));
       try {
@@ -1591,6 +1608,7 @@
   }
   function showNow(k, save, slideIn) {
     var was = current;
+    root.classList.remove("l2m-skel-page");
     // leaving the library for a paper: where its rows sit, taken before anything changes the page's layout (the
     // lists' own width goes with l2m-app-lists), for the slide on the way back
     if (was === "app:library" && !isPage(k)) libTops = measureLibrary() || libTops;
@@ -1720,7 +1738,7 @@
     sw = {x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dir: null, track: t,
           i: Math.max(0, ORDER.indexOf(current)), w: main.clientWidth};
   }, {passive: true});
-  main.addEventListener("touchmove", function (e) {
+  function swipeMove(e) {
     if (!sw) return;
     var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
     if (!sw.dir && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) sw.dir = Math.abs(dx) > 1.2 * Math.abs(dy) ? "x" : "y";
@@ -1731,7 +1749,7 @@
     sw.track.style.transition = "none";
     sw.track.style.transform = "translateX(" + (-sw.i * sw.w + dx) + "px)";
     pinnedMix(Math.max(0, Math.min(ORDER.length - 1, sw.i - dx / sw.w)));
-  }, {passive: false});
+  }
   function endSwipe(e) {
     if (!sw || sw.dir !== "x") { sw = null; return; }
     var dx = (e && e.changedTouches ? e.changedTouches[0].clientX : sw.x) - sw.x, fast = Date.now() - sw.t < 300;
@@ -1797,7 +1815,7 @@
     if (pullChip().classList.contains("spinning")) return;
     pull = {y: e.touches[0].clientY, x: e.touches[0].clientX, pane: pe, d: 0, on: false};
   }, {passive: true});
-  main.addEventListener("touchmove", function (e) {
+  function pullMove(e) {
     if (!pull) return;
     var dy = e.touches[0].clientY - pull.y, dx = e.touches[0].clientX - pull.x;
     if (!pull.on) {
@@ -1807,7 +1825,7 @@
     e.preventDefault();
     pull.d = Math.max(0, dy * 0.55);           // it gives, then resists
     pullShow(pull.d, true);
-  }, {passive: false});
+  }
   function pullEnd() {
     if (!pull || !pull.on) { pull = null; return; }
     var p0 = pull; pull = null;

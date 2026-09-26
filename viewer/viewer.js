@@ -125,12 +125,113 @@
     // use the drawn formulas only if they were drawn from exactly these formulas
     var svg = cache && cache.format === "l2m-math" && m.key && cache.key === m.key &&
       cache.svg && cache.svg.length === m.items.length ? cache.svg : null;
-    function fill(h) {
-      h = mathMarkers(h);
-      return svg ? h.replace(/<l2m-math n="(\d+)"><\/l2m-math>/g, function (x, k) {
-        return svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"');
-      }) : h;
+    // A formula's picture in the running text starts empty, at its exact size (the text is laid out just as it will
+    // be), and is drawn in as it comes near the screen: a paper's formulas are nine elements in ten of its page, and
+    // a page that small is quick to open, restyle and search. Drawing one in moves nothing (its size is set).
+    var inner = [];
+    function drawn(k) { return svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"'); }
+    function shell(k) {
+      var s = svg[+k], a = s.indexOf(">", s.indexOf("<svg")) + 1, b = s.lastIndexOf("</svg>");
+      if (a <= 0 || b - a < 300) return drawn(k);          // (a small one: as it is)
+      inner[+k] = s.slice(a, b);
+      return s.slice(0, a).replace(/^<mjx-container/, '<mjx-container data-n="' + k + '" data-lazy=""') + s.slice(b);
     }
+    function fill(h, lazy) {
+      h = mathMarkers(h);
+      return svg ? h.replace(/<l2m-math n="(\d+)"><\/l2m-math>/g, function (x, k) { return lazy ? shell(k) : drawn(k); }) : h;
+    }
+    var drawnSet = new Set();            // the pictures drawn in (the ones a watch may let go)
+    function drawIn(el) {
+      if (!el.hasAttribute("data-lazy")) return;
+      drawnSet.add(el);
+      var k = +el.getAttribute("data-n"), pic = el.firstElementChild;
+      if (pic && inner[k] != null) pic.innerHTML = inner[k];
+      el.removeAttribute("data-lazy");
+      if (mathApi.onDraw) mathApi.onDraw(el);      // (the search marks what it found in it)
+    }
+    var codeCache = [];
+    function codesOf(k) {                // the glyphs of a formula not drawn yet, in the order its drawing has them
+      if (codeCache[k]) return codeCache[k];
+      var out = [], re = /data-c="([0-9A-F]+)"/g, m;
+      while ((m = re.exec(inner[k] || ""))) out.push(m[1]);
+      return (codeCache[k] = out);
+    }
+    var ios = [], queue = [], pumping = false;
+    // drawn in the browser's idle moments, a few milliseconds at a time (scrolling stays smooth), well before they come
+    // in sight; one already in sight is drawn at once
+    function pump(dl) {
+      pumping = false;
+      var t0 = performance.now(), budget = dl && dl.timeRemaining ? Math.min(4, dl.timeRemaining() - 1) : 4;
+      // never more than a few milliseconds before the next frame
+      while (queue.length && performance.now() - t0 < budget) drawIn(queue.shift());
+      if (queue.length) later();
+    }
+    function later() {
+      if (pumping || closed) return;
+      pumping = true;
+      if (window.requestIdleCallback) requestIdleCallback(pump, {timeout: 150}); else setTimeout(pump, 30);
+    }
+    // Which pictures are near the view: their places on the page, measured once (and again only when the page's layout
+    // changes: an image in, another text size, the window turned), in page order; a scroll looks up the ones within
+    // reach by halving (a few steps, not one test per formula at every frame).
+    var EAGER = ".titleblock, h1, h2, h3, h4, h5, h6, .footnotes, figure, table, .thm-name";
+    function undraw(el) {                // back to its empty picture (far from the view: the page stays small)
+      if (el.hasAttribute("data-lazy")) return;
+      drawnSet.delete(el);
+      var pic = el.firstElementChild;
+      if (pic) pic.textContent = "";
+      el.setAttribute("data-lazy", "");
+      if (mathApi.onUndraw) mathApi.onUndraw(el);
+    }
+    function watch(box, scroller) {       // the pictures in box drawn in within three screens, let go past eight
+      var all = [], tops = [], pos = new Map(), dirty = true, tick = 0;
+      function measure() {
+        all = Array.prototype.filter.call(box.querySelectorAll("mjx-container[data-n]"), function (el) {
+          return inner[+el.getAttribute("data-n")] != null && !el.closest(EAGER);
+        });
+        var base = scroller ? scroller.getBoundingClientRect().top - scroller.scrollTop : -window.pageYOffset;
+        tops = all.map(function (el) { return el.getBoundingClientRect().top - base; });
+        pos = new Map();
+        all.forEach(function (el, i) { pos.set(el, tops[i]); });
+        dirty = false;
+      }
+      function look() {
+        tick = 0;
+        if (closed) return;
+        if (dirty) measure();
+        if (!all.length) return;
+        var y = scroller ? scroller.scrollTop : window.pageYOffset, h = scroller ? scroller.clientHeight : window.innerHeight;
+        var from = y - 3 * h, to = y + 4 * h, lo = 0, hi = tops.length;
+        while (lo < hi) { var mid = (lo + hi) >> 1; if (tops[mid] < from) lo = mid + 1; else hi = mid; }
+        for (var i = lo; i < all.length && tops[i] <= to; i++) {
+          var el = all[i], t = tops[i];
+          if (!el.hasAttribute("data-lazy")) continue;
+          if (t > y - 200 && t < y + h + 200) drawIn(el); else if (queue.indexOf(el) < 0) queue.push(el);
+        }
+        // far away (past eight screens), unless marked by a search: let go
+        drawnSet.forEach(function (el) {
+          var t = pos.get(el);
+          if (t != null && (t < y - 8 * h || t > y + 9 * h) && !el.querySelector(".l2m-find-g")) undraw(el);
+        });
+        if (queue.length) later();
+      }
+      function soon() { if (!tick) tick = requestAnimationFrame(look); }
+      var target = scroller || window;
+      function resized() { dirty = true; soon(); }
+      target.addEventListener("scroll", soon, {passive: true});
+      window.addEventListener("resize", resized);
+      var ro = window.ResizeObserver ? new ResizeObserver(resized) : null;
+      if (ro) ro.observe(box);
+      ios.push({disconnect: function () {
+        target.removeEventListener("scroll", soon); window.removeEventListener("resize", resized);
+        if (ro) ro.disconnect(); if (tick) cancelAnimationFrame(tick);
+      }});
+      soon();
+    }
+    // for the reading view's own use (its second view, its search): draw one, look into one before drawing it
+    var mathApi = {draw: drawIn, undraw: undraw, watch: watch, codes: codesOf, onDraw: null, onUndraw: null,
+                   lazy: function (k) { return inner[+k] != null; }, eager: EAGER,
+                   has: function (k, code) { return inner[+k] != null && inner[+k].indexOf('data-c="' + code + '"') >= 0; }};
     if (svg) {
       var st = document.createElement("style");
       st.textContent = cache.css || "";
@@ -152,7 +253,14 @@
       .replace('<l2m-slot name="kicker"></l2m-slot>', kicker ? '<p class="kicker">' + esc(kicker) + "</p>" : "");
     var lib = o.onLibrary && tb.indexOf("library") >= 0 ?
       '<p class="l2m-libnav"><a href="' + esc(o.libraryHref || "./") + '" data-act="library">All papers</a></p>\n' : "";
-    main.innerHTML = '<span id="l2m-top"></span>\n' + lib + fill(body);
+    main.innerHTML = '<span id="l2m-top"></span>\n' + lib + fill(body, true);
+    // drawn at once where a part of the page is copied elsewhere (headings to the bar, notes to their sheet, figures and
+    // tables to the viewer) or is first seen
+    Array.prototype.forEach.call(main.querySelectorAll(".titleblock mjx-container[data-lazy], h1 mjx-container[data-lazy], h2 mjx-container[data-lazy], " +
+      "h3 mjx-container[data-lazy], h4 mjx-container[data-lazy], h5 mjx-container[data-lazy], h6 mjx-container[data-lazy], " +
+      ".footnotes mjx-container[data-lazy], figure mjx-container[data-lazy], table mjx-container[data-lazy], .thm-name mjx-container[data-lazy]"), drawIn);
+    watch(main);
+    window.L2M_math = mathApi;
     Array.prototype.forEach.call(main.querySelectorAll("details.toc"), function (t) { t.remove(); });
     // a document's links go to places, never run code
     Array.prototype.forEach.call(main.querySelectorAll("a[href]"), function (a) {
@@ -239,6 +347,8 @@
         if (nav) nav.destroy(save);
         added.forEach(function (n) { if (n.parentNode) n.parentNode.removeChild(n); });
         root.classList.remove("l2m-bar-always");
+        ios.forEach(function (io) { io.disconnect(); });
+        if (window.L2M_math === mathApi) window.L2M_math = null;
         main.innerHTML = "";
         if (window.L2M_current === view) window.L2M_current = null;
       }

@@ -1728,8 +1728,8 @@ main a[href^="#"], .l2m-menu a[href^="#"], .l2m-fnsheet a[href^="#"] { -webkit-t
 @media (prefers-reduced-motion: reduce) { .l2m-peek, .l2m-peek.open { transition-duration: 0.01s; } }
 
 /* a paper's placeholder (the grey lines, until the paper is drawn): exactly the screen, never scrolled */
-html.l2m-boot-paper, html:has(main > .skel-paper) { overflow: hidden; overscroll-behavior: none; }
-html.l2m-boot-paper body, html:has(main > .skel-paper) body { height: 100dvh; overflow: hidden; box-sizing: border-box; }
+html.l2m-boot-paper, html.l2m-skel-page { overflow: hidden; overscroll-behavior: none; }
+html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hidden; box-sizing: border-box; }
 
 /* wide formulas, tables and code: no scroll bar standing under them (their edge shadows show there is more);
    a thin one only while they are being scrolled (nav.js marks them) */
@@ -1897,3 +1897,20 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
 .l2m-app-lists .lib-title { font-size: 1.14em; }
 .l2m-app-lists .lib-authors { font-size: 0.96em; }
 .l2m-app-lists .app-abs { font-size: 0.95em; }
+
+/* the reading underline: a rounded bar that slides into place inside a rounded clip (moved by the graphics card, so
+   scrolling paints nothing); its right end is its own, its left end the clip's; the glow follows the visible part */
+.l2m-bar .bar-progress > i { position: absolute; inset: 0; width: auto; min-width: 0; overflow: hidden; border-radius: 999px;
+  background: none; box-shadow: none;
+  filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--progress) 45%, transparent)) drop-shadow(0 1px 0.75px rgb(0 0 0 / 0.14)); }
+.l2m-bar .bar-progress > i > b { position: absolute; inset: 0; border-radius: 999px; background: var(--progress);
+  transform: translateX(calc(3px - 100%)); will-change: transform; }
+@supports (animation-timeline: scroll()) {
+  .l2m-bar .bar-progress > i > b { animation: l2m-read linear both; animation-timeline: scroll(root block); animation-range: 0px var(--read-end, 100%); }
+}
+@keyframes l2m-read { from { transform: translateX(calc(3px - 100%)); } to { transform: translateX(0); } }
+
+/* the stand-ins pulse together: one animation on their block (one layer for the graphics card), not one per bar */
+.skel { animation: none; }
+.skel-paper, .skel-list, .skel-bar .bar-title-inner { animation: l2m-pulse 1.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .skel-paper, .skel-list, .skel-bar .bar-title-inner { animation: none; } }

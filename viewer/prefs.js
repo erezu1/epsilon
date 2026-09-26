@@ -79,11 +79,15 @@
         Array.prototype.forEach.call(all, function (m) { if (sel.containsNode(m, true)) now.push(m); });
       }
       selMarked.forEach(function (m) { if (now.indexOf(m) < 0) { m.classList.remove("l2m-selected"); m.style.boxShadow = ""; } });
-      now.forEach(function (m) {
-        m.classList.add("l2m-selected");
-        if (m.closest(".eqbody")) return;           // in a line of text: shaded the line's full height, as the text is
+      // (all measured first, then all shaded: one layout, not one per formula)
+      var fresh = now.filter(function (m) { return selMarked.indexOf(m) < 0 && !m.closest(".eqbody"); });
+      var gaps = fresh.map(function (m) {           // in a line of text: shaded the line's full height, as the text is
         var r = m.getBoundingClientRect(), lh = parseFloat(getComputedStyle(m.parentElement).lineHeight) || r.height;
-        var t = Math.max(0, Math.ceil((lh - r.height) / 2 + 0.5));
+        return Math.max(0, Math.ceil((lh - r.height) / 2 + 0.5));
+      });
+      now.forEach(function (m) { m.classList.add("l2m-selected"); });
+      fresh.forEach(function (m, i) {
+        var t = gaps[i];
         m.style.boxShadow = t ? "0 " + (-t).toFixed(1) + "px 0 0 var(--sel), 0 " + t.toFixed(1) + "px 0 0 var(--sel)" : "";
       });
       selMarked = now;

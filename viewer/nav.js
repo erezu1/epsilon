@@ -179,7 +179,6 @@ window.L2M_nav = function (opts) {
       var cur = menu.querySelector("a.current"), box = menu.querySelector(".menu-inner");
       if (cur) box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight / 2);
     } else {
-      for (var key in FONTS) if (window.L2M_loadFont) window.L2M_loadFont(key);
       refreshSettings(true);
     }
     var inner = el.querySelector(".menu-inner");
@@ -376,7 +375,7 @@ window.L2M_nav = function (opts) {
   }
   // one marker's stroke over the given glyphs (or the whole formula), drawn inside the formula's own picture, so it
   // scrolls and scales with it: behind the glyphs, at least as tall as the text round it
-  function glyphMark(f, gs) {
+  function markGeom(f, gs, n) {         // where one mark goes (reads the page only)
     try {
       var svg = f.querySelector("svg");
       if (!svg) return null;
@@ -390,15 +389,36 @@ window.L2M_nav = function (opts) {
       var M = svg.getScreenCTM().inverse(), pt = svg.createSVGPoint();
       pt.x = L; pt.y = T; var a = pt.matrixTransform(M);
       pt.x = R; pt.y = B; var b = pt.matrixTransform(M);
-      var x = a.x, y = a.y, w = b.x - a.x, h = b.y - a.y, t = tilt(hits.length + 7), wp = R - L;
-      var p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      p.setAttribute("class", "l2m-find-g");
-      p.setAttribute("d", markD(wp, hh));
-      p.setAttribute("transform", "rotate(" + markTilt(t.a, wp, hh, fs) + " " + (x + w / 2) + " " + (y + h / 2) + ") translate(" + x + " " +
-        (y + (hh > 2 * fs ? 0 : t.dy) * h / hh) + ") scale(" + w + " " + h + ")");
-      svg.insertBefore(p, svg.firstChild);
-      return p;
+      var x = a.x, y = a.y, w = b.x - a.x, h = b.y - a.y, t = tilt(n + 7), wp = R - L;
+      return {svg: svg, d: markD(wp, hh), tf: "rotate(" + markTilt(t.a, wp, hh, fs) + " " + (x + w / 2) + " " + (y + h / 2) + ") translate(" + x + " " +
+        (y + (hh > 2 * fs ? 0 : t.dy) * h / hh) + ") scale(" + w + " " + h + ")"};
     } catch (e) { return null; }
+  }
+  function markPlace(g) {                // (writes only)
+    if (!g) return null;
+    var p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("class", "l2m-find-g");
+    p.setAttribute("d", g.d);
+    p.setAttribute("transform", g.tf);
+    g.svg.insertBefore(p, g.svg.firstChild);
+    return p;
+  }
+  // the marks of the found places in drawn formulas (a formula drawn later gets its own when it is drawn)
+  function markFormulas(list) {
+    var todo = list.filter(function (h) { return !h.range && !h.mark && !h.el.hasAttribute("data-lazy"); });
+    todo.forEach(function (h) {
+      if (h.span && !h.glyphs) h.glyphs = Array.prototype.slice.call(h.el.querySelectorAll("[data-c]"), h.span[0], h.span[1]);
+    });
+    var geoms = todo.map(function (h) { return markGeom(h.el, h.glyphs, hits.indexOf(h)); });
+    todo.forEach(function (h, i) { h.mark = markPlace(geoms[i]); if (h.mark && hits[hitAt] === h) h.mark.classList.add("now"); });
+  }
+  if (window.L2M_math) {
+    L2M_math.onDraw = function (el) {
+      if (finding && hits.length) markFormulas(hits.filter(function (h) { return h.el === el; }));
+    };
+    L2M_math.onUndraw = function (el) {
+      hits.forEach(function (h) { if (h.el === el) { h.mark = null; if (h.span) h.glyphs = null; } });
+    };
   }
   var MACROS = opts.macros || {}, expanded = {};
   function expand(t) {
@@ -458,9 +478,11 @@ window.L2M_nav = function (opts) {
         var drawn = f.el.tagName !== "L2M-MATH", tex = opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "";
         // a single symbol: wherever it is drawn (a paper's own macros for it too); more TeX: in formulas whose TeX has it
         if (!what.glyph && !texHas(tex, what.tex)) return;
-        var got = 0;
+        var got = 0, lazy = drawn && f.el.hasAttribute("data-lazy") && window.L2M_math;
         if (drawn && seq) {
-          var gl = f.el.querySelectorAll("[data-c]"), codes = Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
+          // a formula not drawn yet is searched in its drawing as kept (its marks come when it is drawn)
+          var gl = lazy ? null : f.el.querySelectorAll("[data-c]");
+          var codes = lazy ? L2M_math.codes(+f.el.getAttribute("data-n")) : Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
           for (var i = 0; i + seq.length <= codes.length; i++) {
             var ok = true;
             for (var j = 0; j < seq.length && ok; j++) ok = seq[j][0] === "*" || seq[j].indexOf(codes[i + j]) >= 0;
@@ -474,20 +496,21 @@ window.L2M_nav = function (opts) {
               }
             }
             if (!ok) continue;
-            found.push({at: f.at + (got++) * 1e-4, el: f.el, glyphs: Array.prototype.slice.call(gl, i, i + seq.length)});
+            found.push({at: f.at + (got++) * 1e-4, el: f.el, span: [i, i + seq.length], glyphs: gl ? Array.prototype.slice.call(gl, i, i + seq.length) : null});
             i += seq.length - 1;
           }
         }
-        if (!got && (!what.glyph || texHas(tex, what.tex))) found.push({at: f.at, el: f.el});   // the formula as a whole
+        if (!got && (!what.glyph || texHas(tex, what.tex))) {                                // the formula as a whole
+          if (lazy) L2M_math.draw(f.el);
+          found.push({at: f.at, el: f.el});
+        }
       });
     }
     found.sort(function (x, y) { return x.at - y.at; });
     hits = found;
     var ranges = [];
-    hits.forEach(function (h) {
-      if (h.range) ranges.push(h.range);
-      else h.mark = glyphMark(h.el, h.glyphs);
-    });
+    hits.forEach(function (h) { if (h.range) ranges.push(h.range); });
+    markFormulas(hits);
     if (ranges.length) strokes();
     // the first one from where the reader is
     var top = barHeight() + 4, k0 = 0;
@@ -507,6 +530,7 @@ window.L2M_nav = function (opts) {
     if (window.CSS && CSS.highlights) CSS.highlights.delete("l2m-find-now");
     if (k >= 0 && hits[k]) {
       var h = hits[k];
+      if (!h.range && h.el.hasAttribute("data-lazy") && window.L2M_math) L2M_math.draw(h.el);
       if (h.range) (h.boxes || []).forEach(function (b) { b.classList.add("now"); });
       else if (h.mark) h.mark.classList.add("now");
       // in sight: below the bar, above the peek, a third of the way down if it has to move
@@ -724,6 +748,8 @@ window.L2M_nav = function (opts) {
     var pick = panels.settings.querySelector(".font-pick");
     function openFonts(on) {
       if (!pick) return;
+      // the fonts' own faces for their names in the list: fetched when the list opens (each new face restyles the page)
+      if (on) for (var key in FONTS) if (window.L2M_loadFont) window.L2M_loadFont(key);
       pick.classList.toggle("open", on);
       pick.querySelector(".font-current").setAttribute("aria-expanded", on ? "true" : "false");
       placeIndicators(true);
@@ -1125,6 +1151,14 @@ window.L2M_nav = function (opts) {
     Array.prototype.forEach.call(peekMain.querySelectorAll(".fnref.active"), function (n) { n.classList.remove("active"); });
     Array.prototype.forEach.call(peekMain.querySelectorAll(".l2m-find-g"), function (n) { n.remove(); });
     Array.prototype.forEach.call(peekMain.querySelectorAll(".l2m-find-f, .l2m-find-now"), function (n) { n.classList.remove("l2m-find-f", "l2m-find-now"); });
+    if (window.L2M_math) {
+      Array.prototype.forEach.call(peekMain.querySelectorAll("mjx-container[data-n]:not([data-lazy])"), function (m) {
+        if (L2M_math.lazy(m.getAttribute("data-n")) && !m.closest(L2M_math.eager) && m.firstElementChild) {
+          m.firstElementChild.textContent = ""; m.setAttribute("data-lazy", "");
+        }
+      });
+      L2M_math.watch(peekMain, peekScroll);        // (its formulas drawn in as they come in sight)
+    }
     peekHeads = Array.prototype.filter.call(peekMain.querySelectorAll("h2[data-pid], h3[data-pid]"), function (h) {
       return !h.closest(".titleblock");
     });
@@ -1415,7 +1449,7 @@ window.L2M_nav = function (opts) {
   var prog = document.createElement("span");
   prog.className = "bar-progress";
   prog.setAttribute("aria-hidden", "true");
-  prog.innerHTML = "<i></i>";
+  prog.innerHTML = "<i><b></b></i>";
   (bar.querySelector(".bar-inner") || bar).appendChild(prog);
   function placeProgress() {                // exactly over the text's margins
     var main = document.querySelector("main"), box = prog.parentNode;
@@ -1426,14 +1460,26 @@ window.L2M_nav = function (opts) {
     prog.style.right = right.toFixed(1) + "px";
   }
   placeProgress();
-  function progress() {
+  function readEnd() {                    // the scroll at which the paper counts as read (its references reach the view's foot)
     var refs = document.getElementById("refs-h");
     var end = refs ? refs.getBoundingClientRect().top + window.pageYOffset : document.documentElement.scrollHeight;
-    return Math.max(0, Math.min(1, window.pageYOffset / Math.max(1, end - window.innerHeight)));
+    return Math.max(1, end - window.innerHeight);
   }
+  function progress() { return Math.max(0, Math.min(1, window.pageYOffset / readEnd())); }
+  // the underline follows the scroll by itself where the browser runs scroll-linked animations (on the graphics card:
+  // no work at all while scrolling); it is only told where the reading ends. Elsewhere it is moved from here, when
+  // the change shows.
+  var SCROLL_LINKED = !!(window.CSS && CSS.supports && CSS.supports("animation-timeline: scroll()"));
+  var shownEnd = -1, shownP = -1;
   window.L2M_progress = progress;
   function update() {
-    prog.firstChild.style.width = (progress() * 100).toFixed(2) + "%";
+    if (SCROLL_LINKED) {
+      var e = Math.round(readEnd());
+      if (e !== shownEnd) { shownEnd = e; prog.style.setProperty("--read-end", e + "px"); }
+    } else {
+      var p = Math.round(progress() * 400) / 400;       // (moved when the change shows, not at every frame)
+      if (p !== shownP) { shownP = p; prog.firstChild.firstChild.style.transform = "translateX(calc(max(" + (p * 100).toFixed(2) + "%, 3px) - 100%))"; }
+    }
     var show = ALWAYS || (trigger ? trigger.getBoundingClientRect().bottom < 8 : window.pageYOffset > 240) || panel !== null || finding;
     if (show !== shown) {
       shown = show;
