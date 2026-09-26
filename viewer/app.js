@@ -1196,7 +1196,7 @@
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
         '</span><div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
-        (got ? '<span class="lib-read" aria-hidden="true"><i></i></span>' : "") +
+        '<span class="lib-read" aria-hidden="true"><i></i></span>' +     // (unread: the empty track)
         '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
         (meta.length || fresh(x) ? '<span class="lib-meta">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
         "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +

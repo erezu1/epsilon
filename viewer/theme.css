@@ -1887,3 +1887,4 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-ask { flex-direction: column; align-items: center; text-align: center; }
 .app-ask-q { flex: 0 0 auto; }
 .app-ask .app-confirm-acts { margin: 0 auto; justify-content: center; }
+.lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
