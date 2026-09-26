@@ -63,6 +63,34 @@
   window.L2M_endFade = function () { if (fadeVT) { try { fadeVT.skipTransition(); } catch (e) {} fadeVT = null; } };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
   if (/Chrome\/\d/.test(navigator.userAgent)) document.documentElement.classList.add("l2m-marker");
+  // a selection shows over formulas too (drawn as pictures, they have no text to select): each formula it reaches is
+  // shaded as selected text is, and it is copied whole (as its LaTeX)
+  var selMarked = [], selTick = 0;
+  document.addEventListener("selectionchange", function () {
+    if (selTick) return;
+    selTick = requestAnimationFrame(function () {
+      selTick = 0;
+      var sel = window.getSelection && window.getSelection(), now = [];
+      if (sel && sel.rangeCount && !sel.isCollapsed) {
+        var r = sel.getRangeAt(0), box = r.commonAncestorContainer;
+        box = box.nodeType === 1 ? box : box.parentElement;
+        var f = box && box.closest ? box.closest("mjx-container") : null;
+        var all = f ? [f] : box ? box.querySelectorAll("mjx-container") : [];
+        Array.prototype.forEach.call(all, function (m) { if (sel.containsNode(m, true)) now.push(m); });
+      }
+      selMarked.forEach(function (m) { if (now.indexOf(m) < 0) { m.classList.remove("l2m-selected"); m.style.boxShadow = ""; } });
+      now.forEach(function (m) {
+        m.classList.add("l2m-selected");
+        if (m.closest(".eqbody")) return;           // in a line of text: shaded the line's full height, as the text is
+        var r = m.getBoundingClientRect(), lh = parseFloat(getComputedStyle(m.parentElement).lineHeight) || r.height;
+        var t = Math.max(0, Math.ceil((lh - r.height) / 2 + 0.5));
+        m.style.boxShadow = t ? "0 " + (-t).toFixed(1) + "px 0 0 var(--sel), 0 " + t.toFixed(1) + "px 0 0 var(--sel)" : "";
+      });
+      selMarked = now;
+      // while something is selected, links take part (otherwise a long press on one opens the peek, not a selection)
+      document.documentElement.classList.toggle("l2m-selecting", !!(sel && sel.rangeCount && !sel.isCollapsed));
+    });
+  });
   window.L2M_prefs = function () {
     try { return JSON.parse(localStorage.getItem("l2m-prefs") || "{}") || {}; } catch (e) { return {}; }
   };

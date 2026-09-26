@@ -1886,3 +1886,9 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-ask-q { flex: 0 0 auto; }
 .app-ask .app-confirm-acts { margin: 0 auto; justify-content: center; }
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
+
+/* formulas in a selection: shaded as the selected text round them */
+:root { --sel: color-mix(in srgb, var(--link) 24%, transparent); }
+::selection { background-color: var(--sel); }
+mjx-container.l2m-selected { background-color: var(--sel); }
+html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#"] { -webkit-user-select: text; user-select: text; }
