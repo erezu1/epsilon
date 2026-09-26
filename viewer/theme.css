@@ -1892,3 +1892,8 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 ::selection { background-color: var(--sel); }
 mjx-container.l2m-selected { background-color: var(--sel); }
 html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#"] { -webkit-user-select: text; user-select: text; }
+
+/* the lists' papers a size larger: title, authors, abstract (relative, so every text size and screen follows) */
+.l2m-app-lists .lib-title { font-size: 1.14em; }
+.l2m-app-lists .lib-authors { font-size: 0.96em; }
+.l2m-app-lists .app-abs { font-size: 0.95em; }
