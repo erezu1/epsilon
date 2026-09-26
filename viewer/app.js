@@ -226,15 +226,30 @@
       });
     });
   }
-  var refreshing = {};
-  function refreshOffline(entry) {
+  // a saved paper converted again: its new version is saved over the old copy (never left without one), as soon as
+  // the library knows of it; meanwhile its download button in the list turns (as while it was first saved)
+  var updating = {};
+  function staleOffline(x) { var o = offlineSet()[keyOf(x)]; return !!(o && x.converted && o.ver !== x.converted); }
+  function paintOffline(key) {
+    var I = theme.icons || {};
+    Array.prototype.forEach.call(document.querySelectorAll('[data-offline="' + key + '"]'), function (b) {
+      var busy = !!updating[key], on = isOffline(key);
+      b.classList.toggle("app-busy-btn", busy);
+      b.disabled = busy;
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.setAttribute("aria-label", busy ? "Saving the new version on this device" : on ? "Saved on this device; tap to remove the copy" : "Keep offline");
+      b.innerHTML = busy ? SPIN : on ? I.offlineDone || "&#10003;" : I.offline || "&darr;";
+    });
+  }
+  function refreshOffline(entry, soon) {
     var key = keyOf(entry);
-    if (refreshing[key]) return;
-    refreshing[key] = setTimeout(function () {   // after the paper has opened
-      keepOffline(entry, true).then(function () {     // saved over the old copy (never left without one)
-        delete refreshing[key];
-      }, function () { delete refreshing[key]; });
-    }, 1500);
+    if (updating[key] || !staleOffline(entry)) return;
+    updating[key] = true;
+    paintOffline(key);
+    setTimeout(function () {                       // (opened: after the paper has come in)
+      keepOffline(entry, true).then(function () { delete updating[key]; paintOffline(key); },
+                                    function () { delete updating[key]; paintOffline(key); });
+    }, soon ? 0 : 1500);
   }
   function keepOffline(entry, on) {
     var key = keyOf(entry), base = entry.path || "papers/" + key, set = offlineSet();
@@ -1178,6 +1193,10 @@
       b.addEventListener("click", function () {
         confirmOpen(b.closest("li").querySelector(".app-confirm"), !b.closest("li").querySelector(".app-confirm").classList.contains("open"));
       });
+    });
+    ((lib && lib.papers) || []).forEach(function (x) {       // saved papers with a newer version: saved again
+      var k = keyOf(x);
+      if (updating[k]) paintOffline(k); else if (staleOffline(x)) refreshOffline(x, true);
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-offline]"), function (b) {
       b.addEventListener("click", function () {
