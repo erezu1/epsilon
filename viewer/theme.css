@@ -1857,3 +1857,7 @@ mjx-container.l2m-find-f { border-radius: 0.35em 0.6em 0.4em 0.7em / 0.6em 0.35e
 :root[data-theme="dark"] .l2m-find-layer { mix-blend-mode: screen; }
 .l2m-find-g { fill: var(--find-band); }
 .l2m-find-g.now { fill: var(--find-band-now); }
+
+/* a paper scrolls the page itself, and Android's stretch at its ends stretches the whole screen, the bar with it:
+   no stretch there (the lists scroll in boxes of their own, and stretch only themselves) */
+html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists) body { overscroll-behavior-y: none; }
