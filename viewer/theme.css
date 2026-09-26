@@ -1878,3 +1878,9 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
   background: var(--progress); transition: width 900ms cubic-bezier(0.25, 0.8, 0.25, 1); }
 .lib-rows > li.read-still .lib-read > i { transition: none; }
 @media (prefers-reduced-motion: reduce) { .lib-read > i { transition: none; } }
+
+/* a message that asks: the question, then its two answers at the right (as the remove confirmation) */
+.app-ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.app-ask-q { flex: 1 1 12em; font-family: var(--ui); }
+.app-ask .app-pill { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
+.app-ask .app-ask-yes { color: var(--link); }

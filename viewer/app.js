@@ -43,6 +43,22 @@
     clearTimeout(t.l2mTimer);
     t.l2mTimer = setTimeout(function () { t.classList.remove("on"); if (window.L2M_pinFilm) L2M_pinFilm(t, 400); }, ms || 4000);
   }
+  // a message that asks: the question, and two pills (the answer one first); it stays until answered
+  function ask(html, yes, onYes) {
+    toast('<span class="app-ask"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
+          '<button type="button" class="app-pill" data-ask="no">Not now</button>' +
+          '<button type="button" class="app-pill app-ask-yes" data-ask="yes">' + yes + "</button></span></span>", 600000);
+    var t = document.getElementById("app-toast");
+    t.onclick = function (e) {
+      var b = e.target.closest("[data-ask]");
+      if (!b) return;
+      t.onclick = null;
+      clearTimeout(t.l2mTimer);
+      t.classList.remove("on");
+      if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
+      if (b.getAttribute("data-ask") === "yes") onYes();
+    };
+  }
   // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
   var SPIN = '<span class="app-spin" aria-hidden="true"></span>';
   // ---------------------------------------------------------------- stand-ins while things load
@@ -371,10 +387,7 @@
   }
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") savePlace(current, true);
-    else {
-      var order = listState();
-      pullReading().then(function () { if (isPage(current) && listState() !== order) refresh(); });
-    }
+    else if (src) refreshNow();                  // back in the app: the lists (and reading places) afresh
   });
   window.addEventListener("pagehide", function () { savePlace(current, true); });
 
@@ -1386,9 +1399,24 @@
     return freshLists().then(function (t) {
       var changed = t.join("\u0000") !== before;
       if (changed) { var oldFeed = feed; useLists(t); if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); } }
+      if (changed) newVersions();
       return pullReading().then(function () { if ((changed || listState() !== order) && isPage(current)) refresh(); });
     }, function () {});
   }
+  function newVersions() {
+    ((lib && lib.papers) || []).forEach(function (x) { if (staleOffline(x)) refreshOffline(x, true); });   // saved copies
+    if (!current || isPage(current) || !openVer) return;
+    var x = ((lib && lib.papers) || []).filter(function (e) { return keyOf(e) === current; })[0];
+    if (!x || !x.converted || x.converted === openVer || x.status === "failed" || offeredVer[current] === x.converted) return;
+    offeredVer[current] = x.converted;
+    var key = current;
+    ask("A new version of this paper is ready.", "Reload", function () {
+      if (current !== key) return;
+      savePlace(key, true);
+      showNow(key, true, false);                  // (the reader's place kept)
+    });
+  }
+  setInterval(function () { if (document.visibilityState === "visible" && src && navigator.onLine !== false) refreshNow(); }, 60000);
   // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
   var feedCheck = null;
   function checkFeed() {
@@ -1441,12 +1469,14 @@
     document.getElementById("open-settings").addEventListener("click", function (e) { e.stopPropagation(); openPanel("settings"); });
   }
 
+  var openVer = null, offeredVer = {};
   function showPaper(key) {
     dropShell();
     var read = store("opened") || {};           // reading order, kept on this device
     read[key] = Date.now();
     store("opened", read);
     var entry = ((lib && lib.papers) || []).filter(function (x) { return keyOf(x) === key; })[0] || {key: key, path: "papers/" + key};
+    openVer = entry.converted || null;
     if (entry.status === "failed") {
       buildShell(); setTab("library");
       main.innerHTML = '<p class="app-note"><strong>' + esc(entry.title || key) + "</strong> could not be converted.</p>" +
