@@ -1150,15 +1150,18 @@
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
       var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;
-      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row"><div class="app-lib-text" data-p="' + esc(k) + '">' +
-        '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
-        '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
-        (meta.length || fresh(x) ? '<span class="lib-meta">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
+      // the buttons float at the top right: the title's first line beside them, all the rest the row's full width
+      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow"><span class="lib-acts">' +
         (x.status !== "failed" ? '<button type="button" class="bar-btn app-pin" data-pin="' + esc(k) + '" aria-pressed="' + isPinned(k) +
           '" aria-label="' + (isPinned(k) ? "Pinned; tap to unpin" : "Pin to the top") + '">' + (isPinned(k) ? I.pinned || I.pin || "&#9733;" : I.pin || "&#9734;") + "</button>" : "") +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
+        '</span><div class="app-lib-text" data-p="' + esc(k) + '">' +
+        '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
+        (got ? '<span class="lib-read" aria-hidden="true"><i></i></span>' : "") +
+        '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
+        (meta.length || fresh(x) ? '<span class="lib-meta">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
         "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
         '<div class="app-confirm" aria-hidden="true"><div class="app-confirm-in"><span class="app-confirm-q">Remove it from the library?</span>' +
         '<span class="app-confirm-acts"><button type="button" class="app-pill" data-remove-no tabindex="-1">Keep</button>' +

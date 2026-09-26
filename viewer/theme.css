@@ -1861,3 +1861,20 @@ mjx-container.l2m-find-f { border-radius: 0.35em 0.6em 0.4em 0.7em / 0.6em 0.35e
 /* a paper scrolls the page itself, and Android's stretch at its ends stretches the whole screen, the bar with it:
    no stretch there (the lists scroll in boxes of their own, and stretch only themselves) */
 html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists) body { overscroll-behavior-y: none; }
+
+/* a library row: its buttons float at the top right, so the title's first line sits beside them and everything
+   after (the title's other lines, the reading line, authors, abstract) takes the row's full width */
+.lib-rows .app-lib-row.lib-flow { display: block; }
+.lib-rows .lib-flow > .lib-acts { float: right; display: flex; margin: -9px -4px -12px 10px; }   /* (as tall as a title line) */
+.lib-rows .lib-flow > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: 50%; margin: 0; }
+.lib-rows .lib-flow > .app-lib-text { display: block; }
+.lib-rows .lib-flow > .app-lib-text > .lib-title, .lib-rows .lib-flow .lib-authors, .lib-rows .lib-flow .lib-meta { display: block; }
+/* how far a paper is read: a line right under its title (as the section title's in a paper), the row's width, on a
+   faint track, round, filled as far as it is read; below the buttons when the title is short */
+.lib-rows > li[data-read]::after { display: none; }
+.lib-read { display: block; clear: right; position: relative; height: var(--line, 3px); margin: 8px 0 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--progress) 16%, transparent); }
+.lib-read > i { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--read, 0) * 100%); min-width: 3px; border-radius: 999px;
+  background: var(--progress); transition: width 900ms cubic-bezier(0.25, 0.8, 0.25, 1); }
+.lib-rows > li.read-still .lib-read > i { transition: none; }
+@media (prefers-reduced-motion: reduce) { .lib-read > i { transition: none; } }
