@@ -28,6 +28,36 @@
     l.href = "https://fonts.googleapis.com/css2?family=" + f.css + "&display=swap";
     (document.head || root).appendChild(l);
   }
+  // The font list shows each font's name in its own face. For that, a few kilobytes: each face cut down to the letters
+  // of its name (Google Fonts' text= subsets), under a name of its own (never mixed with the real font), fetched once the
+  // app is running and idle. Only the font one reads in comes whole. If they cannot come, the list fetches the whole
+  // fonts when it opens, as before.
+  var previews = 0;                    // 0 not asked, 1 coming, 2 in, -1 not to be had
+  window.L2M_previewFonts = function () {
+    if (previews) return;
+    var keys = Object.keys(FONTS).filter(function (k) { return FONTS[k].css; });
+    if (!keys.length || !window.FontFace || !document.fonts || !window.fetch) { previews = -1; return; }
+    previews = 1;
+    Promise.all(keys.map(function (k) {
+      var f = FONTS[k];
+      return fetch("https://fonts.googleapis.com/css2?family=" + f.css.split(":")[0] + "&text=" + encodeURIComponent(f.name))
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(function (css) {
+          var m = /url\((https:[^)]+)\)/.exec(css);
+          if (!m) throw new Error("no face");
+          var face = new FontFace("l2m-pv-" + k, "url(" + m[1] + ")");
+          return face.load();
+        });
+    })).then(function (faces) {
+      faces.forEach(function (face) { document.fonts.add(face); });     // (all together: one restyle)
+      previews = 2;
+    }, function () { previews = -1; });
+  };
+  window.L2M_previewReady = function () { return previews === 2; };
+  window.L2M_previewStack = function (key) { return FONTS[key] ? '"l2m-pv-' + key + '", ' + FONTS[key].stack : ""; };
+  window.addEventListener("load", function () {
+    setTimeout(function () { (window.requestIdleCallback || setTimeout)(function () { window.L2M_previewFonts(); }); }, 3000);
+  });
   function attr(name, value, def) {
     if (value && value !== def) root.setAttribute(name, value); else root.removeAttribute(name);
   }

@@ -695,7 +695,7 @@ window.L2M_nav = function (opts) {
     if (curBtn && f0) {
       var nm = curBtn.querySelector(".opt-name");
       nm.textContent = f0.name;
-      nm.style.fontFamily = f0.stack;
+      nm.style.fontFamily = window.L2M_previewStack ? L2M_previewStack(font) : f0.stack;
       curBtn.querySelector(".opt-note").textContent = f0.note || "";
       curBtn.setAttribute("aria-label", "Font: " + f0.name + ", tap to choose another");
     }
@@ -749,7 +749,7 @@ window.L2M_nav = function (opts) {
     function openFonts(on) {
       if (!pick) return;
       // the fonts' own faces for their names in the list: fetched when the list opens (each new face restyles the page)
-      if (on) for (var key in FONTS) if (window.L2M_loadFont) window.L2M_loadFont(key);
+      if (on && !(window.L2M_previewReady && L2M_previewReady())) for (var key in FONTS) if (window.L2M_loadFont) window.L2M_loadFont(key);
       pick.classList.toggle("open", on);
       pick.querySelector(".font-current").setAttribute("aria-expanded", on ? "true" : "false");
       placeIndicators(true);

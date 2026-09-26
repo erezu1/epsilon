@@ -31,7 +31,7 @@
     function checked(v, d) { return v === d ? "true" : "false"; }
     var fonts = (theme.fonts || []).map(function (f) {
       return '<button type="button" class="opt" role="radio" aria-checked="' + checked(f.key, D.font) + '" data-font="' + esc(f.key) + '">' +
-        '<span class="opt-name" style="font-family:' + esc(f.stack) + '">' + esc(f.name) + '</span><span class="opt-note">' + esc(f.note) +
+        '<span class="opt-name" style="font-family:' + esc('"l2m-pv-' + f.key + '", ' + f.stack) + '">' + esc(f.name) + '</span><span class="opt-note">' + esc(f.note) +
         '</span><span class="opt-check">' + (I.check || "") + "</span></button>";
     }).join("");
     var sizes = (theme.sizes || []).map(function (z) {
@@ -54,7 +54,7 @@
     var cur = (theme.fonts || []).filter(function (f) { return f.key === D.font; })[0] || (theme.fonts || [])[0];
     var fontPick = fonts && cur ? '<p class="menu-head">Font</p><div class="font-pick">' +
       '<button type="button" class="opt font-current" data-font-toggle aria-expanded="false" aria-label="Font: ' + esc(cur.name) + ', tap to choose another">' +
-      '<span class="opt-name" style="font-family:' + esc(cur.stack) + '">' + esc(cur.name) + '</span><span class="opt-note">' + esc(cur.note) + "</span>" +
+      '<span class="opt-name" style="font-family:' + esc('"l2m-pv-' + cur.key + '", ' + cur.stack) + '">' + esc(cur.name) + '</span><span class="opt-note">' + esc(cur.note) + "</span>" +
       '<span class="opt-chev">' + (I.chevron || "&#9662;") + "</span></button>" +
       '<div class="font-drop"><div class="opt-list" role="radiogroup" aria-label="Font"><span class="sel-ind" aria-hidden="true"></span>' + fonts + "</div></div></div>" : "";
     var full = window.L2M_canFull && L2M_canFull() ?

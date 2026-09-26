@@ -836,7 +836,7 @@
       var cur = inner.querySelector(".font-current"), f = fonts[key];
       if (!cur || !f) return;
       var nm = cur.querySelector(".opt-name");
-      nm.textContent = f.name; nm.style.fontFamily = f.stack;
+      nm.textContent = f.name; nm.style.fontFamily = window.L2M_previewStack ? L2M_previewStack(key) : f.stack;
       cur.querySelector(".opt-note").textContent = f.note || "";
     }
     showFont(want["data-font"]);
@@ -844,7 +844,8 @@
       var t = e.target.closest("[data-font-toggle]");
       if (t) {
         var pick = t.closest(".font-pick"), on = !pick.classList.contains("open");
-        if (on && window.L2M_loadFont) (theme.fonts || []).forEach(function (f) { L2M_loadFont(f.key); });   // (the names in their own faces)
+        if (on && window.L2M_loadFont && !(window.L2M_previewReady && L2M_previewReady()))    // (the names in their own faces)
+          (theme.fonts || []).forEach(function (f) { L2M_loadFont(f.key); });
         pick.classList.toggle("open", on);
         t.setAttribute("aria-expanded", on ? "true" : "false");
         requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
@@ -1413,7 +1414,42 @@
     if (pe.scrollTop > 0) pe.scrollTo({top: 0, behavior: "smooth"});
     return refreshLists();
   }
+  // ---------------------------------------------------------------- the app itself kept up to date
+  // An installed app can stay open for days. With every refresh of the lists, the app's page is looked at too (a
+  // "not modified" when nothing changed); a newer release is fetched in the background (so it starts at once, even
+  // offline) and taken on at a moment that disturbs nothing: when the app is left (hidden), or at once when the
+  // reader asks for a refresh (the pull, the ε). Never with a panel, a search, the second view or a field open.
+  var appNext = null, appChecked = 0, appFetching = false;
+  var APP_FILES = ["theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js"];
+  function checkApp() {
+    if (!REL || appNext || appFetching || Date.now() - appChecked < 60000 || navigator.onLine === false) return;
+    appChecked = Date.now();
+    appFetching = true;
+    fetch("index.html", {cache: "no-cache"}).then(function (r) { return r.ok ? r.text() : ""; }).then(function (h) {
+      var m = /app\.js\?v=([\w.-]+)/.exec(h || "");
+      if (!m || m[1] === REL || m[1] === "__RELEASE__") return;
+      var next = m[1];
+      return Promise.all(APP_FILES.map(function (f) {
+        return fetch(f + "?v=" + next).then(function (r) { if (!r.ok) throw new Error(f); return r.blob(); });
+      })).then(function () { appNext = next; });
+    }).catch(function () {}).then(function () { appFetching = false; });
+  }
+  function appSafe() {
+    var a = document.activeElement;
+    return !document.querySelector(".l2m-menu.open, .l2m-peek.open, .l2m-bar.finding, .app-bar.searching, .l2m-fnsheet.open, " +
+                                   '.l2m-viewer[aria-hidden="false"], .app-confirm.open, .app-toast.on') &&
+      !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+  }
+  function applyApp() {
+    if (!appNext || !appSafe()) return false;
+    location.reload();
+    return true;
+  }
+  document.addEventListener("visibilitychange", function () {   // (after the place is saved, by the listener above)
+    if (document.visibilityState === "hidden") applyApp();
+  });
   function refreshLists() {                  // the lists and reading places fetched afresh (redrawn if they changed)
+    if (applyApp()) return Promise.resolve();  // asked for a refresh, a new release ready: it is taken on now
     if (!src) return Promise.resolve();
     var pe = main.querySelector('[data-pane="app:library"]'), bar = pe && pe.querySelector(".lib-refresh");
     if (pe && !bar) {
@@ -1434,8 +1470,9 @@
       var changed = t.join("\u0000") !== before;
       if (changed) { var oldFeed = feed; useLists(t); if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); } }
       if (changed) newVersions();
+      checkApp();
       return pullReading().then(function () { if ((changed || listState() !== order) && isPage(current)) refresh(); });
-    }, function () {});
+    }, function () { checkApp(); });
   }
   function newVersions() {
     ((lib && lib.papers) || []).forEach(function (x) { if (staleOffline(x)) refreshOffline(x, true); });   // saved copies
