@@ -244,27 +244,42 @@ window.L2M_nav = function (opts) {
   // a chisel tip leaves them, each a little tilted and a little off the line, never two quite alike
   var findLayer = null, findLaying = 0;
   function tilt(i) { return {a: -0.5 - ((i * 37) % 11) / 10, dy: (((i * 53) % 5) - 2) * 0.5}; }
+  // the stroke's outline in a unit box, for a mark wp x hp pixels: the chisel's slant at its ends and the waver of its
+  // edges a few pixels, whatever its size (a big mark stays close to its box; a word's looks drawn)
+  function markD(wp, hp) {
+    var sx = Math.min(0.28 * hp, 6) / wp, ay = Math.min(0.07 * hp, 1.8) / hp, f = function (v) { return v.toFixed(4); };
+    return "M0 " + f(1 - ay) + "L" + f(sx) + " " + f(ay) + "C" + f(0.3) + " 0 " + f(0.65) + " " + f(2 * ay) + " 1 " + f(0.5 * ay) +
+      "L" + f(1 - sx) + " " + f(1 - ay) + "C" + f(0.66) + " 1 " + f(0.34) + " " + f(1 - 2 * ay) + " 0 " + f(1 - ay) + "Z";
+  }
+  function markTilt(a, wp, hp, fs) {              // less tilt on a tall mark, and never more than its ends can bear
+    a *= Math.min(1, 1.3 * fs / hp);
+    var most = Math.atan(0.22 * hp / wp) * 180 / Math.PI;
+    return Math.max(-most, Math.min(most, a));
+  }
   function strokes() {
     if (!findLayer) { findLayer = document.createElement("div"); findLayer.className = "l2m-find-layer"; findLayer.setAttribute("aria-hidden", "true"); }
     if (!findLayer.parentNode) document.body.appendChild(findLayer);
     findLayer.textContent = "";
-    var x0 = window.pageXOffset, y0 = window.pageYOffset, k = 0;
-    hits.forEach(function (h, i) {
-      if (!h.range) return;
+    var x0 = window.pageXOffset, y0 = window.pageYOffset, k = 0, rects = [];
+    // every place first (one layout), then every stroke at once (one insertion)
+    hits.forEach(function (h, i) { if (h.range) rects.push([h, i, h.range.getClientRects()]); });
+    var frag = document.createDocumentFragment();
+    rects.forEach(function (e) {
+      var h = e[0], i = e[1];
       h.boxes = [];
-      Array.prototype.forEach.call(h.range.getClientRects(), function (r) {
+      Array.prototype.forEach.call(e[2], function (r) {
         if (r.width < 1) return;
-        var t = tilt(k++), m = document.createElement("span");
+        var t = tilt(k++), m = document.createElement("span"), wp = r.width + 4, hp = r.height + 2;
         m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
-        m.style.left = (r.left + x0 - 2) + "px";
-        m.style.top = (r.top + y0 - 1 + t.dy) + "px";               // the whole height of the letters' line
-        m.style.width = (r.width + 4) + "px";
-        m.style.height = (r.height + 2) + "px";
-        m.style.transform = "rotate(" + t.a + "deg)";
-        findLayer.appendChild(m);
+        m.style.cssText = "left:" + (r.left + x0 - 2) + "px;top:" + (r.top + y0 - 1 + t.dy) + "px;width:" + wp + "px;height:" + hp + "px;" +
+          "clip-path:path('" + markD(wp, hp).replace(/(-?[\d.]+) (-?[\d.]+)/g, function (x, a, b) {
+            return (a * wp).toFixed(1) + " " + (b * hp).toFixed(1);
+          }) + "');transform:rotate(" + markTilt(t.a, wp, hp, hp).toFixed(2) + "deg)";
+        frag.appendChild(m);
         h.boxes.push(m);
       });
     });
+    findLayer.appendChild(frag);
   }
   function relay() {                   // the page moved under them (a formula drawn, the window turned): laid again
     if (!finding || findLaying) return;
@@ -292,15 +307,16 @@ window.L2M_nav = function (opts) {
       if (!q) return null;
       if (GLYPH[q]) q = "\\" + q;
       var c1 = /^\\([A-Za-z]+)$/.exec(q);
-      return c1 && GLYPH[c1[1]] ? {glyph: GLYPH[c1[1]], tex: q} : {tex: q.replace(/\s+/g, "")};
+      return c1 && GLYPH[c1[1]] ? {glyph: GLYPH[c1[1]], tex: q} : {tex: q};
     }
     if (GREEK[q]) return {glyph: GLYPH[GREEK[q]], tex: "\\" + GREEK[q]};
     var cmd = /^\\([A-Za-z]+)$/.exec(q);
     if (cmd && GLYPH[cmd[1]]) return {glyph: GLYPH[cmd[1]], tex: q};
-    if (/[\\^_{}]/.test(q)) return {tex: q.replace(/\s+/g, "")};
-    var w = {text: q.toLowerCase()};
+    if (/[\\^_{}]/.test(q)) return {tex: q};
+    var w = {text: q.replace(/[^A-Za-z]/g, "").length >= 3 || /[^A-Za-z\s]/.test(q) && q.length >= 2 ? q.toLowerCase() : null};
     if (GLYPH[q]) { w.glyph = GLYPH[q]; w.tex = "\\" + q; }         // "phi": the word, and the symbol
     else if (/^[A-Za-z]{3,}$/.test(q) && (OPS[q] || OPNAME.test(q))) w.tex = "\\" + q;   // "sum", "log": the word, and the command
+    if (!w.text && !w.tex && !w.glyph) return null;              // (too short to look for yet)
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
     return w;
   }
@@ -309,7 +325,7 @@ window.L2M_nav = function (opts) {
     q = texNorm(q); i = t.indexOf(q);
     while (i >= 0) {
       // \phi is not the start of \phiup: after a command name the next character is no letter
-      if (!(/[A-Za-z]$/.test(q) && /\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
+      if (!(/\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
       i = t.indexOf(q, i + 1);
     }
     return false;
@@ -374,11 +390,12 @@ window.L2M_nav = function (opts) {
       var M = svg.getScreenCTM().inverse(), pt = svg.createSVGPoint();
       pt.x = L; pt.y = T; var a = pt.matrixTransform(M);
       pt.x = R; pt.y = B; var b = pt.matrixTransform(M);
-      var x = a.x, y = a.y, w = b.x - a.x, h = b.y - a.y, t = tilt(hits.length + 7);
+      var x = a.x, y = a.y, w = b.x - a.x, h = b.y - a.y, t = tilt(hits.length + 7), wp = R - L;
       var p = document.createElementNS("http://www.w3.org/2000/svg", "path");
       p.setAttribute("class", "l2m-find-g");
-      p.setAttribute("d", "M0.02 0.94L0.08 0.1C0.3 0.03 0.64 0.13 0.98 0.05L0.92 0.9C0.66 0.98 0.34 0.86 0.02 0.94Z");
-      p.setAttribute("transform", "rotate(" + t.a + " " + (x + w / 2) + " " + (y + h / 2) + ") translate(" + x + " " + (y + t.dy * h / hh) + ") scale(" + w + " " + h + ")");
+      p.setAttribute("d", markD(wp, hh));
+      p.setAttribute("transform", "rotate(" + markTilt(t.a, wp, hh, fs) + " " + (x + w / 2) + " " + (y + h / 2) + ") translate(" + x + " " +
+        (y + (hh > 2 * fs ? 0 : t.dy) * h / hh) + ") scale(" + w + " " + h + ")");
       svg.insertBefore(p, svg.firstChild);
       return p;
     } catch (e) { return null; }
@@ -394,7 +411,8 @@ window.L2M_nav = function (opts) {
   }
   function texNorm(t) {
     t = expand(t || "").replace(/\\(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm)\s+([A-Za-z0-9])/g, "\\$1{$2}");
-    return t.replace(/\s+/g, "").replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
+    t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
+    return t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
   }
   function findRun() {
     findClear();
@@ -428,7 +446,7 @@ window.L2M_nav = function (opts) {
         while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= k) lo = mid; else hi = mid - 1; }
         return {node: nodes[lo], off: Math.min(k - starts[lo], nodes[lo].data.length)};
       }
-      while (i >= 0 && found.length < 3000) {
+      while (i >= 0 && found.length < 1500) {
         var a = pos(i), b = pos(i + q.length);
         try { var r = document.createRange(); r.setStart(a.node, a.off); r.setEnd(b.node, b.off); found.push({at: i, range: r}); } catch (e) {}
         i = low.indexOf(q, i + q.length);
@@ -505,7 +523,8 @@ window.L2M_nav = function (opts) {
   function findShow() {
     if (!findCount) return;
     var q = findField.value.trim();
-    findCount.textContent = !q ? "" : hits.length ? (hitAt + 1) + "/" + (hits.length >= 3000 ? "3000+" : hits.length) : "0";
+    if (q && !findWhat(q)) q = "";                  // (too short to look for yet: no count)
+    findCount.textContent = !q ? "" : hits.length ? (hitAt + 1) + "/" + (hits.length >= 1500 ? "1500+" : hits.length) : "0";
     findCount.classList.toggle("none", !!q && !hits.length);
     findBar.querySelector(".find-prev").disabled = findBar.querySelector(".find-next").disabled = hits.length < 2;
   }
@@ -543,7 +562,10 @@ window.L2M_nav = function (opts) {
   }
   if (findBar) {
     findBtn.addEventListener("click", openFind);
-    findField.addEventListener("input", function () { clearTimeout(findTimer); findTimer = setTimeout(findRun, 140); });
+    findField.addEventListener("input", function () {
+      clearTimeout(findTimer);
+      findTimer = setTimeout(findRun, findField.value.trim().length < 3 ? 350 : 160);   // (short: a moment more to type on)
+    });
     findField.addEventListener("keydown", function (e) {
       if (e.key === "Enter") { e.preventDefault(); clearTimeout(findTimer); if (!hits.length) findRun(); else findStep(e.shiftKey ? -1 : 1); }
       else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(); }
