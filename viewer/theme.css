@@ -1884,3 +1884,6 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-ask-q { flex: 1 1 12em; font-family: var(--ui); }
 .app-ask .app-pill { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
 .app-ask .app-ask-yes { color: var(--link); }
+.app-ask { flex-direction: column; align-items: center; text-align: center; }
+.app-ask-q { flex: 0 0 auto; }
+.app-ask .app-confirm-acts { margin: 0 auto; justify-content: center; }

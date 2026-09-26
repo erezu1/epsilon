@@ -1416,7 +1416,7 @@
       showNow(key, true, false);                  // (the reader's place kept)
     });
   }
-  setInterval(function () { if (document.visibilityState === "visible" && src && navigator.onLine !== false) refreshNow(); }, 60000);
+  setInterval(function () { if (document.visibilityState === "visible" && src && navigator.onLine !== false) refreshNow(); }, 300000);
   // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
   var feedCheck = null;
   function checkFeed() {
