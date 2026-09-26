@@ -51,6 +51,20 @@ function dropOldFonts() {
     });
   }).catch(function () {});
 }
+// MathJax (mathjax/, named by its version): kept once a paper has needed it (formulas not drawn beforehand), or one
+// was kept offline; an earlier version is let go
+var MATHJAX = "l2m-mathjax";
+function dropOldMathJax() {
+  return caches.open(SHELL).then(function (c) { return c.match("theme.json", {ignoreSearch: true}); }).then(function (r) { return r ? r.json() : {}; }).then(function (theme) {
+    if (!theme.mathjaxApp) return;
+    var now = new URL(theme.mathjaxApp, self.registration.scope).href;
+    return caches.open(MATHJAX).then(function (c) {
+      return c.keys().then(function (ks) {
+        return Promise.all(ks.filter(function (k) { return k.url !== now; }).map(function (k) { return c.delete(k); }));
+      });
+    });
+  }).catch(function () {});
+}
 // the files of releases neither the saved page asks for nor just fetched (a new release, waiting to be taken on)
 function dropOldReleases(fetched) {
   return caches.open(SHELL).then(function (c) {
@@ -80,13 +94,14 @@ self.addEventListener("install", function (e) {
 self.addEventListener("activate", function (e) {
   e.waitUntil(caches.keys().then(function (ks) {
     return Promise.all(ks.filter(function (k) { return /^l2m-shell-/.test(k) && k !== SHELL; }).map(function (k) { return caches.delete(k); }));
-  }).then(dropOldFonts).then(function () { return self.clients.claim(); }));
+  }).then(dropOldFonts).then(dropOldMathJax).then(function () { return self.clients.claim(); }));
 });
 self.addEventListener("fetch", function (e) {
   var url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.indexOf("/__") >= 0) return;
-  if (/\/fonts\/[^/]+\.woff2$/.test(url.pathname)) {      // a font's file: the kept copy, else fetched once and kept
-    e.respondWith(caches.open(FONTS).then(function (c) {
+  var lasting = /\/fonts\/[^/]+\.woff2$/.test(url.pathname) ? FONTS : /\/mathjax\/[^/]+\.js$/.test(url.pathname) ? MATHJAX : "";
+  if (lasting) {                                            // a font's file, MathJax: the kept copy, else fetched once and kept
+    e.respondWith(caches.open(lasting).then(function (c) {
       return c.match(e.request).then(function (hit) {
         if (hit) return hit;
         return fetch(e.request).then(function (r) {

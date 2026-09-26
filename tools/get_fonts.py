@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""get_fonts: the fonts of viewer/theme.json, from Google Fonts into viewer/fonts/. The app serves them itself (and
-its service worker keeps them), and one-file pages take theirs from there: no page asks Google for anything.
+"""get_fonts: the fonts of viewer/theme.json (the reading fonts, the interface font, the Greek one), from Google Fonts
+into viewer/fonts/. The app serves them itself (and its service worker keeps them), and one-file pages take theirs
+from there: no page asks Google for anything.
 
     python3 tools/get_fonts.py        # again after changing the fonts in theme.json
 
@@ -59,16 +60,20 @@ def keep(data, stem):
 
 def main():
     theme = json.loads((VIEWER / "theme.json").read_text())
-    specs = [(f["key"], f["css"]) for f in theme.get("fonts", []) if f.get("css")]
+    specs = [(f["key"], f["css"], None) for f in theme.get("fonts", []) if f.get("css")]
     if theme.get("uiFont"):
-        specs.append(("ui", theme["uiFont"]))
+        specs.append(("ui", theme["uiFont"], None))
+    if theme.get("greekFont"):                         # (for polytonic Greek: its Greek letters only)
+        specs.append(("greek", theme["greekFont"], {"greek", "greek-ext"}))
     OUT.mkdir(exist_ok=True)
     for old in OUT.glob("*.woff2"):
         old.unlink()
     rules, total = [], 0
-    for key, spec in specs:
+    for key, spec, only in specs:
         css = get("https://fonts.googleapis.com/css2?family=" + variable(spec) + "&display=swap").decode()
         for sub, block in re.findall(r"/\* ([\w-]+) \*/\s*(@font-face \{.*?\})", css, re.S):
+            if only and sub not in only:
+                continue
             style = re.search(r"font-style: (\w+)", block).group(1)
             data = get(re.search(r"url\((https://[^)]+)\)", block).group(1))
             total += len(data)
@@ -84,7 +89,7 @@ def main():
             f["key"], keep(data, "pv-" + f["key"])))
     # the licence goes with the files: each family's copyright notice, then the SIL Open Font License once
     notes, body = [], ""
-    for key, spec in specs:
+    for key, spec, only in specs:
         fam = spec.split(":")[0].replace("+", " ")
         text = get("https://raw.githubusercontent.com/google/fonts/main/ofl/%s/OFL.txt" % fam.lower().replace(" ", "")).decode()
         head, _, rest = text.partition("This Font Software is licensed")

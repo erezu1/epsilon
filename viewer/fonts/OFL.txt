@@ -3,6 +3,7 @@ Literata: Copyright 2017 The Literata Project Authors (https://github.com/google
 STIX Two Text: Copyright 2001-2021 The STIX Fonts Project Authors (https://github.com/stipub/stixfonts), with Reserved Font Name "TM Math". STIX Fonts™ is a trademark of The Institute of Electrical and Electronics Engineers, Inc.
 Inter: Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
 Figtree: Copyright 2022 The Figtree Project Authors (https://github.com/erikdkennedy/figtree)
+Noto Serif: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

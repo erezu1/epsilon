@@ -87,7 +87,7 @@ python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kic
 | `sizes`, `appearance`, `tones` | the other settings and their labels |
 | `defaults` | what a new reader starts with |
 | `icons` | the SVG icons |
-| `greekFont`, `mathjax` | the font for polytonic Greek, and where MathJax is loaded from |
+| `greekFont`, `mathjax`, `mathjaxApp` | the font for polytonic Greek; where MathJax is loaded from (one-file pages), and the app's own copy of it (`python3 tools/get_mathjax.py` fetches it into `viewer/mathjax/`) |
 
 `viewer/theme.css` is the look: colours are tokens at the top, with dark and warm sets; `data-size`, `data-tone` and `data-theme` on the page carry the reader's choices. A new size or tone needs an entry in `theme.json` and its values in `theme.css`. On a site, edit the site's copies and reload; for one-file pages, run `epsilon_render.py` again.
 
@@ -145,7 +145,7 @@ python3 epsilon_viewer.py serve site
 
 Then open `http://localhost:8000/` for the library, or `http://localhost:8000/?p=a` for one paper. Papers open in place; the back button moves between the library and the papers, and inside a paper it steps back through the links you followed. Adding papers to an existing site keeps the ones already there.
 
-The site is plain static files: `index.html`, the theme and the viewer scripts (copied from `viewer/`), `library.json`, and `papers/<name>/` with each document. Any web server can host it; it must be served over http(s), since browsers do not let a page opened from a file load other files. MathJax, needed only for documents without `math.json` (`--no-math-cache`), is loaded from a CDN, or from the site itself with `--local-mathjax`.
+The site is plain static files: `index.html`, the theme and the viewer scripts (copied from `viewer/`), `library.json`, and `papers/<name>/` with each document. Any web server can host it; it must be served over http(s), since browsers do not let a page opened from a file load other files. MathJax, needed only for documents without `math.json` (`--no-math-cache`), is served by the site itself (the viewer's `mathjax/`, copied with it; `--local-mathjax` uses the one in `node_modules` instead).
 
 ## Publishing as a Claude artifact
 
@@ -164,6 +164,7 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `viewer/app.js`, `viewer/sw.js`, `viewer/manifest.webmanifest`, `viewer/offline.html` | the reading app: library, new papers, settings, offline copies (and the page shown offline when the app is not saved) |
 | `viewer/theme.json`, `viewer/theme.css` | the theme |
 | `viewer/fonts/`, `tools/get_fonts.py` | the fonts (from Google Fonts, SIL Open Font License), served by the app and put inside one-file pages; the tool fetches them again |
+| `viewer/mathjax/`, `tools/get_mathjax.py` | the app's copy of MathJax (Apache License 2.0), for papers without drawn formulas; kept offline by the service worker |
 | `viewer/viewer.js` | draws a document: bar, contents, settings, footnote sheet, figure viewer, formulas |
 | `viewer/nav.js` | runs an open paper: history-aware links, panels, figure zoom |
 | `viewer/prefs.js` | applies the reader's saved choices before the page is drawn |

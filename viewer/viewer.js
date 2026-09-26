@@ -321,7 +321,9 @@
       holder.querySelector("#l2m-menu ol").innerHTML = fill(items.join(""));
     }
 
-    if (/[\u1f00-\u1fff]/.test(doc.body) && theme.greekFont && !document.getElementById("l2m-font-greek")) {
+    // polytonic Greek: its font (the app's own fonts, or a one-file page carrying it, have it already)
+    if (/[\u1f00-\u1fff]/.test(doc.body) && theme.greekFont && !document.getElementById("l2m-font-greek") &&
+        !document.getElementById("l2m-fonts") && !(window.L2M_FONTS_INLINE && window.L2M_FONTS_INLINE.greek)) {
       var l = document.createElement("link");
       l.id = "l2m-font-greek";
       l.rel = "stylesheet";

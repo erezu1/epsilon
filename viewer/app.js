@@ -321,6 +321,12 @@
       });
     });
   }
+  function drawnFits(paperText, drawnText) {       // math.json drawn from exactly this paper's formulas (as the viewer asks)
+    try {
+      var m = JSON.parse(paperText).math || {items: []}, c = drawnText ? JSON.parse(drawnText) : null;
+      return !m.items.length || !!(c && c.format === "l2m-math" && m.key && c.key === m.key && c.svg && c.svg.length === m.items.length);
+    } catch (e) { return false; }
+  }
   function keepOffline(entry, on) {
     var key = keyOf(entry), base = entry.path || "papers/" + key, set = offlineSet();
     if (!on) return dropCopy(base).then(function () { delete set[key]; store("offline", set); });
@@ -331,10 +337,22 @@
     function grab(name, optional) {
       return src.blob(base + "/" + name).then(function (b) { files[name] = b; }, function (e) { if (!optional) throw e; });
     }
+    var paper;
     return grab("paper.json").then(function () { return files["paper.json"].text(); }).then(function (t) {
       var names = {};
+      paper = t;
       t.replace(/src=\\?"images\/([^"\\]+)\\?"/g, function (m, n) { names[n] = 1; });
       return Promise.all([grab("math.json", true)].concat(Object.keys(names).map(function (n) { return grab("images/" + n); })));
+    }).then(function () {
+      return files["math.json"] ? files["math.json"].text() : "";
+    }).then(function (drawn) {
+      // formulas not drawn beforehand (no math.json, or one of other formulas): what draws them is fetched now too,
+      // for the service worker to keep, so the paper reads offline with its formulas
+      if (drawnFits(paper, drawn) || !theme.mathjaxApp) return;
+      return fetch(theme.mathjaxApp).then(function (r) {
+        if (!r.ok) throw new Error("what draws its formulas could not be fetched");
+        return r.blob();
+      });
     }).then(function () {
       var bytes = 0, names = Object.keys(files), keys = {}, had = (offlineSet()[key] || {}).bytes || 0;
       names.forEach(function (n) { bytes += files[n].size; keys[cacheKey(base + "/" + n)] = 1; });
@@ -1617,7 +1635,7 @@
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
             return paperFile(key, entry, "images/" + name).then(function (b) { var u = URL.createObjectURL(b); urls.push(u); return u; });
           },
-          mathjax: lib && lib.mathjax, onLibrary: backToLists, libraryHref: "./", actions: actions,
+          mathjax: (lib && lib.mathjax) || theme.mathjaxApp, onLibrary: backToLists, libraryHref: "./", actions: actions,
           leaving: function () { return leavingPaper === key; }});
         var v = view;
         main.classList.remove("l2m-arrive"); void main.offsetWidth; main.classList.add("l2m-arrive");

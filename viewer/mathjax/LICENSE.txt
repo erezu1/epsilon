@@ -1,0 +1,4 @@
+MathJax (https://www.mathjax.org), from https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg-full.js
+
+Copyright (c) 2009-2022 The MathJax Consortium
+Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0

@@ -61,15 +61,19 @@ def font_css(theme, text, theme_dir=VIEWER):
         families.add(re.match(r'\s*"?([^",]+)', fonts[main].get("stack", "")).group(1))
     if theme.get("uiFont"):
         families.add(theme["uiFont"].split(":")[0].replace("+", " "))
+    greek = theme["greekFont"].split(":")[0].replace("+", " ") if theme.get("greekFont") and re.search("[\u1f00-\u1fff]", text) else None
     cps = {ord(c) for c in text if ord(c) > 0x7f}
-    rules = []
+    rules, has_greek = [], False
     for sub, block in re.findall(r"/\* ([\w-]+) \*/\s*(@font-face \{.*?\})", (folder / "fonts.css").read_text(), re.S):
         fam = re.search(r"font-family: '([^']+)'", block).group(1)
         rng = re.search(r"unicode-range: ([^;]+);", block)
-        if sub == "preview" or (fam in families and (sub == "latin" or (rng and _covers(rng.group(1), cps)))):
+        in_greek = fam == greek and rng and _covers(rng.group(1), cps)      # (for polytonic Greek, as the viewer)
+        has_greek = has_greek or bool(in_greek)
+        if sub == "preview" or in_greek or (fam in families and (sub == "latin" or (rng and _covers(rng.group(1), cps)))):
             rules.append(re.sub(r"url\(([\w.-]+\.woff2)\)", lambda m: "url(data:font/woff2;base64,%s)" % base64.b64encode(
                 (folder / m.group(1)).read_bytes()).decode(), block))
-    return "\n".join(rules), {"keys": [main] if main in fonts else [], "ui": bool(theme.get("uiFont")), "previews": True}
+    return "\n".join(rules), {"keys": [main] if main in fonts else [], "ui": bool(theme.get("uiFont")), "previews": True,
+                              "greek": has_greek}
 
 
 def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=None):

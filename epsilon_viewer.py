@@ -40,6 +40,7 @@ def artifact_page(name, viewer):
     """index.html as one page fragment with the viewer inline (an artifact loads no scripts of its own)."""
     read = lambda f: (viewer / f).read_text()
     theme = json.loads(read("theme.json"))
+    theme.pop("mathjaxApp", None)                        # (no files beside an artifact: MathJax from the CDN)
     return ("<title>%s</title>\n"
             '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
@@ -86,15 +87,17 @@ def build(a):
     if a.artifact:
         for f in FILES + ["site.js"]:
             (site / f).unlink(missing_ok=True)
-        shutil.rmtree(site / "fonts", ignore_errors=True)
+        for d in ("fonts", "mathjax"):
+            shutil.rmtree(site / d, ignore_errors=True)
         (site / "index.html").write_text(artifact_page(lib["name"], viewer))
     else:
         (site / "site.js").unlink(missing_ok=True)
         for f in FILES:
             shutil.copy(viewer / f, site / f)
-        shutil.rmtree(site / "fonts", ignore_errors=True)       # the fonts, served by the site itself
-        if (viewer / "fonts").is_dir():
-            shutil.copytree(viewer / "fonts", site / "fonts")
+        for d in ("fonts", "mathjax"):                           # the fonts and MathJax, served by the site itself
+            shutil.rmtree(site / d, ignore_errors=True)
+            if (viewer / d).is_dir():
+                shutil.copytree(viewer / d, site / d)
         index = (site / "index.html").read_text().replace("<title>Papers</title>", "<title>%s</title>" % html.escape(lib["name"]))
         (site / "index.html").write_text(index)
     if not a.quiet:
