@@ -440,7 +440,9 @@ def math_html(texts, macros=None):
     def piece(x):
         if isinstance(x, str):
             return x
-        return svgs[x] if x < len(svgs) and svgs[x] else H.escape(items[x]["src"])
+        if x < len(svgs) and svgs[x]:            # the drawing keeps its TeX (copied as LaTeX, searched)
+            return svgs[x].replace("<mjx-container", '<mjx-container data-tex="%s"' % H.escape(items[x]["tex"], quote=True), 1)
+        return H.escape(items[x]["src"])
     return ["".join(piece(x) for x in segs) for segs in parts], cache, css
 
 
@@ -711,7 +713,15 @@ def main():
                 if tex:
                     p["abstract"] = tex_abstract(tex)
         lib.write("library.json", draw_list(idx, lib.root))
-        msg = "Redraw the list"
+        feed = lib.read("feed.json", None)
+        if feed and feed.get("items"):            # and the feed's, from the titles and abstracts it keeps
+            keep = feed["items"]
+            htmls, cache, css = math_html([tex_text(i["title"]) for i in keep] + [tex_text(i["abstract"]) for i in keep])
+            for k, i in enumerate(keep):
+                i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]
+            feed["math"] = {"cache": cache, "css": css}
+            lib.write("feed.json", feed)
+        msg = "Redraw the lists"
     else:
         for p in lib.index()["papers"]:
             print("%-22s %-7s %s" % (p["key"], p.get("status"), p.get("title", "")[:70]))

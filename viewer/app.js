@@ -59,6 +59,30 @@
       if (b.getAttribute("data-ask") === "yes") onYes();
     };
   }
+  // copying from the lists: their formulas as LaTeX ($...$), as in a paper
+  document.addEventListener("copy", function (e) {
+    if (!isPage(current) || !e.clipboardData) return;
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    if (!main.contains(range.commonAncestorContainer)) return;
+    function formulaOf(n) { var el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest && el.closest("mjx-container[data-tex]"); }
+    var r = range.cloneRange(), a = formulaOf(r.startContainer), b = formulaOf(r.endContainer);
+    if (a) r.setStartBefore(a);
+    if (b) r.setEndAfter(b);
+    var frag = r.cloneContents(), forms = frag.querySelectorAll("mjx-container[data-tex]");
+    if (!forms.length) return;
+    Array.prototype.forEach.call(forms, function (f) { f.replaceWith(document.createTextNode("$" + f.getAttribute("data-tex") + "$")); });
+    Array.prototype.forEach.call(frag.querySelectorAll("button, .bar-btn, svg"), function (x) { x.remove(); });
+    var box = document.createElement("div");
+    box.style.cssText = "position:fixed;left:-9999px;top:0;width:600px";
+    box.appendChild(frag);
+    document.body.appendChild(box);
+    var text = box.innerText;
+    box.remove();
+    e.clipboardData.setData("text/plain", text.replace(/\n{3,}/g, "\n\n").trim());
+    e.preventDefault();
+  });
   // the loading screen: the app's icon and a progress bar (a fraction, or null while it is not known)
   var SPIN = '<span class="app-spin" aria-hidden="true"></span>';
   // ---------------------------------------------------------------- stand-ins while things load
