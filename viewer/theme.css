@@ -1784,11 +1784,12 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 .eqbody.l2m-scrolling::-webkit-scrollbar, .table-wrap.l2m-scrolling::-webkit-scrollbar, pre.l2m-scrolling::-webkit-scrollbar { display: block; height: 4px; }
 .eqbody.l2m-scrolling::-webkit-scrollbar-thumb, .table-wrap.l2m-scrolling::-webkit-scrollbar-thumb, pre.l2m-scrolling::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 2px; }
 
-/* the viewer's back chevron: a little larger than the other icons (a bare chevron reads small); the same line */
-.l2m-bar:not(.app-bar) .ico-back svg { width: 32px; height: 32px; }
-/* the back button nearer the bar's left edge: its chevron as far from that edge as the settings icon is from the
-   right one (the button's round highlight may reach the edge) */
-.l2m-bar:not(.app-bar) .bar-btn.swap { margin-left: -13px; }
+/* the viewer's back button where the lists' ε is, and as big: centred on it, its chevron as tall as the ε (the same
+   thin line as the other icons), a whole 44px to tap (never cut by the screen's edge); the title starts where the
+   Library tab's word does */
+.l2m-bar:not(.app-bar) .ico-back svg { width: 40px; height: 40px; }
+.l2m-bar:not(.app-bar) .bar-btn.swap { margin-left: -4px; }
+.l2m-bar:not(.app-bar) .bar-title { margin-left: 0; }
 
 /* the flip's soft edges only while it runs: at rest nothing is masked (the close button's shadow and pressed circle
    are whole; what rests is inside the fully shown band, so taking the mask away changes nothing seen) */
