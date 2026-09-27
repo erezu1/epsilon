@@ -1966,3 +1966,8 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
 .app-unsaved h2 { font-family: var(--serif); font-weight: 600; font-size: 26px; margin: 0 0 8px; }
 .app-unsaved p { color: var(--muted); font-family: var(--ui); font-size: 16px; margin: 0 0 22px; }
 .app-unsaved .app-pill { font-family: var(--ui); font-weight: 600; font-size: 15px; padding: 9px 20px; }
+
+/* a paper's text a size larger at every text size (as the lists' papers were made): the paper and its peek; the lists,
+   the bar and the panels keep theirs */
+:root { --fs-paper: calc(var(--fs) * 1.09); }
+html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
