@@ -435,16 +435,23 @@
     if (!p || !(p.n >= 0) || p.of || !list[p.n]) return;     // (a place kept by the earlier count, "of", is not this one)
     window.scrollTo(0, window.pageYOffset + list[p.n].getBoundingClientRect().top + span(list, p.n) * (p.frac || 0) - barBottom() - 4);
   }
+  // A place is written to the library (a commit there) only when it moved, and only when the paper is left, the app
+  // is put away, or every ten minutes while reading: a device that hides and shows the app over and over, or a
+  // reader who scrolls on, never floods the library with commits (which also held up the papers sent to it)
   function savePlace(key, leaving) {
     if (!key || isPage(key) || !view) return;
-    var p = capturePlace();
-    p.at = Date.now();
-    reading[key] = p;
-    store("reading", reading);
-    readingDirty = true;
-    clearTimeout(readingTimer);
-    if (leaving) pushReading(true); else readingTimer = setTimeout(pushReading, 4000);
+    var p = capturePlace(), was = reading[key];
+    if (!was || was.n !== p.n || Math.abs((was.frac || 0) - p.frac) > 0.02 || was.progress !== p.progress || was.of) {
+      p.at = Date.now();
+      reading[key] = p;
+      store("reading", reading);
+      readingDirty = true;
+    }
+    if (leaving) { clearTimeout(readingTimer); pushReading(true); }
   }
+  setInterval(function () {                     // while reading: the place written every ten minutes (if it moved)
+    if (document.visibilityState === "visible" && current && !isPage(current)) savePlace(current, true);
+  }, 600000);
   function mergeReading(remote) {
     Object.keys(remote || {}).forEach(function (k) {
       if (!reading[k] || (remote[k].at || 0) > (reading[k].at || 0)) reading[k] = remote[k];
@@ -459,15 +466,22 @@
     return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); },
                                                 function () {});
   }
+  var readingSent = "";                        // what was last written: the same again is not written
   function pushReading(keepalive) {
     if (!readingDirty || !src || !src.putJSON) return;
     readingDirty = false;
-    src.putJSON("reading.json", {papers: reading, pins: pins}, readingSha, "Reading places", keepalive).then(function (sha) {
+    var data = {papers: reading, pins: pins}, text = JSON.stringify(data);
+    if (text === readingSent) return;
+    readingSent = text;
+    src.putJSON("reading.json", data, readingSha, "Reading places", keepalive).then(function (sha) {
       readingSha = sha || readingSha;
     }, function () {
       // someone else (another device) wrote it meanwhile: take theirs in, then write ours again
       readingDirty = true;
-      if (document.visibilityState !== "hidden") pullReading().then(function () { pushReading(false); });
+      readingSent = "";
+      setTimeout(function () {                    // (after a while: never a quick loop of attempts)
+        if (document.visibilityState !== "hidden") pullReading().then(function () { pushReading(false); });
+      }, 20000);
     });
   }
   document.addEventListener("visibilitychange", function () {
