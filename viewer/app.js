@@ -1649,9 +1649,9 @@
       buildShell(); setTab("library");
       if (navigator.onLine === false || e instanceof TypeError || /not saved on this device/.test(e.message)) {
         // offline, and the paper not on this device: said so, with the way back; it opens once the network is back
-        main.innerHTML = '<div class="app-away"><h2>You’re offline</h2><p>This paper isn’t saved on this device.</p>' +
+        main.innerHTML = '<div class="app-unsaved"><h2>You’re offline</h2><p>This paper isn’t saved on this device.</p>' +
                          '<button type="button" class="app-pill">Back to Library</button></div>';
-        var away = main.querySelector(".app-away");
+        var away = main.querySelector(".app-unsaved");
         away.querySelector("button").addEventListener("click", function () { backToLists(); });
         window.addEventListener("online", function () { if (main.contains(away)) location.reload(); }, {once: true});
         return;
