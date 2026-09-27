@@ -42,6 +42,10 @@
     --bar-current: rgba(141, 185, 234, 0.18);
     --flash: rgba(141, 185, 234, 0.16);
     --flash-ring: rgba(141, 185, 234, 0.55);
+    /* the colours authors give formulas (\color{blue}), made light on the dark page */
+    --tex-red: #ff8a80; --tex-green: #6bd88f; --tex-blue: #7f9fff; --tex-magenta: #f08ce8; --tex-gray: #9aa1aa;
+    --tex-darkgray: #b9bfc7; --tex-lightgray: #6b727b; --tex-brown: #d6a36f; --tex-orange: #ffab5e;
+    --tex-purple: #ff7fa8; --tex-violet: #d99bd9; --tex-teal: #5ccaca; --tex-olive: #c7c75c; --tex-white: var(--ground);
   }
 }
 :root[data-theme="dark"] {
@@ -62,6 +66,10 @@
   --bar-current: rgba(141, 185, 234, 0.18);
   --flash: rgba(141, 185, 234, 0.16);
   --flash-ring: rgba(141, 185, 234, 0.55);
+  /* the colours authors give formulas (\color{blue}), made light on the dark page */
+  --tex-red: #ff8a80; --tex-green: #6bd88f; --tex-blue: #7f9fff; --tex-magenta: #f08ce8; --tex-gray: #9aa1aa;
+  --tex-darkgray: #b9bfc7; --tex-lightgray: #6b727b; --tex-brown: #d6a36f; --tex-orange: #ffab5e;
+  --tex-purple: #ff7fa8; --tex-violet: #d99bd9; --tex-teal: #5ccaca; --tex-olive: #c7c75c; --tex-white: var(--ground);
 }
 
 /* paper tone: a warm palette with its own light and dark versions */
@@ -277,6 +285,38 @@ tr.rule-end-thin > * { border-bottom: 1px solid var(--ink); }
 figure.float { margin: 1.3em 0 1.4em; }
 figure.float figure.float { margin: 0.6em 0; }
 figure.float img { display: block; margin-inline: auto; }
+/* line art on a dark page: the pictures LaTeX drew (TikZ...) and the figures drawn in ink on a white or clear ground
+   (img.l2m-ink, found by viewer.js: plots, diagrams) are turned light on dark, their colours keeping their hue;
+   photographs and colour maps are left as they are. The pictures inside formulas are SVG images: the same filters
+   written as SVG filters (viewer.js). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) :is(.l2m-pic img, img.l2m-ink) { filter: invert(0.92) hue-rotate(180deg); }
+  :root:not([data-theme="light"]) mjx-container image { filter: url(#l2m-art-dark); }
+  :root[data-tone="paper"]:not([data-theme="light"]) :is(.l2m-pic img, img.l2m-ink) { filter: invert(0.88) hue-rotate(180deg) sepia(0.2); }
+  :root[data-tone="paper"]:not([data-theme="light"]) mjx-container image { filter: url(#l2m-art-warm); }
+}
+:root[data-theme="dark"] :is(.l2m-pic img, img.l2m-ink) { filter: invert(0.92) hue-rotate(180deg); }
+:root[data-theme="dark"] mjx-container image { filter: url(#l2m-art-dark); }
+:root[data-tone="paper"][data-theme="dark"] :is(.l2m-pic img, img.l2m-ink) { filter: invert(0.88) hue-rotate(180deg) sepia(0.2); }
+:root[data-tone="paper"][data-theme="dark"] mjx-container image { filter: url(#l2m-art-warm); }
+/* the colours an author gives formulas (\color{red}, \textcolor...), chosen for white paper: on a dark page the same
+   hues made light (the --tex-* tokens of the dark sets); black is the ink, as is a \rule. Light ones (cyan, yellow)
+   stay as they are. */
+mjx-container [fill="black"] { fill: currentColor; stroke: currentColor; }
+mjx-container [fill="white"] { fill: var(--tex-white, white); stroke: var(--tex-white, white); }
+mjx-container [fill="red"] { fill: var(--tex-red, red); stroke: var(--tex-red, red); }
+mjx-container [fill="green"] { fill: var(--tex-green, green); stroke: var(--tex-green, green); }
+mjx-container [fill="blue"] { fill: var(--tex-blue, blue); stroke: var(--tex-blue, blue); }
+mjx-container [fill="magenta"] { fill: var(--tex-magenta, magenta); stroke: var(--tex-magenta, magenta); }
+mjx-container [fill="gray"] { fill: var(--tex-gray, gray); stroke: var(--tex-gray, gray); }
+mjx-container [fill="darkgray"] { fill: var(--tex-darkgray, darkgray); stroke: var(--tex-darkgray, darkgray); }
+mjx-container [fill="lightgray"] { fill: var(--tex-lightgray, lightgray); stroke: var(--tex-lightgray, lightgray); }
+mjx-container [fill="brown"] { fill: var(--tex-brown, brown); stroke: var(--tex-brown, brown); }
+mjx-container [fill="orange"] { fill: var(--tex-orange, orange); stroke: var(--tex-orange, orange); }
+mjx-container [fill="purple"] { fill: var(--tex-purple, purple); stroke: var(--tex-purple, purple); }
+mjx-container [fill="violet"] { fill: var(--tex-violet, violet); stroke: var(--tex-violet, violet); }
+mjx-container [fill="teal"] { fill: var(--tex-teal, teal); stroke: var(--tex-teal, teal); }
+mjx-container [fill="olive"] { fill: var(--tex-olive, olive); stroke: var(--tex-olive, olive); }
 figcaption { font-size: 0.9em; line-height: 1.5; margin-top: 0.6em; }
 figcaption .capname { font-weight: 700; }
 .center { text-align: center; }

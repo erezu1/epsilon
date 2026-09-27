@@ -67,6 +67,39 @@
   }
   window.L2M_readingSettings = readingSettings;
 
+  // Line art on a dark page (theme.css). The pictures LaTeX drew are line art; so is a figure drawn in ink on a white or
+  // clear ground (a plot, a diagram), which inkTest marks l2m-ink. A photograph or a colour map, mostly neither white
+  // nor clear, is left as it is.
+  function inkTest(img) {
+    try {
+      var n = 40, c = document.createElement("canvas");
+      c.width = c.height = n;
+      var g = c.getContext("2d", {willReadFrequently: true});
+      g.drawImage(img, 0, 0, n, n);
+      var d = g.getImageData(0, 0, n, n).data, ground = 0;
+      for (var k = 0; k < d.length; k += 4)
+        if (d[k + 3] < 32 || (d[k] > 230 && d[k + 1] > 230 && d[k + 2] > 230)) ground++;
+      if (ground > 0.5 * n * n) img.classList.add("l2m-ink");
+    } catch (e) {}                      // (an image the page may not read is left as it is)
+  }
+  // The pictures inside formulas are SVG images, which take the theme's filters (invert, then hue-rotate(180deg), then
+  // for the warm tone sepia) written as SVG filters.
+  function artFilters() {
+    if (document.getElementById("l2m-art")) return;
+    var inv = function (a) {
+      return "<feComponentTransfer>" + ["R", "G", "B"].map(function (ch) {
+        return '<feFunc' + ch + ' type="table" tableValues="' + a + " " + (1 - a).toFixed(2) + '"/>';
+      }).join("") + '</feComponentTransfer><feColorMatrix type="hueRotate" values="180"/>';
+    };
+    var sepia = '<feColorMatrix type="matrix" values="0.8786 0.1538 0.0378 0 0 0.0698 0.9372 0.0336 0 0 ' +
+      '0.0544 0.1068 0.8262 0 0 0 0 0 1 0"/>';                                        // sepia(0.2)
+    var box = document.createElement("div");
+    box.innerHTML = '<svg id="l2m-art" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">' +
+      '<filter id="l2m-art-dark" color-interpolation-filters="sRGB">' + inv(0.92) + "</filter>" +
+      '<filter id="l2m-art-warm" color-interpolation-filters="sRGB">' + inv(0.88) + sepia + "</filter></svg>";
+    document.body.appendChild(box.firstChild);
+  }
+
   // ------------------------------------------------------------------ the chrome, from the theme
   function chrome(theme, title, hasNotes, o) {
     var I = theme.icons || {};
@@ -335,6 +368,16 @@
     var imagesIn = Promise.all(fetched.concat(Array.prototype.map.call(main.querySelectorAll("img:not([data-l2m-img])"), function (img) {
       return img.complete ? null : new Promise(function (r) { img.addEventListener("load", r); img.addEventListener("error", r); });
     })));
+    artFilters();
+    imagesIn.then(function () {            // the figures looked at in idle moments, one at a time
+      var imgs = Array.prototype.filter.call(main.querySelectorAll("img"), function (img) { return !img.closest(".l2m-pic"); });
+      (function next() {
+        if (closed || !imgs.length) return;
+        var img = imgs.shift();
+        if (img.naturalWidth) inkTest(img);
+        setTimeout(next, 0);
+      })();
+    });
     nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving,
                           tex: function (n) { var it = m.items[+n]; return it ? it.tex : ""; }, macros: m.macros || {},
                           ready: Promise.all([ready, imagesIn])});

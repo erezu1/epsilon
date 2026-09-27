@@ -108,6 +108,7 @@ python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kic
   - `table` and `figure` floats with captions;
   - `\includegraphics` of PDF, PNG, JPG and SVG files (PDF and EPS are rasterised), honouring `\graphicspath` and `width=0.7\textwidth`-style sizes.
 - **Pictures:** TikZ, PGF, `picture` and the like are drawn by LaTeX with the paper's own preamble, in running text and inside formulas (`\vcenter{\hbox{\begin{tikzpicture}...}}`). So are macros that draw a picture, whatever is inside them (`\def`, `\foreach`, arguments), defined in the preamble or in the body; the body's definitions and settings (`\def\scale{2}`, `\tikzset`, `\definecolor`...) reach each picture in the paper's order.
+- **Dark appearance:** line art is turned light on dark, its colours keeping their hue: the pictures LaTeX drew, and the figures the viewer finds drawn in ink on a white or clear ground (plots, diagrams). Photographs and colour maps are shown as they are. Colours given to formulas (`\color{blue}`...) keep their hue, made light; black is the ink.
 
 ## Limitations
 
