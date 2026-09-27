@@ -42,7 +42,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 AUTO = "l2m-auto-"
-__version__ = "0.5"
+__version__ = "0.6"
 DOC_FORMAT = "l2m-doc"   # the document this tool writes (see DOCUMENT.md)
 DOC_VERSION = 1
 
@@ -106,21 +106,26 @@ IGNORE0 = ("begingroup", "endgroup", "long", "global", "EnsureStandardFontEncodi
            "raggedleft", "newpage", "clearpage", "cleardoublepage", "pagebreak", "nopagebreak",
            "linebreak", "nolinebreak", "protect", "relax", "hfill", "vfill", "hfil", "vfil", "null",
            "leavevmode", "sloppy", "fussy", "qedhere", "xspace", "ignorespaces", "unskip",
-           "FloatBarrier", "phantomsection", "makeatletter", "makeatother", "frenchspacing",
+           "FloatBarrier", "phantomsection", "frenchspacing",
            "nonfrenchspacing", "selectfont", "strut", "mathstrut", "break", "allowbreak", "nobreak",
            "onecolumn", "twocolumn", "balance", "normalcolor", "boldmath", "unboldmath", "hline",
            "endinput", "tableofcontents", "listoffigures", "listoftables", "printindex", "maketitle",
            "appendix", "notoc", "toccontinuoustrue", "fi", "else", "iffalse", "iftrue", "normalsize")
 IGNORE1 = ("vspace", "vspace*", "pagestyle", "thispagestyle", "index", "glossary", "hypersetup",
-           "enlargethispage", "graphicspath", "usetikzlibrary", "pgfplotsset", "tikzset",
-           "setcitestyle", "captionsetup", "bibliographystyle", "nocite", "pagenumbering",
+           "enlargethispage", "graphicspath", "setcitestyle", "captionsetup", "bibliographystyle", "nocite",
+           "pagenumbering",
            "markboth", "markright", "linespread", "nomenclature", "addcontentsline", "phantom",
            "hphantom", "vphantom", "color", "urlstyle", "hyphenation", "setstretch", "input",
            "include", "includeonly", "arxivnumber", "preprint", "pacs", "subjclass", "noalign",
            "twocolumngrid", "onecolumngrid", "affiliationnote",
            "orcidlink", "includepdf", "AddToShipoutPicture", "AddToShipoutPictureBG", "thispagestyle")
-IGNORE2 = ("setlength", "addtolength", "setcounter", "addtocounter", "numberwithin", "setuptodonotes",
-           "newlength", "definecolor")
+IGNORE2 = ("addtolength", "setcounter", "addtocounter", "numberwithin", "setuptodonotes")
+# what sets pictures up (TikZ styles, colours, lengths), with its number of arguments: it has no text of its own, and
+# the body's is given to LaTeX, with the body's definitions and in their order, before the pictures it draws
+PIC_SETUP = {"tikzset": 1, "pgfplotsset": 1, "pgfkeys": 1, "tikzfeynmanset": 1, "usetikzlibrary": 1,
+             "usepgfplotslibrary": 1, "pgfdeclarelayer": 1, "pgfsetlayers": 1, "newlength": 1, "setlength": 2,
+             "colorlet": 2, "pgfmathsetmacro": 2, "pgfmathtruncatemacro": 2, "pgfmathsetlengthmacro": 2,
+             "definecolor": 3, "pgfmathdeclarefunction": 3, "makeatletter": 0, "makeatother": 0}
 SYMBOLS = {
     "S": "\u00a7", "P": "\u00b6", "dag": "\u2020", "ddag": "\u2021", "copyright": "\u00a9",
     "pounds": "\u00a3", "ldots": "\u2026", "dots": "\u2026", "textellipsis": "\u2026", "cdots": "\u22ef",
@@ -423,6 +428,8 @@ class Converter:
         self.bibcite = {}
         self.math_items = []
         self.pics = []                  # picture environments (TikZ, ...), drawn by LaTeX: {"src", "math"}
+        self.setup = None               # the body's definitions and picture settings, in the order converted
+        self._picmacros = None
         self.pending_fn = []
         self.fn_count = 0
         self.headings = []
@@ -659,8 +666,8 @@ class Converter:
 
     def expand_env_shortcuts(self, body):
         """Expand argument-free macros such as \\be -> \\begin{equation}, so environments are visible."""
-        short = {k: d["body"] for k, d in self.macros.items()
-                 if d["nargs"] == 0 and self.expandable(k) and re.search(r"\\(begin|end)\s*\{", d["body"])}
+        short = {k: d["body"] for k, d in self.macros.items() if d["nargs"] == 0 and self.expandable(k) and
+                 k not in self.picture_macros() and re.search(r"\\(begin|end)\s*\{", d["body"])}
         if not short:
             return body
         pat = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(sorted(map(re.escape, short), key=len, reverse=True)))
@@ -1032,7 +1039,7 @@ class Converter:
         for name, d in self.macros.items():
             if not (re.fullmatch(r"[A-Za-z]+", name) or re.fullmatch(r"[^A-Za-z\s{}\\%#$&^_~]", name)):
                 continue
-            if name in self.NATIVE or "@" in d["body"] or re.search(r"\\(csname|expandafter|futurelet|ifx|ifdim|ifnum)", d["body"]):
+            if name in self.NATIVE or name in self.picture_macros() or "@" in d["body"] or re.search(r"\\(csname|expandafter|futurelet|ifx|ifdim|ifnum)", d["body"]):
                 continue
             if d["nargs"] == 0:
                 macros[name] = d["body"]
@@ -1138,6 +1145,11 @@ class Converter:
                 i = m.end()
                 while i < len(s) and s[i] in " \t\n":
                     i += 1
+                if name in self.picture_macros():
+                    k = self.call_end(name, s, i)
+                    out.append("\x00PICI%d\x00" % self.add_picture(s[m.start():k], False, "picture"))
+                    i = k
+                    continue
                 if self.expandable(name):
                     exp, k = self.expand_macro(name, s, i)
                     s = exp + s[k:]
@@ -1248,10 +1260,17 @@ class Converter:
             _, i = read_group(s, i)
             _, i = read_opt(s, i)
             return i
-        if name == "definecolor":
-            for _ in range(3):
-                _, i = read_group(s, i)
-            return i
+        if name in PIC_SETUP or name == "tikzstyle":
+            k = i
+            if name == "tikzstyle":                 # \tikzstyle{name}=[...]
+                _, k = read_group(s, k)
+                eq = re.match(r"\s*\+?=\s*", s[k:])
+                if eq:
+                    _, k = read_opt(s, k + eq.end())
+            for _ in range(PIC_SETUP.get(name, 0)):
+                _, k = read_arg(s, k)
+            self.setup_seen(s[s.rfind("\\" + name, 0, i):k])
+            return k
         if name in FORMAT:
             g, i = read_arg(s, i)
             o, c = FORMAT[name]
@@ -1426,9 +1445,12 @@ class Converter:
         if name in ("par", "item"):
             out.append(" ")
             return i
-        m = self.DEF_RE.match(s, i - len(name) - 1 - len(star))
+        m = self.DEF_RE.match(s, s.rfind("\\" + name, 0, i))
         if m:
-            return max(self.parse_definition(s, m), i)
+            k = self.parse_definition(s, m)
+            if k > m.end():
+                self.setup_seen(s[m.start():k])
+            return max(k, i)
         if name in ("title", "author", "date", "affiliation", "affil", "address", "institute", "emailAdd",
                     "email", "keywords"):
             return self.meta_command(s, name, i)
@@ -1443,6 +1465,8 @@ class Converter:
             body = s[j:end]
             if env == "math":
                 out.append(self.math(body, False))
+            elif env in PICTURES:
+                out.append("\x00PICI%d\x00" % self.add_picture("\\begin{%s}%s\\end{%s}" % (env, body, env), False, env))
             elif env in SIZES or env in DECLS:
                 out.append(self.convert_inline(body))
             else:
@@ -2110,15 +2134,13 @@ class Converter:
                     i = k
                     continue
                 body = s[k:end]
+                if env not in ("math", "array") and "".join(para).strip():
+                    flush()                    # the text before it first: all is converted in the paper's order
                 blocks, inline_cont = self.block_env(env, body)
                 if blocks is None:
                     para.append(s[i:after])
                     i = after
                     continue
-                if "".join(para).strip():
-                    flush()
-                elif not blocks:
-                    pass
                 out.extend(blocks)
                 state["cont"] = inline_cont
                 i = after
@@ -2181,7 +2203,12 @@ class Converter:
                     continue
             dm = self.DEF_RE.match(s, i)
             if dm:
-                i = max(self.parse_definition(s, dm), dm.end())
+                k = max(self.parse_definition(s, dm), dm.end())
+                if "".join(para).strip():
+                    para.append(s[i:k])        # in a paragraph: met again in its place, after the text before it
+                elif k > dm.end():
+                    self.setup_seen(s[i:k])
+                i = k
                 continue
             if name == "item":
                 self.warn("\\item outside a list, near: " + re.sub(r"\s+", " ", s[max(0, i - 80):i])[-60:])
@@ -2263,8 +2290,7 @@ class Converter:
         if env == "thebibliography":
             return [self.bibliography_html("\\begin{thebibliography}" + body + "\\end{thebibliography}")], False
         if env in PICTURES:
-            self.pics.append({"src": "\\begin{%s}%s\\end{%s}" % (env, body, env), "math": False, "env": env})
-            return ["\x00PICB%d\x00" % (len(self.pics) - 1)], False
+            return ["\x00PICB%d\x00" % self.add_picture("\\begin{%s}%s\\end{%s}" % (env, body, env), False, env)], False
         if env == "minipage":
             _, k = read_opt(body, 0)
             _, k = read_opt(body, k)
@@ -2282,32 +2308,85 @@ class Converter:
     # ------------------------------------------------------------------ pictures
     PIC_ENV_RE = re.compile(r"\\begin\s*\{(%s)\}" % "|".join(re.escape(e) for e in PICTURES))
 
-    def take_pictures(self, tex, inmath):
-        """Pictures inside TEX set aside (for LaTeX to draw), each left as a numbered mark."""
+    def picture_macros(self):
+        """The paper's macros that draw a picture: a picture environment in their body, or a call of another such
+        macro, and no other environment. A call of one is drawn by LaTeX as the author wrote it (MathJax could not
+        draw it, and the converter need not read what is inside: \\def, \\foreach, ##1...). A package's commands
+        (a .sty sent with the paper) are left to the converter, as in running text."""
+        if self._picmacros is None:
+            found, call = set(), None
+            while True:
+                new = set()
+                for k, d in self.macros.items():
+                    if k in found or k in self.NATIVE or d["math_only"] or d.get("from_sty"):
+                        continue
+                    rest = self.each_picture(d["body"], self.PIC_ENV_RE, lambda src, env: "\x01")
+                    if ("\x01" in rest or (call and call.search(rest))) and not BEGIN_ANY.search(rest):
+                        new.add(k)
+                if not new:
+                    break
+                found |= new
+                call = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(sorted(map(re.escape, found), key=len, reverse=True)))
+            self._picmacros = found
+            self._picre = re.compile(self.PIC_ENV_RE.pattern + ("|" + call.pattern if call else ""))
+        return self._picmacros
+
+    def each_picture(self, tex, pat, put):
+        """TEX with each picture PAT finds in it (a picture environment, or a call of a picture macro) replaced by
+        put(its source, its name)."""
         out, i = [], 0
         while True:
-            m = self.PIC_ENV_RE.search(tex, i)
+            m = pat.search(tex, i)
             if not m:
-                out.append(tex[i:])
-                return "".join(out)
-            env = m.group(1)
-            end = find_env_end(tex, env, m.end())
+                break
+            end = find_env_end(tex, m.group(1), m.end()) if m.group(1) else self.call_end(m.group(2), tex, m.end())
             if end is None:
-                out.append(tex[i:])
-                return "".join(out)
-            self.pics.append({"src": tex[m.start():end], "math": inmath, "env": env})
-            out.append(tex[i:m.start()] + "\x01PIC%d\x01" % (len(self.pics) - 1))
+                break
+            out.append(tex[i:m.start()] + put(tex[m.start():end], m.group(1) or "picture"))
             i = end
+        return "".join(out) + tex[i:]
+
+    def call_end(self, name, s, i):
+        """Where a call of the macro NAME ends, its arguments starting at s[i]."""
+        d = self.macros[name]
+        n = d["nargs"]
+        if n and d["default"] is not None:
+            o, k = read_opt(s, i)
+            i, n = (k if o is not None else i), n - 1
+        for _ in range(n):
+            _, i = read_arg(s, i)
+        return i
+
+    def add_picture(self, src, inmath, env):
+        """A picture for LaTeX to draw (after the body's setup met so far); its number."""
+        self.pics.append({"src": src, "math": inmath, "env": env, "setup": len(self.setup or ())})
+        return len(self.pics) - 1
+
+    def setup_seen(self, text):
+        """A definition or picture setting of the body, which the pictures after it may need."""
+        if self.setup is not None:
+            self.setup.append(text)
+
+    def take_pictures(self, tex, inmath):
+        """Pictures inside TEX set aside (for LaTeX to draw), each left as a numbered mark."""
+        self.picture_macros()
+        return self.each_picture(tex, self._picre, lambda src, env: "\x01PIC%d\x01" % self.add_picture(src, inmath, env))
 
     def draw_pictures(self, pre):
         """Draw every picture with LaTeX (the paper's own preamble; each on its own tight page by the preview
         package), as SVG (or PNG) with its size: height, depth and width in points."""
         if not self.pics:
             return []
+        body, done = [], 0
+        for k, p in enumerate(self.pics):
+            # before each picture, the body's definitions and settings met before it, in the paper's order (a figure
+            # may set its own parameters, \def\scale{2}, for a macro defined in the body)
+            body += [t + "\n" for t in (self.setup or [])[done:p["setup"]]]
+            done = max(done, p["setup"])
+            body.append("\\sbox0{}\\sbox0{%s}\\typeout{L2MPIC %d \\the\\ht0\\space\\the\\dp0\\space\\the\\wd0}"
+                        "\\begin{preview}\\usebox0\\end{preview}\n" % ((("$\\displaystyle %s$" % p["src"]) if p["math"] else p["src"]), k))
         doc = (pre + "\n\\usepackage[active,tightpage]{preview}\n\\setlength\\PreviewBorder{0pt}\n\\begin{document}\n" +
-               "".join("\\sbox0{%s}\\typeout{L2MPIC %d \\the\\ht0\\space\\the\\dp0\\space\\the\\wd0}"
-                       "\\begin{preview}\\usebox0\\end{preview}\n" % ((("$\\displaystyle %s$" % p["src"]) if p["math"] else p["src"]), k)
-                       for k, p in enumerate(self.pics)) + "\\end{document}\n")
+               "".join(body) + "\\end{document}\n")
         (self.build / "l2mpics.tex").write_text(doc)
         env = os.environ.copy()
         for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS"):
@@ -2367,14 +2446,14 @@ class Converter:
                 return "\\class{l2mpic-%d}{\\rule[%.4fem]{%.4fem}{%.4fem}}" % (k, -p["d"] / fs, p["w"] / fs, (p["h"] + p["d"]) / fs)
             item["tex"] = re.sub(r"\x01PIC(\d+)\x01", box, item["tex"])
 
-        def block(m):
-            k = int(m.group(1))
+        def block(m):               # (a picture in a paragraph, PICI, is inline)
+            tag, k = "div" if m.group(1) == "B" else "span", int(m.group(2))
             p = drawn[k] if k < len(drawn) else None
             if not p:
-                return '<div class="omitted">[%s omitted in the HTML version]</div>' % html.escape(self.pics[k]["env"])
-            return '<div class="l2m-pic"><img src="%s" alt="" style="width:%.3fem"></div>' % (p["uri"], p["w"] / fs)
-        page_body = re.sub(r"\x00PICB(\d+)\x00", block, page_body)
-        self.all_fn = [(n, re.sub(r"\x00PICB(\d+)\x00", block, h)) for n, h in self.all_fn]
+                return '<%s class="omitted">[%s omitted in the HTML version]</%s>' % (tag, html.escape(self.pics[k]["env"]), tag)
+            return '<%s class="l2m-pic"><img src="%s" alt="" style="width:%.3fem"></%s>' % (tag, p["uri"], p["w"] / fs, tag)
+        page_body = re.sub(r"\x00PIC([BI])(\d+)\x00", block, page_body)
+        self.all_fn = [(n, re.sub(r"\x00PIC([BI])(\d+)\x00", block, h)) for n, h in self.all_fn]
         self.math_pictures = pictures
         return page_body
 
@@ -2537,6 +2616,7 @@ class Converter:
             if not re.search(r"\\title\s*[\[{]", text):
                 body = self.find_handmade_title(body)
             self.prefetch_images(body)
+            self.setup = []
             blocks = self.convert_block(body)
             refs = self.bibliography_html(bbl) if bbl else ""
             titleblock = self.title_block()
@@ -2641,7 +2721,7 @@ def put_pictures(svg, pictures):
         img = ('<g transform="translate(0,%s) scale(1,-1)"><image href="%s" x="0" y="0" width="%s" height="%s" '
                'preserveAspectRatio="none"></image></g>' % (h, uri, w, h))
         return m.group(0).replace(r.group(0), img)
-    return re.sub(r'<g data-mml-node="mpadded" class="\s*l2mpic-(\d+)">(.*?</rect>)', swap, svg, flags=re.S)
+    return re.sub(r'<g data-mml-node="mpadded" class="\s*l2mpic-(\d+)"[^>]*>(.*?</rect>)', swap, svg, flags=re.S)
 
 
 def mathjax_version():

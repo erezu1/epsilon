@@ -52,6 +52,7 @@ The viewer relies on these classes and ids, and the converter keeps them stable:
 | `span.cite`, `section.references` | citations and the reference list |
 | `a[href^="#"]` | internal links (equations, sections, figures, citations) |
 | `span.greek` | Greek text, set in a font that has polytonic Greek |
+| `.l2m-pic` | a picture LaTeX drew (TikZ...), `div` on its own or `span` in a paragraph, holding its `img`; inside a formula, a picture is an SVG `image` in the drawn formula |
 
 ## `math.json`
 

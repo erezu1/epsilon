@@ -107,10 +107,11 @@ python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kic
   - `tabular` (booktabs and `\hline` rules, `\multicolumn`);
   - `table` and `figure` floats with captions;
   - `\includegraphics` of PDF, PNG, JPG and SVG files (PDF and EPS are rasterised), honouring `\graphicspath` and `width=0.7\textwidth`-style sizes.
+- **Pictures:** TikZ, PGF, `picture` and the like are drawn by LaTeX with the paper's own preamble, in running text and inside formulas (`\vcenter{\hbox{\begin{tikzpicture}...}}`). So are macros that draw a picture, whatever is inside them (`\def`, `\foreach`, arguments), defined in the preamble or in the body; the body's definitions and settings (`\def\scale{2}`, `\tikzset`, `\definecolor`...) reach each picture in the paper's order.
 
 ## Limitations
 
-- TikZ/PGF pictures are not drawn; a placeholder marks them. Compile them to PDF and `\includegraphics` the result instead.
+- Pictures are drawn one by one, away from their page: a body setting made inside a group (`{\def\r{2} ...}`) also reaches the pictures after it, and a picture LaTeX cannot draw shows a placeholder.
 - biblatex is not supported; use BibTeX (`\bibliography{...}`) or `thebibliography`.
 - Macros that come from a package rather than your preamble are only understood in math, and only if MathJax knows them. Unknown text commands degrade to their argument.
 - `\multirow` and complicated table layouts are approximated.

@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx,booktabs,hyperref}
+\usepackage{tikz}
 
 % text and math macros
 \newcommand{\term}[1]{\emph{#1}}
@@ -9,6 +10,15 @@
 \DeclareMathOperator{\tr}{tr}
 \newcommand{\be}{\begin{equation}}
 \newcommand{\ee}{\end{equation}}
+% a TikZ diagram set in formulas as \vcenter{\hbox{\bubble}}
+\newcommand{\bubble}{%
+\begin{tikzpicture}[baseline=-0.5ex]
+  \def\rb{0.3}
+  \draw[dashed] (-1,0) -- (-\rb,0) (\rb,0) -- (1,0);
+  \draw[thick,->] (\rb,0) arc (0:180:\rb);
+  \draw[thick,->] (-\rb,0) arc (180:360:\rb);
+  \fill (-\rb,0) circle (1.5pt) (\rb,0) circle (1.5pt);
+\end{tikzpicture}}
 
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{lemma}[theorem]{Lemma}
@@ -136,6 +146,23 @@ GSE & 4 & time reversal, $T^2=-1$ \\
 \includegraphics[width=0.7\textwidth]{figure}
 \caption{A square-root edge at $E_0$.}
 \label{fig:edge}
+\end{figure}
+
+A loop drawn with TikZ stands inside a formula like a symbol:
+\begin{equation}
+\Pi(p^2) = \vcenter{\hbox{\bubble}} = \int\frac{d^dk}{(2\pi)^d}\,\frac{1}{k^2(k+p)^2} .
+\label{eq:bubble}
+\end{equation}
+A macro defined here draws a polygon with as many sides as each panel of Figure~\ref{fig:polygons} asks for.
+\newcommand{\ngon}{\begin{tikzpicture}
+  \draw[thick] (90:1) \foreach \k in {1,...,\sides} { -- (90+360*\k/\sides:1) };
+\end{tikzpicture}}
+\begin{figure}[h]
+\centering
+\def\sides{5}\ngon\qquad
+\def\sides{6}\ngon
+\caption{A pentagon and a hexagon, from one macro.}
+\label{fig:polygons}
 \end{figure}
 
 \begin{quote}
