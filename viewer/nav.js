@@ -553,7 +553,21 @@ window.L2M_nav = function (opts) {
     findBar.querySelector(".find-prev").disabled = findBar.querySelector(".find-next").disabled = hits.length < 2;
   }
   function findStep(d) { if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
-  function openFind() {
+  // what is selected, as a search: a formula (or a part of one) as its TeX, text as it reads; nothing when too long
+  function selectedQuery() {
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return "";
+    var range = sel.getRangeAt(0), node = range.commonAncestorContainer, el = node.nodeType === 1 ? node : node.parentElement;
+    if (!el || (el.closest && el.closest(".l2m-bar"))) return "";
+    var a = formulaOf(range.startContainer), b = formulaOf(range.endContainer);
+    if (a && a === b) return texOf(a);
+    var frag = range.cloneContents(), forms = frag.querySelectorAll("mjx-container[data-n]");
+    if (forms.length === 1 && !String(sel).trim()) return texOf(forms[0]);          // (one formula, selected whole)
+    var q = String(sel).replace(/\s+/g, " ").trim();
+    return q.length <= 200 ? q : "";
+  }
+  function openFind(q) {
+    if (typeof q === "string" && q && findField) { findField.value = q; if (finding) { findRun(); findField.focus(); } }
     if (!findBar || finding) return;
     closeMenu("jump"); closeSheet();
     finding = true;
@@ -585,7 +599,9 @@ window.L2M_nav = function (opts) {
     update();
   }
   if (findBar) {
-    findBtn.addEventListener("click", openFind);
+    var pressedSel = "";                            // (a tap on the button can clear the selection before its click)
+    findBtn.addEventListener("pointerdown", function () { pressedSel = selectedQuery(); });
+    findBtn.addEventListener("click", function () { var q = pressedSel || selectedQuery(); pressedSel = ""; openFind(q); });
     findField.addEventListener("input", function () {
       clearTimeout(findTimer);
       findTimer = setTimeout(findRun, findField.value.trim().length < 3 ? 350 : 160);   // (short: a moment more to type on)
@@ -600,11 +616,17 @@ window.L2M_nav = function (opts) {
     on(document, "keydown", function (e) {           // Ctrl/Cmd+F: this search, not the browser's (which cannot read formulas)
       if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
         e.preventDefault();
-        if (finding) { findField.focus(); findField.select(); } else openFind();
+        var q = selectedQuery();
+        if (finding && !q) { findField.focus(); findField.select(); } else openFind(q);
       }
     });
   }
 
+  function formulaOf(n) { var el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest && el.closest("mjx-container[data-n]"); }
+  function texOf(f) {                                // a formula's TeX (a picture drawn in it: named, not its stand-in)
+    return (opts.tex ? opts.tex(f.getAttribute("data-n")) || "" : "").trim()
+      .replace(/\\class\{l2mpic-\d+\}\{\\rule(\[[^\]]*\])?\{[^}]*\}\{[^}]*\}\}/g, "\\text{[picture]}");
+  }
   // ---------------------------------------------------------------- copying: formulas as their LaTeX
   // A selection with formulas in it is copied with each formula as its TeX ($...$ in a line, \[...\] on its own);
   // a formula counts whole, even when the selection only reaches into it.
@@ -613,7 +635,6 @@ window.L2M_nav = function (opts) {
     if (!sel || !sel.rangeCount || sel.isCollapsed || !opts.tex || !e.clipboardData) return;
     var range = sel.getRangeAt(0), main = document.querySelector("main");
     if (!main || !main.contains(range.commonAncestorContainer)) return;
-    function formulaOf(n) { var el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest && el.closest("mjx-container[data-n]"); }
     var r = range.cloneRange(), a = formulaOf(r.startContainer), b = formulaOf(r.endContainer);
     if (a) r.setStartBefore(a);
     if (b) r.setEndAfter(b);
@@ -621,8 +642,7 @@ window.L2M_nav = function (opts) {
     var forms = frag.querySelectorAll("mjx-container[data-n]");
     if (!forms.length) return;
     Array.prototype.forEach.call(forms, function (f) {
-      var tex = (opts.tex(f.getAttribute("data-n")) || "").trim()     // (a picture drawn in a formula: named, not its stand-in)
-        .replace(/\\class\{l2mpic-\d+\}\{\\rule(\[[^\]]*\])?\{[^}]*\}\{[^}]*\}\}/g, "\\text{[picture]}");
+      var tex = texOf(f);
       f.replaceWith(document.createTextNode(f.getAttribute("display") === "true" ? "\\[" + tex + "\\]" : "$" + tex + "$"));
     });
     var box = document.createElement("div");       // laid out off screen, so its text keeps its paragraphs
