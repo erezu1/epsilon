@@ -1026,8 +1026,13 @@ a.lib-title { color: var(--ink); }
 .app-tappable { cursor: pointer; }
 /* the search button fades in and out with the Library tab (it keeps its place, so nothing else moves) */
 #app-search { transition: opacity 200ms ease, visibility 0s linear 0s; }
-#app-search.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
-@media (prefers-reduced-motion: reduce) { #app-search { transition-duration: 0.01s; } }
+#app-search.app-away, #app-fold.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
+/* search and "every abstract" share one place in the bar, crossing as the tab changes */
+.app-slot { display: grid; align-items: center; flex: 0 0 auto; }
+.app-slot > * { grid-area: 1 / 1; }
+.app-bar.searching .app-slot > #app-fold { display: none; }
+#app-fold:disabled { opacity: 0.35; cursor: default; }
+@media (prefers-reduced-motion: reduce) { #app-search, #app-fold { transition-duration: 0.01s; } }
 
 @media (prefers-reduced-motion: reduce) { .app-bar.joined .app-bar-day { transition: none; } }
 
@@ -1447,7 +1452,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-lead, .app-tabswap { display: grid; align-items: center; flex: 0 0 auto; }
 .app-lead > *, .app-tabswap > * { grid-area: 1 / 1; }
 .app-lead .app-close { justify-self: center; width: 40px; height: 40px; border-radius: 50%; }
-.app-lead .app-logo, .app-lead .app-close, .app-tabswap > .app-tabs, #app-search, #app-plus {
+.app-lead .app-logo, .app-lead .app-close, .app-tabswap > .app-tabs, #app-search, #app-fold, #app-plus {
   transition: opacity 200ms ease, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0s;
 }
 .app-lead .app-close { opacity: 0; transform: rotate(-90deg) scale(0.6); visibility: hidden; transition-delay: 0s, 0s, 260ms; }
@@ -1456,10 +1461,10 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-tabswap > .set-tabs { opacity: 0; transform: translateY(6px); visibility: hidden; pointer-events: none; transition-delay: 0s, 0s, 260ms; }
 .app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs) { opacity: 0; transform: translateY(-6px); pointer-events: none; }
 .app-bar.set-mode .app-tabswap > .set-tabs { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition-delay: 60ms, 60ms, 0s; }
-.app-bar.set-mode #app-search, .app-bar.set-mode #app-plus { opacity: 0; transform: scale(0.8); pointer-events: none; }
+.app-bar.set-mode #app-search, .app-bar.set-mode #app-fold, .app-bar.set-mode #app-plus { opacity: 0; transform: scale(0.8); pointer-events: none; }
 .app-bar .set-tabs .sel-ind { bottom: 5px; }
 @media (prefers-reduced-motion: reduce) {
-  .app-lead > *, .app-tabswap > *, #app-search, #app-plus { transition-duration: 0.01s; }
+  .app-lead > *, .app-tabswap > *, #app-search, #app-fold, #app-plus { transition-duration: 0.01s; }
 }
 
 /* a panel over a list with a pinned header: it opens from, and closes onto, the bar with the header (its full

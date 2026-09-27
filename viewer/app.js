@@ -575,7 +575,9 @@
       '<div class="app-searchbar"><span class="find-box"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
       'autocomplete="off" autocapitalize="off" spellcheck="false"></span><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
       (I.close || "&times;") + "</button></div>" +
-      '<button type="button" class="bar-btn" id="app-search" aria-label="Search your library">' + (I.search || "?") + "</button>" +
+      // search (Library) and opening every abstract (Explore) share a place, each shown on its own tab
+      '<span class="app-slot"><button type="button" class="bar-btn" id="app-search" aria-label="Search your library">' + (I.search || "?") + "</button>" +
+      '<button type="button" class="bar-btn app-away" id="app-fold" aria-label="Expand all abstracts" tabindex="-1">' + (I.unfoldAll || "+") + "</button></span>" +
       '<button type="button" class="bar-btn" id="app-plus" aria-label="Add a paper" aria-expanded="false" aria-controls="app-addp">' + (I.add || "+") + "</button>" +
       '<button type="button" class="bar-btn" id="app-gear" aria-label="Settings" aria-expanded="false" aria-controls="app-settings">' +
       (I.gear || I.settings || "") + '</button></div><div class="app-bar-day" aria-hidden="true"></div></header>' +
@@ -595,6 +597,7 @@
     holder.querySelector("#app-gear").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "settings" ? closePanel() : openPanel("settings"); });
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     holder.querySelector("#app-search").addEventListener("click", function () { searching(true); });
+    holder.querySelector("#app-fold").addEventListener("click", function () { foldAll(); });
     holder.querySelector("#app-close").addEventListener("click", function (e) { e.stopPropagation(); closePanel(); });
     // the app's icon: to the top of the library, and the lists fetched afresh
     var logo = holder.querySelector(".app-logo");
@@ -688,6 +691,10 @@
   function setTab(name) {
     shell.querySelector("#app-plus").hidden = !(src && src.run);
     shell.querySelector("#app-search").classList.toggle("app-away", name !== "library");   // fades, keeps its place
+    var fb = shell.querySelector("#app-fold");
+    fb.classList.toggle("app-away", name !== "new");
+    fb.tabIndex = name === "new" ? 0 : -1;
+    foldState();
     var dd = document.querySelector('[data-pane="app:' + name + '"] .app-day.stuck');
     shell.querySelector("#app-bar").classList.toggle("joined", !!dd);
     if (name !== "library" && shell.querySelector("#app-bar").classList.contains("searching")) searching(false);
@@ -796,6 +803,8 @@
     shell.querySelector(".app-tabs:not(.set-tabs)").setAttribute("aria-hidden", on ? "true" : "false");
     Array.prototype.forEach.call(shell.querySelectorAll("#set-tabs .seg-btn, #app-close"), function (b) { b.tabIndex = on ? 0 : -1; });
     Array.prototype.forEach.call(shell.querySelectorAll(".app-tabs:not(.set-tabs) .seg-btn, #app-search, #app-plus"), function (b) { b.tabIndex = on ? -1 : 0; });
+    var fb = shell.querySelector("#app-fold");
+    fb.tabIndex = !on && !fb.classList.contains("app-away") ? 0 : -1;
   }
   function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
     if (panelOpen && window.L2M_endFade) L2M_endFade();
@@ -1061,8 +1070,16 @@
       b.className = "app-toggle";
       b.setAttribute("aria-expanded", "false");
       b.innerHTML = "<span>More</span>" + CHEVRON;
-      function toggle() {
-        var open = !p.classList.contains("open");
+      function toggle(want, instant) {
+        var open = want === undefined ? !p.classList.contains("open") : want;
+        if (open === p.classList.contains("open")) return;
+        if (instant) {                                         // (out of sight: no slide to watch)
+          p.classList.toggle("open", open);
+          p.style.maxHeight = open ? "none" : "";
+          b.setAttribute("aria-expanded", open ? "true" : "false");
+          b.firstChild.textContent = open ? "Less" : "More";
+          return;
+        }
         p.style.maxHeight = p.scrollHeight + "px";            // from the height it has now...
         if (open) {
           p.classList.add("open");
@@ -1078,6 +1095,7 @@
         }
         b.setAttribute("aria-expanded", open ? "true" : "false");
         b.firstChild.textContent = open ? "Less" : "More";
+        foldState();
       }
       b.addEventListener("click", function (e) { e.stopPropagation(); toggle(); });
       p.l2mToggle = toggle;
@@ -1088,6 +1106,43 @@
       });
       p.parentNode.insertBefore(b, p.nextSibling);
     });
+    foldState();
+  }
+  // Explore's button for every abstract: open them all, or (all open) close them all. Those on screen slide; those
+  // above it change at once, the list kept where it is (the row at the top of the screen stays in its place)
+  function foldable() {
+    var pe = main.querySelector('[data-pane="app:new"]');
+    return pe ? Array.prototype.slice.call(pe.querySelectorAll(".app-abs:not(.short)")).filter(function (p) { return p.l2mToggle; }) : [];
+  }
+  function foldState() {
+    var fb = shell && shell.querySelector("#app-fold");
+    if (!fb) return;
+    var ps = foldable(), all = ps.length > 0 && ps.every(function (p) { return p.classList.contains("open"); });
+    var I = theme.icons || {};
+    if (fb.l2mAll !== all) {
+      fb.l2mAll = all;
+      fb.innerHTML = all ? I.foldAll || "&minus;" : I.unfoldAll || "+";
+      fb.setAttribute("aria-label", all ? "Collapse all abstracts" : "Expand all abstracts");
+    }
+    fb.disabled = !ps.length;
+  }
+  function foldAll() {
+    var ps = foldable(), pe = main.querySelector('[data-pane="app:new"]');
+    if (!ps.length || !pe) return;
+    var open = !ps.every(function (p) { return p.classList.contains("open"); });
+    var box = pe.getBoundingClientRect(), top = box.top + (parseFloat(getComputedStyle(root).getPropertyValue("--l2m-bar-h")) || 64);
+    var rows = Array.prototype.slice.call(pe.querySelectorAll(".l2m-library > li")), anchor = null, at = 0;
+    var places = ps.map(function (p) { return p.getBoundingClientRect(); });        // (all read, then all written)
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i].getBoundingClientRect();
+      if (r.bottom > top) { anchor = rows[i]; at = r.top; break; }
+    }
+    ps.forEach(function (p, i) {
+      var r = places[i], seen = r.bottom > top && r.top < box.bottom;
+      p.l2mToggle(open, !seen || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    });
+    if (anchor) pe.scrollTop += anchor.getBoundingClientRect().top - at;
+    foldState();
   }
 
   var ORDER = ["app:library", "app:new"];
