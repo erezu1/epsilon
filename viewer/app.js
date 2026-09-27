@@ -295,16 +295,16 @@
         paintOffline(key);
         if (!e.full && !e.write) return;           // (no network: tried again with the next look at the library)
         noRoom[key] = entry.converted;
-        toast("The new version of <em>" + esc(entry.title) + "</em> could not be saved offline: " + esc(e.message) + ". " +
-              (isOffline(key) ? "The copy on it is the earlier version." : "Its offline copy is removed" + (e.full ? "; free some space and save it again." : ".")), 9000);
+        toast((e.full ? "No room for the new version of <em>" : "Couldn’t save the new version of <em>") + esc(entry.title) + "</em>; " +
+              (isOffline(key) ? "the earlier one stays." : "its offline copy was removed."), 7000);
         if (isPage(current)) renderLibrary();
       });
     }, soon ? 0 : 1500);
   }
   function noSpace(e) {                             // the error of a write that found no room
-    var x = new Error("this device is out of storage space");
+    var x = new Error("out of storage space");
     x.full = !e || e.name === "QuotaExceededError" || /quota|space|storage/i.test(e.message || "");
-    if (!x.full) x.message = "this device would not store it (" + (e.message || e.name || e) + ")";
+    if (!x.full) x.message = "the device refused it (" + (e.message || e.name || e) + ")";
     return x;
   }
   function roomFor(bytes) {                         // room for BYTES more on the device (as far as the browser can tell)
@@ -350,7 +350,7 @@
       // for the service worker to keep, so the paper reads offline with its formulas
       if (drawnFits(paper, drawn) || !theme.mathjaxApp) return;
       return fetch(theme.mathjaxApp).then(function (r) {
-        if (!r.ok) throw new Error("what draws its formulas could not be fetched");
+        if (!r.ok) throw new Error("its formulas couldn’t be fetched");
         return r.blob();
       });
     }).then(function () {
@@ -1318,8 +1318,8 @@
         keepOffline(entry, on).then(function () {
           toast(on ? "Saved <em>" + esc(entry.title) + "</em> for reading offline." : "The offline copy is removed.");
         }, function (e) {
-          toast("Could not save <em>" + esc(entry.title) + "</em> for reading offline: " + (e.full ? "this device is out of storage space. Free some space and try again." :
-                navigator.onLine === false || e instanceof TypeError ? "you are offline." : esc(e.message) + "."), 9000);
+          toast("Couldn’t save <em>" + esc(entry.title) + "</em>: " + (e.full ? "out of storage space." :
+                navigator.onLine === false || e instanceof TypeError ? "you’re offline." : esc(e.message) + "."), 7000);
         }).then(function () {
           if (isPage(current)) renderLibrary();
         });
@@ -1647,6 +1647,15 @@
     }).catch(function (e) {
       root.classList.remove("l2m-skel-page");
       buildShell(); setTab("library");
+      if (navigator.onLine === false || e instanceof TypeError || /not saved on this device/.test(e.message)) {
+        // offline, and the paper not on this device: said so, with the way back; it opens once the network is back
+        main.innerHTML = '<div class="app-away"><h2>You’re offline</h2><p>This paper isn’t saved on this device.</p>' +
+                         '<button type="button" class="app-pill">Back to Library</button></div>';
+        var away = main.querySelector(".app-away");
+        away.querySelector("button").addEventListener("click", function () { backToLists(); });
+        window.addEventListener("online", function () { if (main.contains(away)) location.reload(); }, {once: true});
+        return;
+      }
       main.innerHTML = '<p class="app-note">Cannot open this paper: ' + esc(e.message) + "</p>";
     });
   }

@@ -1914,3 +1914,9 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
 .skel { animation: none; }
 .skel-paper, .skel-list, .skel-bar .bar-title-inner { animation: l2m-pulse 1.5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .skel-paper, .skel-list, .skel-bar .bar-title-inner { animation: none; } }
+
+/* a paper asked for offline that is not on this device: said so in the middle of the page, with the way back */
+.app-away { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 16px; }
+.app-away h2 { font-family: var(--serif); font-weight: 600; font-size: 26px; margin: 0 0 8px; }
+.app-away p { color: var(--muted); font-family: var(--ui); font-size: 16px; margin: 0 0 22px; }
+.app-away .app-pill { font-family: var(--ui); font-weight: 600; font-size: 15px; padding: 9px 20px; }
