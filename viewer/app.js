@@ -1498,8 +1498,9 @@
         return '<li class="app-paper" data-k="p:' + esc(k) + '"><div class="app-paper-head"><div class="app-paper-text">' +
           '<span class="lib-title app-abs-title">' + t + "</span>" +
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' +
+          (i.type === "cross" ? "cross-list from " : "") + esc(i.category) + " &middot; " +          // the category, then the links
           '<a class="app-ext" href="https://arxiv.org/abs/' + encodeURIComponent(i.id).replace(/%2F/g, "/") + '" target="_blank" rel="noopener" aria-label="' + esc(i.id) + ' on arXiv">' + esc(i.id) + "</a>" +
-          (i.type === "cross" ? " &middot; cross-list from " : " &middot; ") + esc(i.category) + inspireLink(i.id, [i.category]) + "</span></div>" +
+          inspireLink(i.id, [i.category]) + "</span></div>" +
           '<div class="app-paper-act">' + act + "</div></div>" +
           '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></li>";
       }).join("") + "</ol>";
