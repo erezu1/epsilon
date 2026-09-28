@@ -225,6 +225,7 @@
   function offlineSet() { return store("offline") || {}; }
   function isOffline(key) { return !!offlineSet()[key]; }
   var PAPER_CACHE = "l2m-papers-v1", KEEP_PAPERS = 30;
+  var IMAGE_TYPES = {svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp"};
   function paperFile(key, entry, name) {
     var base = entry.path || "papers/" + key, path = base + "/" + name, ver = entry.converted || "";
     if (isOffline(key)) {
@@ -1702,7 +1703,13 @@
         view = L2M_open({doc: doc, theme: Object.assign({}, theme, {titleblock: []}), cache: cache, key: key, kicker: null,
           base: src.kind === "site" ? (entry.path || "papers/" + key) + "/" : "",
           image: src.kind === "site" && !isOffline(key) ? null : function (name) {
-            return paperFile(key, entry, "images/" + name).then(function (b) { var u = URL.createObjectURL(b); urls.push(u); return u; });
+            return paperFile(key, entry, "images/" + name).then(function (b) {
+              // the picture's type by its name: the files come typeless (from GitHub, or a saved copy), and a browser
+              // draws no SVG without it (PNG and JPEG it guesses)
+              var kind = IMAGE_TYPES[(/\.(\w+)$/.exec(name) || [])[1]];
+              if (kind && b.type !== kind) b = new Blob([b], {type: kind});
+              var u = URL.createObjectURL(b); urls.push(u); return u;
+            });
           },
           mathjax: (lib && lib.mathjax) || theme.mathjaxApp, onLibrary: backToLists, libraryHref: "./", actions: actions,
           leaving: function () { return leavingPaper === key; }});
