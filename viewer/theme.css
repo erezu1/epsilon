@@ -1983,3 +1983,12 @@ html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
 }
 .peek-title mjx-container { font-size: 100%; }
 @media (min-width: 720px) { .peek-title { font-size: 18px; } }        /* (a step under the bar's: 17 / 20) */
+
+/* abstracts out of sight until asked for: nothing of them shows closed; "Abstract" (a chevron turning) opens one under
+   it, sliding and fading in */
+.app-abs, .l2m-app-lists .app-abs {
+  max-height: 0; opacity: 0; margin: 0; -webkit-mask-image: none; mask-image: none; visibility: hidden;
+  transition: max-height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease, margin-top 340ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 340ms;
+}
+.app-abs.open, .l2m-app-lists .app-abs.open { opacity: 1; margin-top: 0.3em; visibility: visible; transition-delay: 0s; }
+.app-toggle { margin-top: 4px; }

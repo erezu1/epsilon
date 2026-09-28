@@ -1072,7 +1072,7 @@
     if (!mathIn && feed && feed.math && feed.math.cache) { mathIn = true; addMath(feed.math); }
     if (lib && lib.math && libMathIn !== lib.math.cache) { libMathIn = lib.math.cache; addMath(lib.math); }
   }
-  // abstracts: the first lines, fading out; "More" (or a tap on the text) slides the rest open
+  // abstracts: out of sight until asked for; "Abstract" (its chevron turning) slides one open under it, and closes it
   var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // a list drawn afresh (a paper added, its conversion done, a refresh) keeps the abstracts that were open, open (at
   // once, no slide), and its place: nothing moves under the reader
@@ -1085,16 +1085,13 @@
     return open;
   }
   function foldAbstracts(box, keepOpen) {
-    // which abstracts run past their first lines: all measured first (one layout), then the buttons put in
     var ps = Array.prototype.slice.call(box.querySelectorAll(".app-abs"));
-    var long = ps.map(function (p) { return p.scrollHeight > p.clientHeight + 2; });
     ps.forEach(function (p, i) {
-      if (!long[i]) { p.classList.add("short"); return; }
       var b = document.createElement("button");
       b.type = "button";
       b.className = "app-toggle";
       b.setAttribute("aria-expanded", "false");
-      b.innerHTML = "<span>More</span>" + CHEVRON;
+      b.innerHTML = "<span>Abstract</span>" + CHEVRON;
       function toggle(want, instant) {
         var open = want === undefined ? !p.classList.contains("open") : want;
         if (open === p.classList.contains("open")) return;
@@ -1102,7 +1099,6 @@
           p.classList.toggle("open", open);
           p.style.maxHeight = open ? "none" : "";
           b.setAttribute("aria-expanded", open ? "true" : "false");
-          b.firstChild.textContent = open ? "Less" : "More";
           return;
         }
         p.style.maxHeight = p.scrollHeight + "px";            // from the height it has now...
@@ -1119,7 +1115,6 @@
           p.style.maxHeight = "";
         }
         b.setAttribute("aria-expanded", open ? "true" : "false");
-        b.firstChild.textContent = open ? "Less" : "More";
         foldState();
       }
       b.addEventListener("click", function (e) { e.stopPropagation(); toggle(); });
@@ -1129,7 +1124,7 @@
         if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not tapping
         toggle();
       });
-      p.parentNode.insertBefore(b, p.nextSibling);
+      p.parentNode.insertBefore(b, p);                         // (the button first: the abstract opens under it)
       var row = p.closest("[data-k]");
       if (keepOpen && row && keepOpen[row.getAttribute("data-k")]) toggle(true, true);
     });
@@ -1376,7 +1371,7 @@
       '<ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>";
     box.innerHTML = (papers.length || converting ? lists :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
-    foldAbstracts(box, wasOpen);               // (before the rows are measured: the "More" buttons take room)
+    foldAbstracts(box, wasOpen);               // (before the rows are measured: the "Abstract" buttons take room)
     if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
     growReading(box);
