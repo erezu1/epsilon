@@ -1978,7 +1978,8 @@ html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
 .l2m-bar:not(.app-bar) .bar-title { font-family: var(--ui); font-size: 17px; letter-spacing: -0.005em; }
 @media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-title { font-size: 20px; } }
 .peek-title {
-  font-size: 15px; letter-spacing: -0.005em; text-transform: none; color: var(--ink); line-height: 1.2;
+  font-size: 16px; letter-spacing: -0.005em; text-transform: none; color: var(--ink); line-height: 1.2;
   white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-wrap: balance;
 }
 .peek-title mjx-container { font-size: 100%; }
+@media (min-width: 720px) { .peek-title { font-size: 18px; } }        /* (a step under the bar's: 17 / 20) */
