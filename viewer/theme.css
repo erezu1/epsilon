@@ -1425,8 +1425,8 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 }
 /* wide screens: the paper bar's title grows with the text (the bar keeps room for two lines of it) */
 @media (min-width: 720px) {
-  .l2m-bar:not(.app-bar) .bar-title { font-size: 21px; }
-  html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 75.3875px); }
+  .l2m-bar:not(.app-bar) .bar-title { font-size: 20px; }
+  html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 76px); }
 }
 
 /* the reading progress: an underline under the section title, just above the bar's edge, with a faint track;
@@ -1971,3 +1971,14 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
    the bar and the panels keep theirs */
 :root { --fs-paper: calc(var(--fs) * 1.09); }
 html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
+
+/* the section titles, in the paper's bar and the peek's: the interface's face (as the lists' titles and the tabs), at a
+   fixed size whatever reading font and text size (as the lists' own bar), two lines when long; formulas drawn in
+   them as anywhere */
+.l2m-bar:not(.app-bar) .bar-title { font-family: var(--ui); font-size: 17px; letter-spacing: -0.005em; }
+@media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-title { font-size: 20px; } }
+.peek-title {
+  font-size: 15px; letter-spacing: -0.005em; text-transform: none; color: var(--ink); line-height: 1.2;
+  white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; text-wrap: balance;
+}
+.peek-title mjx-container { font-size: 100%; }
