@@ -123,12 +123,34 @@ window.L2M_nav = function (opts) {
   }
 
   var skipPop = false;       // the history step of a panel being closed by hand: already handled
+  // The peek, a note's sheet and the figure viewer each take a step in the history, in the order they open: back
+  // closes the one opened last, and only it (a note closed leaves the peek open, and the other way round). Closed by
+  // hand, its step goes too (back, when it is the last one; else its mark is taken off the entry).
+  var overlays = [];
+  function overlayIn(flag) {
+    if (!useHistory) return;
+    try { var o = {}; o[flag] = true; history.pushState(assign(state(), o), ""); overlays.push(flag); } catch (e) {}
+  }
+  function overlayOut(flag, how) {           // how: "pop" (back did it), "hand" (the reader), else something follows
+    var i = overlays.lastIndexOf(flag);
+    if (i < 0) return;
+    overlays.splice(i, 1);
+    if (how === "pop" || !useHistory) return;
+    try {
+      if (how === "hand" && i === overlays.length && state()[flag]) { skipPop = true; history.back(); }
+      else if (state()[flag]) { var st = assign(state(), {}); delete st[flag]; history.replaceState(st, ""); }
+    } catch (e) {}
+  }
+  function closeOverlay(flag, how) {
+    if (flag === "l2mPeek") closePeek(how); else if (flag === "l2mSheet") closeSheet(how); else closeViewer(how);
+  }
   on(window, "popstate", function (e) {
     if (opts.leaving && opts.leaving()) return;    // the host is taking the reader out of the paper
     if (skipPop) { skipPop = false; return; }
     if (panel) { closeMenu("pop"); return; }       // back closes the open panel, nothing else
     if (finding && !(e.state && e.state.l2mFind)) { closeFind("pop"); return; }   // then the search
-    if (peekOpen && !(e.state && e.state.l2mPeek)) { closePeek("pop"); closeSheet(); return; }   // then the peek
+    var top = overlays[overlays.length - 1];      // then the peek, sheet or viewer opened last
+    if (top && !(e.state && e.state[top])) { closeOverlay(top, "pop"); return; }
     var st = e.state;
     if (st && st.l2mPaper !== undefined && st.l2mPaper !== KEY) return;   // another paper's entry: the host switches
     if (st && typeof st.l2mIdx === "number") {
@@ -141,8 +163,8 @@ window.L2M_nav = function (opts) {
       if (t) scrollToY(yOf(t));
     }
     closeMenu();
-    closeSheet();
-    closeViewer();
+    closeSheet("pop");
+    closeViewer("pop");
     update();
   });
 
@@ -826,13 +848,15 @@ window.L2M_nav = function (opts) {
     if (activeRef) activeRef.classList.remove("active");
     activeRef = ref;
     ref.classList.add("active");
+    if (!sheet.classList.contains("open")) overlayIn("l2mSheet");
     sheet.classList.add("open");
     sheet.setAttribute("aria-hidden", "false");
     L2M_pinFilm(sheet, 360);
     return true;
   }
-  function closeSheet() {
+  function closeSheet(how) {              // how: as overlayOut's
     if (!sheet || !sheet.classList.contains("open")) return;
+    overlayOut("l2mSheet", how);
     sheet.classList.remove("open");
     sheet.setAttribute("aria-hidden", "true");
     L2M_pinFilm(sheet, 360);
@@ -909,13 +933,15 @@ window.L2M_nav = function (opts) {
     vStage.scrollTop = 0;
     vStage.classList.toggle("gesture", !!vContent.querySelector("img"));
     if (viewer.l2mResetZoom) viewer.l2mResetZoom();
+    if (!viewerOpen()) overlayIn("l2mFig");
     viewer.classList.add("open");
     viewer.setAttribute("aria-hidden", "false");
     root.classList.add("l2m-noscroll");
     return true;
   }
-  function closeViewer() {
+  function closeViewer(how) {             // how: as overlayOut's
     if (!viewerOpen()) return;
+    overlayOut("l2mFig", how);
     viewer.classList.remove("open");
     viewer.setAttribute("aria-hidden", "true");
     root.classList.remove("l2m-noscroll");
@@ -931,7 +957,7 @@ window.L2M_nav = function (opts) {
       b.innerHTML = EXPAND;
       f.insertBefore(b, f.firstChild);
     });
-    viewer.querySelector('[data-act="vclose"]').addEventListener("click", closeViewer);
+    viewer.querySelector('[data-act="vclose"]').addEventListener("click", function () { closeViewer("hand"); });
     viewer.querySelector('[data-act="goto"]').addEventListener("click", function () {
       var f = vFigure;
       closeViewer();
@@ -1021,7 +1047,7 @@ window.L2M_nav = function (opts) {
       lastTap = now;
       var target = document.elementFromPoint(e.clientX, e.clientY);
       if (z.s === 1 && (target === vStage || target === vContent)) {
-        setTimeout(function () { if (lastTap === now) closeViewer(); }, 330);
+        setTimeout(function () { if (lastTap === now) closeViewer("hand"); }, 330);
       }
     }
     vStage.addEventListener("pointerup", endPointer);
@@ -1289,7 +1315,7 @@ window.L2M_nav = function (opts) {
     if (!was) {
       void peek.offsetWidth;
       peek.classList.add("open");
-      if (useHistory) { try { if (!state().l2mPeek) history.pushState(assign(state(), {l2mPeek: true}), ""); } catch (e) {} }
+      overlayIn("l2mPeek");
     }
     // the link it came from stays in sight above: moved up, if the peek would cover it
     if (from && !peek.contains(from)) {
@@ -1301,15 +1327,13 @@ window.L2M_nav = function (opts) {
     }
     return true;
   }
-  function closePeek(how) {           // how: "pop" (closed by back)
+  function closePeek(how) {           // how: "pop" (closed by back); by hand otherwise
     if (!peekOpen) return;
+    overlayOut("l2mPeek", how || "hand");
     peekOpen = false;
     peek.classList.remove("open");
     L2M_pinFilm(peekHead, 360);
     peek.setAttribute("aria-hidden", "true");
-    if (how !== "pop" && useHistory) {
-      try { if (state().l2mPeek) { skipPop = true; history.back(); } } catch (e) {}
-    }
     clearTimeout(peekCloseTimer);
     peekCloseTimer = setTimeout(function () {
       if (peekOpen) return;
@@ -1410,20 +1434,25 @@ window.L2M_nav = function (opts) {
     }
     if (panel && !bar.contains(e.target) && !panels[panel].contains(e.target) &&
         !e.target.closest('[data-act="settings"]')) closeMenu();
-    if (sheet && sheet.classList.contains("open") && !sheet.contains(e.target)) closeSheet();
+    // a tap elsewhere closes a note's sheet; not one in the peek (the two stand apart: its close leaves the note open)
+    if (sheet && sheet.classList.contains("open") && !sheet.contains(e.target) && !(peek && peek.contains(e.target))) closeSheet("hand");
   });
   on(document, "keydown", function (e) {
     if (e.key === "Escape") {
-      var nothing = !viewerOpen() && !panel && !(sheet && sheet.classList.contains("open"));
-      closeViewer(); closeMenu(); closeSheet();
-      if (nothing) closePeek();
+      if (panel) { closeMenu(); return; }             // one layer at a time: the panel, then the one opened last
+      var top = overlays[overlays.length - 1];
+      if (top) closeOverlay(top, "hand");
     }
   });
   backBtn.addEventListener("click", function () {
     if (panel) { closeMenu(); return; }
     // the bar's back button always leads to the library, past any jumps inside the paper
     // (the phone's own back button still steps back through them)
-    if (opts.onLibrary) { saveHere(); opts.onLibrary(useHistory ? idx : 0); return; }
+    if (opts.onLibrary) {                        // (past the steps of an open peek, sheet or viewer too)
+      var steps = useHistory ? idx + overlays.length : 0;
+      overlays.slice().reverse().forEach(function (f) { closeOverlay(f, "pop"); });
+      saveHere(); opts.onLibrary(steps); return;
+    }
     goBack();
   });
   topBtn.addEventListener("click", function () { closeMenu("jump"); navigate("l2m-top"); });
@@ -1441,7 +1470,7 @@ window.L2M_nav = function (opts) {
     for (var q = 0; q < sb.length; q++) sb[q].addEventListener("click", toggle("settings"));
   }
   if (sheet) {
-    sheet.querySelector('[data-act="fnclose"]').addEventListener("click", closeSheet);
+    sheet.querySelector('[data-act="fnclose"]').addEventListener("click", function () { closeSheet("hand"); });
   }
 
   // ---------------------------------------------------------------- scroll state
@@ -1569,8 +1598,8 @@ window.L2M_nav = function (opts) {
       if (dead) return;
       if (save !== false) saveHere();
       dead = true;
-      closeViewer();
-      closeSheet();
+      closeViewer("pop");
+      closeSheet("pop");
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       clearTimeout(fadeTimer);

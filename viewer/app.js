@@ -1074,7 +1074,17 @@
   }
   // abstracts: the first lines, fading out; "More" (or a tap on the text) slides the rest open
   var CHEVRON = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M6.5 9.5 12 15l5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  function foldAbstracts(box) {
+  // a list drawn afresh (a paper added, its conversion done, a refresh) keeps the abstracts that were open, open (at
+  // once, no slide), and its place: nothing moves under the reader
+  function openAbstracts(box) {
+    var open = {};
+    Array.prototype.forEach.call(box.querySelectorAll(".app-abs.open"), function (p) {
+      var row = p.closest("[data-k]");
+      if (row) open[row.getAttribute("data-k")] = 1;
+    });
+    return open;
+  }
+  function foldAbstracts(box, keepOpen) {
     // which abstracts run past their first lines: all measured first (one layout), then the buttons put in
     var ps = Array.prototype.slice.call(box.querySelectorAll(".app-abs"));
     var long = ps.map(function (p) { return p.scrollHeight > p.clientHeight + 2; });
@@ -1120,6 +1130,8 @@
         toggle();
       });
       p.parentNode.insertBefore(b, p.nextSibling);
+      var row = p.closest("[data-k]");
+      if (keepOpen && row && keepOpen[row.getAttribute("data-k")]) toggle(true, true);
     });
     foldState();
   }
@@ -1300,6 +1312,7 @@
   }
   function renderLibrary() {
     var box = pane("app:library");
+    var wasOpen = openAbstracts(box), wasAt = box.parentNode.scrollTop;
     var before = measureLibrary() || libTops;
     libTops = null;
     feedMath();
@@ -1363,7 +1376,8 @@
       '<ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>";
     box.innerHTML = (papers.length || converting ? lists :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
-    foldAbstracts(box);                        // (before the rows are measured: the "More" buttons take room)
+    foldAbstracts(box, wasOpen);               // (before the rows are measured: the "More" buttons take room)
+    if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
     growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
@@ -1466,6 +1480,7 @@
   }
   function renderNew() {
     var box = pane("app:new");
+    var wasOpen = openAbstracts(box), wasAt = box.parentNode.scrollTop;
     var before = measureRows(box);
     feedMath();
     var have = {}, p = pending(), rm = removing();
@@ -1528,7 +1543,8 @@
         }, 15000);
       }, function (e) { toast("Could not fetch it: " + esc(e.message)); });
     });
-    foldAbstracts(box);
+    foldAbstracts(box, wasOpen);
+    if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
     // in New a paper's title opens and closes its abstract (the round button opens the paper)
     Array.prototype.forEach.call(box.querySelectorAll(".app-abs-title"), function (t) {
