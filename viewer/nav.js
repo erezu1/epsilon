@@ -749,17 +749,53 @@ window.L2M_nav = function (opts) {
     }
     placeIndicators(instant);
   }
-  function keepPlace(change) {
-    // keep the text the reader is looking at in the same place while the layout changes
-    var main = document.querySelector("main"), anchor = null, y0 = 0;
-    var probe = document.elementsFromPoint ? document.elementsFromPoint(window.innerWidth / 2, window.innerHeight - 40) : [];
-    for (var k = 0; k < probe.length; k++) {
-      if (main.contains(probe[k]) && probe[k] !== main) { anchor = probe[k]; break; }
+  // A text size or font chosen: the line the reader is at stays where it is, in the paper and in the peek. Held by
+  // one letter of it (not its paragraph, which grows around it): the first line in sight, below the settings panel
+  // when it covers the top of the paper, and the first one in the peek.
+  function letterAt(box, x, y) {
+    var els = document.elementsFromPoint ? document.elementsFromPoint(x, y) : [], el = null;
+    for (var k = 0; k < els.length; k++) if (box.contains(els[k]) && els[k] !== box) { el = els[k]; break; }
+    if (!el) return null;
+    var w = document.createTreeWalker(el.closest("p, li, h1, h2, h3, h4, h5, h6, figcaption, td, th, dd, dt, blockquote") || el, NodeFilter.SHOW_TEXT);
+    var r = document.createRange(), n;
+    while ((n = w.nextNode())) {
+      if (!n.data.trim()) continue;
+      r.selectNodeContents(n);
+      var last = r.getClientRects();
+      if (!last.length || last[last.length - 1].bottom <= y) continue;
+      var lo = 0, hi = n.data.length - 1;                  // the first letter whose line reaches below y
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        r.setStart(n, mid); r.setEnd(n, mid + 1);
+        if (r.getBoundingClientRect().bottom > y) hi = mid; else lo = mid + 1;
+      }
+      return {node: n, at: lo, el: el};
     }
-    if (anchor) y0 = anchor.getBoundingClientRect().top;
+    return {el: el};
+  }
+  function letterTop(a) {
+    if (a.node && a.node.isConnected) {
+      var r = document.createRange();
+      r.setStart(a.node, a.at); r.setEnd(a.node, Math.min(a.at + 1, a.node.data.length));
+      var b = r.getBoundingClientRect();
+      if (b.height) return b.top;
+    }
+    return a.el.getBoundingClientRect().top;
+  }
+  function keepPlace(change) {
+    var main = document.querySelector("main"), x = window.innerWidth / 2;
+    var over = panel && panels[panel] ? panels[panel].getBoundingClientRect().bottom : 0;
+    var here = main && letterAt(main, x, Math.max(barHeight(), over) + 6), hereY = here ? letterTop(here) : 0;
+    var inPeek = null, peekY = 0;
+    if (peekOpen && peekScroll) {
+      var pr = peekScroll.getBoundingClientRect();
+      inPeek = letterAt(peekMain, pr.left + pr.width / 2, pr.top + 6);
+      if (inPeek) peekY = letterTop(inPeek);
+    }
     change();
     function fix() {
-      if (anchor) window.scrollBy(0, anchor.getBoundingClientRect().top - y0);
+      if (here) window.scrollBy(0, letterTop(here) - hereY);
+      if (inPeek) peekScroll.scrollTop += letterTop(inPeek) - peekY;
       root.style.setProperty("--l2m-bar-h", barHeight() + "px");
       update();
     }
