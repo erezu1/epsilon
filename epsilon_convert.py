@@ -371,6 +371,11 @@ def png_size(data):
     return None
 
 
+def marked_affil(m):
+    """Whether the affiliations are shown with their marks: when the authors carry them too."""
+    return bool(m.get("author_marks")) and bool(m.get("affil_marks"))
+
+
 def plain_text(tex):
     # accents (\v{c}, \'e, \"{o}, ...) as the letters they make
     def accent_m(m):
@@ -434,7 +439,8 @@ class Converter:
         self.fn_count = 0
         self.headings = []
         self.meta = {"title": None, "authors": [], "affil": [], "email": [], "date": None,
-                     "thanks": [], "abstract": None, "keywords": None}
+                     "thanks": [], "abstract": None, "keywords": None,
+                     "author_marks": {}, "affil_marks": {}, "inst_keys": []}   # (marks: which affiliation is whose)
         self.title_done = False
         self.just_titled = False
         self.have_chapters = False
@@ -642,12 +648,20 @@ class Converter:
             self.meta["authors"].extend(p.strip() for p in parts if p.strip())
         elif name == "authors":
             # putex.sty and the like: "A,\worksat{\X} B,\worksat{\X} and C \worksat{\Y}", the marks to the institutions
-            g = re.sub(r"\\worksat\s*\{(?:[^{}]|\{[^{}]*\})*\}", "", g)
-            parts = re.split(r",|\s+and\s+|\\and(?![A-Za-z])", g)
-            self.meta["authors"].extend(p.strip() for p in parts if p.strip())
+            keys = self.meta["inst_keys"]
+            for chunk in re.split(r"(\\worksat\s*\{(?:[^{}]|\{[^{}]*\})*\})", g):
+                w = re.match(r"\\worksat\s*\{(.*)\}$", chunk, re.S)
+                if w:                                  # the institutions of the author just named, as their numbers
+                    nums = [str(keys.index(k) + 1) for k in re.findall(r"\\([A-Za-z]+)", w.group(1)) if k in keys]
+                    if nums and self.meta["authors"]:
+                        self.meta["author_marks"][len(self.meta["authors"]) - 1] = ",".join(nums)
+                    continue
+                self.meta["authors"].extend(p.strip() for p in re.split(r",|\s+and\s+|\\and(?![A-Za-z])", chunk) if p.strip())
         elif name == "institution":                  # putex.sty: \institution{Key}{Name, place}
             g2, j2 = read_group(s, j)
             if g2 is not None:
+                self.meta["inst_keys"].append(g.strip())
+                self.meta["affil_marks"][len(self.meta["affil"])] = str(len(self.meta["inst_keys"]))
                 self.meta["affil"].append(g2)
                 j = j2
         elif name == "preprint":
@@ -2507,24 +2521,34 @@ class Converter:
             mk = re.search(mark, p)
             txt = re.sub(r"\s+", " ", plain_text(re.sub(mark, " ", p))).strip(" ,;")
             if len(txt) >= 2:
-                lines.append((next((x for x in mk.groups() if x), None) if mk and p[:mk.start()].strip(" {\\smallfootnotesize") == "" else None, txt, p))
+                lines.append((next((x for x in mk.groups() if x), None) if mk and re.fullmatch(r"[\s{]*(?:\\(?:small|footnotesize|scriptsize|normalsize|it|em|textit|textrm)(?![A-Za-z])[\s{]*)*", p[:mk.start()]) else None, txt, p))
         known = [a.split()[-1] for a in (getattr(self.args, "fallback_authors", "") or "").split(";") if a.strip()]
         at = next((i for i, l in enumerate(lines) if known and any(k in l[1] for k in known)), 0 if lines else None)
         if at is None:
             return body[:m.start()] + keep + body[m.end():]
         if not self.meta["authors"]:
-            names = re.sub(mark, "", lines[at][2])
-            parts = [x.strip() for x in re.split(r",|\s+and\s+|\\and(?![A-Za-z])", names) if x.strip()]
+            parts, marks = [], {}
+            for x in re.split(r",(?![^{$]*[}$])|\s+and\s+|\\and(?![A-Za-z])", lines[at][2]):
+                mk = re.search(mark, x)
+                name = re.sub(r"\s+", " ", re.sub(mark, "", x)).strip()
+                if name:
+                    if mk:
+                        marks[len(parts)] = re.sub(r"\s", "", next(y for y in mk.groups() if y))
+                    parts.append(name)
             if parts and all(len(plain_text(x)) < 80 for x in parts):
-                self.meta["authors"] = parts
+                self.meta["authors"], self.meta["author_marks"] = parts, marks
         if not self.meta["affil"]:
-            groups = []
+            groups, gm = [], {}
             for mk, txt, _ in lines[at + 1:]:
                 if mk or not groups:
+                    if mk:
+                        gm[len(groups)] = re.sub(r"\s", "", mk)
                     groups.append(txt)
                 else:
                     groups[-1] += ", " + txt
-            self.meta["affil"] = [g for g in groups if len(g) < 300]
+            keep_i = [i for i, g in enumerate(groups) if len(g) < 300]
+            self.meta["affil"] = [groups[i] for i in keep_i]
+            self.meta["affil_marks"] = {n: gm[i] for n, i in enumerate(keep_i) if i in gm}
         return body[:m.start()] + keep + body[m.end():]
 
     def find_handmade_title(self, body):
@@ -2593,8 +2617,11 @@ class Converter:
         parts.append('<div class="titlemeta">')
         if m["authors"]:
             names = []
-            for a in m["authors"]:
+            marked = bool(m["author_marks"]) and bool(m["affil_marks"])
+            for k, a in enumerate(m["authors"]):
                 ah = self.convert_inline(a).strip()
+                if marked and k in m["author_marks"]:
+                    ah += "<sup>%s</sup>" % html.escape(m["author_marks"][k])
                 names.append(ah)
             joined = ""
             for k, a in enumerate(names):
@@ -2605,8 +2632,9 @@ class Converter:
                 else:
                     joined += ", " + a
             parts.append('<p class="authors">%s</p>' % joined)
-        for a in m["affil"]:
-            parts.append('<p class="affil">%s</p>' % self.convert_inline(a))
+        for k, a in enumerate(m["affil"]):
+            mk = m["affil_marks"].get(k) if marked_affil(m) else None
+            parts.append('<p class="affil">%s%s</p>' % ("<sup>%s</sup> " % html.escape(mk) if mk else "", self.convert_inline(a)))
         for e in m["email"]:
             parts.append('<p class="email">%s</p>' % self.convert_inline(e))
         if m["date"] and m["date"].strip():
