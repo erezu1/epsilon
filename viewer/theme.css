@@ -2043,3 +2043,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .app-newfolder[hidden] { display: none; }
 .app-newfolder .app-field { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 16px; }
 .app-sheet-acts { margin: 4px 0 0; padding: 10px 10px 2px; border-top: 1px solid var(--rule); }
+
+/* Library and Explore at one size, whatever the text size chosen (that one is the papers'): Medium's */
+:root.l2m-app-lists { --fs: 17px; }
+@media (min-width: 720px) { :root.l2m-app-lists { --fs: 18px; } }
