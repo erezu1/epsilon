@@ -112,7 +112,9 @@
       el.style.transition = "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)";
       el.style.transform = "";
     }
-    function band(v, d) { return d * (1 - 1 / (v * 0.55 / d + 1)); }        // (as the peek: less and less, up to d)
+    // held back: at first it keeps up with the finger, then falls behind more and more, but never stops following
+    // (it keeps moving however far the finger goes; d sets how soon it falls behind)
+    function band(v, d) { return d * Math.log(1 + v / d); }
     function follow(x, y) {
       st.lastX = x;
       if (y != null) st.lastY = y;
@@ -120,8 +122,8 @@
       var ps = pinned ? [gap] : peers(), rw = row(), w = gap.offsetWidth, first = ps[0], last = ps[ps.length - 1];
       var lo = slotLeft(first), hi = slotLeft(last) + last.offsetWidth - w;     // (pinned: its own place, both ends)
       var raw = x - st.off, left = Math.max(lo, Math.min(hi, raw));
-      var shown = raw < lo ? lo - band(lo - raw, 60) : raw > hi ? hi + band(raw - hi, 60) : left;
-      var dy = st.lastY - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 36);
+      var shown = raw < lo ? lo - band(lo - raw, 40) : raw > hi ? hi + band(raw - hi, 40) : left;
+      var dy = st.lastY - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 22);
       // a neighbour gives way to the gap once the chip covers half of it
       for (var k = 0; !pinned && k < ps.length; k++) {
         ps = peers();
@@ -134,7 +136,7 @@
       chip.style.top = (st.top0 + ty) + "px";
     }
     function edges() {                                   // held by an edge of the row: it scrolls along
-      if (!st || !st.lifted) return;
+      if (!st || !st.lifted || pinned) return;           // (not for All, Unfiled: they stay about their place)
       var rw = row(), r = rw.getBoundingClientRect(), x = st.lastX;
       var v = x == null ? 0 : x < r.left + 36 ? -7 : x > r.right - 36 ? 7 : 0;
       if (v && rw.scrollWidth > rw.clientWidth) { rw.scrollLeft += v; follow(x, st.lastY); }
