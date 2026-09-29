@@ -40,7 +40,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from epsilon_convert import __version__ as CONVERTER  # noqa: E402
+from epsilon_convert import __version__ as CONVERTER, tex_accents  # noqa: E402
 
 UA = "epsilon-library/1.0 (+https://github.com/erezu1/epsilon)"
 ARXIV_ID = re.compile(r"^(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?/\d{7})(v\d+)?$")
@@ -160,7 +160,7 @@ def api_meta(aid):
     prim = e.find("x:primary_category", ns)
     return {"id": re.sub(r"v\d+$", "", full), "version": (re.search(r"v(\d+)$", full) or [None, None])[1],
             "title": clean(e.find("a:title", ns).text),
-            "authors": [clean(a.find("a:name", ns).text) for a in e.findall("a:author", ns)],
+            "authors": [tex_accents(clean(a.find("a:name", ns).text)) for a in e.findall("a:author", ns)],
             "abstract": clean(e.find("a:summary", ns).text),
             "primary": prim.get("term") if prim is not None else None,
             "categories": [c.get("term") for c in e.findall("a:category", ns)],
@@ -524,7 +524,7 @@ def api_day(cat, day, cross):
         if kind == "cross" and not cross:
             continue
         out.append({"id": aid, "title": clean(e.find("a:title", ns).text),
-                    "authors": [clean(a.find("a:name", ns).text) for a in e.findall("a:author", ns)],
+                    "authors": [tex_accents(clean(a.find("a:name", ns).text)) for a in e.findall("a:author", ns)],
                     "abstract": clean(e.find("a:summary", ns).text), "category": cat, "type": kind,
                     "announced": day.isoformat()})
     return out
@@ -576,7 +576,7 @@ def fetch_feed(lib, before=None):
             aid = it.findtext("link", "").rsplit("/abs/", 1)[-1].strip()
             desc = it.findtext("description", "")
             abstract = re.sub(r"\s+", " ", desc.split("Abstract:", 1)[-1]).strip()
-            authors = [a.strip() for a in re.split(r",\s*|\s+and\s+", it.findtext("dc:creator", "", ns)) if a.strip()]
+            authors = [tex_accents(a.strip()) for a in re.split(r",\s*|\s+and\s+", it.findtext("dc:creator", "", ns)) if a.strip()]
             items[(aid, cat)] = {"id": aid, "title": re.sub(r"\s+", " ", it.findtext("title", "")).strip(),
                                  "authors": authors, "abstract": abstract, "category": cat, "type": kind,
                                  "announced": announced}
@@ -709,7 +709,10 @@ def main():
         msg = "Feed " + now()[:10]
     elif a.cmd == "redraw":
         idx = lib.index()
-        for p in idx["papers"]:
+        for p in idx["papers"]:                   # (names kept from before: their TeX accents as letters)
+            p["authors"] = [tex_accents(x) for x in p.get("authors") or []]
+            if p.get("arxiv"):
+                p["arxiv"]["authors"] = [tex_accents(x) for x in p["arxiv"].get("authors") or []]
             if p.get("kind") in ("draft", "note") and not p.get("abstract"):
                 tex = main_tex(lib.root / "sources" / "drafts" / p["key"])
                 if tex:
@@ -718,6 +721,8 @@ def main():
         feed = lib.read("feed.json", None)
         if feed and feed.get("items"):            # and the feed's, from the titles and abstracts it keeps
             keep = feed["items"]
+            for i in keep:
+                i["authors"] = [tex_accents(x) for x in i.get("authors") or []]
             htmls, cache, css = math_html([tex_text(i["title"]) for i in keep] + [tex_text(i["abstract"]) for i in keep])
             for k, i in enumerate(keep):
                 i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]

@@ -376,8 +376,8 @@ def marked_affil(m):
     return bool(m.get("author_marks")) and bool(m.get("affil_marks"))
 
 
-def plain_text(tex):
-    # accents (\v{c}, \'e, \"{o}, ...) as the letters they make
+def tex_accents(tex):
+    """Accents written in TeX (\\v{c}, \\'e, \\"{o}, \\~n, ...) as the letters they make (Mu\\~noz: Muñoz)."""
     def accent_m(m):
         base = m.group(3) or m.group(4) or ""
         return unicodedata.normalize("NFC", base[:1] + ACCENTS[m.group(1) or m.group(2)] + base[1:]) if base else ""
@@ -385,6 +385,11 @@ def plain_text(tex):
     let = "".join(k for k in ACCENTS if k.isalpha())
     tex = re.sub(r"\\(?:([%s])|([%s])(?![A-Za-z]))\s*(?:\{([A-Za-z]?)\}|([A-Za-z]))" % (sym, let),
                  lambda m: accent_m(m), tex)
+    return re.sub(r"\{([^{}\\]*)\}", r"\1", tex) if "\\" not in tex else tex    # ({\'e}: its braces)
+
+
+def plain_text(tex):
+    tex = tex_accents(tex)
     t = re.sub(r"\$([^$]*)\$", r"\1", tex)
     t = re.sub(r"\\(?:thanks|footnote)\s*\{[^{}]*\}", "", t)
     t = re.sub(r"\\\\", " ", t)
