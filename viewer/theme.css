@@ -4,6 +4,7 @@
 :focus:not(:focus-visible) { outline: none; }
 :root {
   color-scheme: light;
+  --page-w: 40rem; --chrome-w: calc(var(--page-w) + 6rem);
   --ground: #fafbfc;
   --surface: #eff3f6;
   --ink: #16191d;
@@ -152,7 +153,7 @@ body {
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
 }
-main { max-width: 40rem; margin-inline: auto; overflow-wrap: anywhere; }
+main { max-width: var(--page-w); margin-inline: auto; overflow-wrap: anywhere; }
 .eqbody, .table-wrap, pre { overflow-wrap: normal; }
 img { max-width: 100%; height: auto; }
 a { color: var(--link); text-decoration: none; }
@@ -364,7 +365,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .l2m-bar.menu-open { box-shadow: none; border-bottom-color: transparent; background-color: transparent;
                      -webkit-backdrop-filter: blur(0px) saturate(1); backdrop-filter: blur(0px) saturate(1); }
 .l2m-bar, .l2m-menu, .l2m-fnsheet { background-image: none; }
-.bar-inner { max-width: 44rem; margin-inline: auto; display: flex; align-items: center; gap: 2px; }
+.bar-inner { max-width: calc(var(--page-w) + 4rem); margin-inline: auto; display: flex; align-items: center; gap: 2px; }
 .bar-btn {
   flex: 0 0 auto;
   width: 38px;
@@ -543,7 +544,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   visibility: visible;
   transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, visibility 0s;
 }
-.sheet-inner { max-width: 40rem; margin-inline: auto; }
+.sheet-inner { max-width: var(--page-w); margin-inline: auto; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; }
 .sheet-title { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding-left: 4px; }
 .sheet-body { max-height: 40vh; overflow-y: auto; font-size: 0.95em; line-height: 1.55; padding: 0 4px 2px; }
@@ -1408,7 +1409,7 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 /* 6. wider screens: the bars, panels, sheets and messages are as wide as the page, centred; the corners that meet
    the page are rounded as a panel's are */
 @media (min-width: 800px) {
-  .l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast { left: calc((100% - 46rem) / 2); right: calc((100% - 46rem) / 2); }
+  .l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); }
   .l2m-bar { border-radius: 0 0 16px 16px; }
   .l2m-menu { border-radius: 0 0 16px 16px; }
   .l2m-fnsheet, .app-toast { border-radius: 16px 16px 0 0; }
@@ -1744,7 +1745,7 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
 }
 .l2m-peek.dragging { transition: none; }
 .peek-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-.peek-main { display: block; max-width: 40rem; margin: 0 auto; padding: 64px 18px 40vh; box-sizing: border-box; }
+.peek-main { display: block; max-width: var(--page-w); margin: 0 auto; padding: 64px 18px 40vh; box-sizing: border-box; }
 .peek-head {
   position: absolute; z-index: 2; top: 0; left: 0; right: 0; touch-action: none; cursor: grab;
   background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
@@ -1757,7 +1758,7 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
 }
 .l2m-peek.dragging .peek-head { cursor: grabbing; }
 .peek-grab { display: block; width: 36px; height: 4px; border-radius: 999px; margin: 7px auto 1px; background: color-mix(in srgb, var(--ink) 22%, transparent); }
-.peek-row { display: flex; align-items: center; gap: 2px; max-width: 44rem; margin: 0 auto; padding: 0 6px 5px; min-height: 42px; }
+.peek-row { display: flex; align-items: center; gap: 2px; max-width: calc(var(--page-w) + 4rem); margin: 0 auto; padding: 0 6px 5px; min-height: 42px; }
 .peek-row .bar-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; }
 .peek-row .peek-back[hidden] { display: none; }
 .peek-title {
@@ -1771,7 +1772,7 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
 .peek-title mjx-container > svg { max-width: none; }
 /* a long press on an internal link is the peek's: not the browser's link menu, nor a selection */
 main a[href^="#"], .l2m-menu a[href^="#"], .l2m-fnsheet a[href^="#"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-@media (min-width: 800px) { .l2m-peek { left: calc((100% - 46rem) / 2); right: calc((100% - 46rem) / 2); } }
+@media (min-width: 800px) { .l2m-peek { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); } }
 @media (prefers-reduced-motion: reduce) { .l2m-peek, .l2m-peek.open { transition-duration: 0.01s; } }
 
 /* a paper's placeholder (the grey lines, until the paper is drawn): exactly the screen, never scrolled */
@@ -1802,7 +1803,7 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
    take the film from there (on wide screens, from the screen's left edge); a sheet, a message and the peek's head
    are set against their place on the screen as they move (L2M_pinFilm). The rims stay with each piece's edges. */
 :root { --glass-x: 0px; }
-@media (min-width: 800px) { :root { --glass-x: calc((46rem - 100vw) / 2); } }
+@media (min-width: 800px) { :root { --glass-x: calc((var(--chrome-w) - 100vw) / 2); } }
 .l2m-bar::before, .l2m-menu::before { background-position: var(--glass-x) 0; }
 .l2m-fnsheet::before, .app-toast::before, .peek-head::before { background-position: var(--film-x, 0px) var(--film-y, 0px); }
 /* the film under a rolling panel has the same corners as its moving edge (square where it meets a phone's bar) */
@@ -2065,3 +2066,12 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 /* the authors and the rest on one line: the details as a quieter tail of it */
 .lib-rows .lib-flow .lib-byline > .lib-meta { display: inline; }
 .lib-title > .app-new-tag { font-size: 0.72em; vertical-align: 2px; }
+
+/* the page's width on a wide screen (Margins, in the view settings): wide margins by default; a paper's only (the lists
+   keep theirs); the setting shows on wide screens alone */
+.set-wide-only { display: none; }
+@media (min-width: 900px) {
+  .set-wide-only { display: block; }
+  :root[data-margins="medium"]:not(.l2m-app-lists) { --page-w: 50rem; }
+  :root[data-margins="narrow"]:not(.l2m-app-lists) { --page-w: 62rem; }
+}

@@ -73,6 +73,7 @@
   };
   window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); };
   window.L2M_applySize = function (z) { attr("data-size", z, DEF.size); };
+  window.L2M_applyMargins = function (m) { attr("data-margins", m, "wide"); };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); };
   // a change of colours (theme, tone) cross-fades the page; the fade shows a still picture of the page, so anything
   // that moves meanwhile (a panel closing) cuts it short and moves in sight
@@ -150,6 +151,7 @@
     window.L2M_applyFont(p.font || DEF.font);
     window.L2M_applyTheme(p.theme || DEF.appearance);
     window.L2M_applySize(p.size || DEF.size);
+    window.L2M_applyMargins(p.margins || "wide");
     window.L2M_applyTone(p.tone || DEF.tone);
   };
   if (window.L2M_THEME) window.L2M_initPrefs(window.L2M_THEME);   // a bundled page carries its theme inline

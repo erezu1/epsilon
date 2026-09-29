@@ -62,8 +62,12 @@
         return '<button type="button" class="seg-btn" role="radio" aria-checked="' + checked(k, "off") + '" data-full-opt="' + k + '"><span>' +
           (k === "on" ? "On" : "Off") + "</span></button>";
       }).join("") : "";
+    // the page's width on a wide screen, as its margins: wide (the text a comfortable measure), medium or narrow
+    var margins = [["wide", "Wide"], ["medium", "Medium"], ["narrow", "Narrow"]].map(function (m) {
+      return '<button type="button" class="seg-btn" role="radio" aria-checked="' + checked(m[0], "wide") + '" data-margins-opt="' + m[0] + '"><span>' + m[1] + "</span></button>";
+    }).join("");
     return group("Appearance", "seg", looks) + group("Tone", "seg", tones) + group("Text size", "seg", sizes) + fontPick +
-      group("Full screen while reading", "seg", full);
+      '<div class="set-wide-only">' + group("Margins", "seg", margins) + "</div>" + group("Full screen while reading", "seg", full);
   }
   window.L2M_readingSettings = readingSettings;
 
