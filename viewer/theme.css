@@ -2047,3 +2047,11 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 /* Library and Explore at one size, whatever the text size chosen (that one is the papers'): Medium's */
 :root.l2m-app-lists { --fs: 17px; }
 @media (min-width: 720px) { :root.l2m-app-lists { --fs: 18px; } }
+/* a folder's chip, dragged into a new order: it lifts (larger, a shadow) and the others slide aside */
+.app-chip.lib-folder[data-folder-chip] { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+@media (hover: hover) and (pointer: fine) { .app-chip.lib-folder[data-folder-chip] { cursor: grab; } }
+.app-chip.lib-folder.lifted {
+  z-index: 3; transform: scale(1.06); cursor: grabbing;
+  box-shadow: 0 8px 20px -8px var(--bar-shadow), var(--seg-on-shadow);
+}
+.app-sheet-move { display: flex; gap: 8px; padding: 2px 10px 6px; margin: 0; }

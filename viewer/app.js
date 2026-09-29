@@ -73,14 +73,14 @@
       fn();
     };
   }
+  function eatClick() {                    // the click a gesture ends in: not also a tap
+    var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
+    window.addEventListener("click", stop, true);
+    setTimeout(function () { window.removeEventListener("click", stop, true); }, 600);
+  }
   // a long press (touch, pen, a held mouse button, or the context menu): FN, and the click it ends in is eaten
   function onLong(el, fn) {
-    var t = null, x = 0, y = 0;
-    function eat() {
-      var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
-      window.addEventListener("click", stop, true);
-      setTimeout(function () { window.removeEventListener("click", stop, true); }, 600);
-    }
+    var t = null, x = 0, y = 0, eat = eatClick;
     function fire() { t = null; if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} } eat(); fn(); }
     el.addEventListener("pointerdown", function (e) {
       if (e.button !== 0) return;
@@ -91,9 +91,95 @@
     ["pointerup", "pointercancel", "pointerleave"].forEach(function (n) { el.addEventListener(n, function () { clearTimeout(t); t = null; }); });
     el.addEventListener("contextmenu", function (e) { e.preventDefault(); if (t) { clearTimeout(t); t = null; fn(); } else fn(); });
   }
+  // A folder's chip dragged to a new place among the folders (All, Unfiled and + stay where they are): on a touch
+  // screen after a long press (it lifts), with a mouse as soon as it moves; the others slide aside, and the row scrolls
+  // along at its edges. A long press let go where it began (or a right click) opens the folder's sheet instead.
+  function chipDrag(chip, id) {
+    var st = null;
+    function peers() { return Array.prototype.slice.call(chip.parentNode.querySelectorAll("[data-folder-chip]")); }
+    function slotLeft(el) { var row = el.parentNode; return row.getBoundingClientRect().left + el.offsetLeft - row.scrollLeft; }
+    function order() { return peers().map(function (p) { return p.getAttribute("data-view"); }).join(); }
+    function slide(el, from) {                           // from where it was to its new place
+      var d = from - slotLeft(el);
+      el.style.transition = "none";
+      el.style.transform = "translateX(" + d + "px)";
+      void el.offsetWidth;
+      el.style.transition = "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+      el.style.transform = "";
+    }
+    function follow(x) {
+      st.lastX = x;
+      if (Math.abs(x - st.x) > 6) st.moved = true;
+      var ps = peers(), i = ps.indexOf(chip), mid = x - st.off + chip.offsetWidth / 2, n = ps[i + 1], p = ps[i - 1], was;
+      if (n && mid > n.getBoundingClientRect().left + n.offsetWidth / 2) { was = slotLeft(n); chip.parentNode.insertBefore(n, chip); slide(n, was); }
+      else if (p && mid < p.getBoundingClientRect().left + p.offsetWidth / 2) { was = slotLeft(p); chip.parentNode.insertBefore(p, chip.nextSibling); slide(p, was); }
+      chip.style.transform = "translateX(" + (x - st.off - slotLeft(chip)) + "px) scale(1.06)";
+    }
+    function edges() {                                   // held by an edge of the row: it scrolls along
+      if (!st || !st.lifted) return;
+      var row = chip.parentNode, r = row.getBoundingClientRect(), x = st.lastX;
+      var v = x == null ? 0 : x < r.left + 36 ? -7 : x > r.right - 36 ? 7 : 0;
+      if (v && row.scrollWidth > row.clientWidth) { row.scrollLeft += v; follow(x); }
+      st.raf = requestAnimationFrame(edges);
+    }
+    function lift() {
+      st.lifted = true;
+      st.timer = null;
+      sw = null; pull = null;                            // (not the lists' swipe, nor the pull)
+      st.off = st.x - slotLeft(chip);
+      st.order0 = order();
+      chip.style.transition = "none";
+      chip.classList.add("lifted");
+      if (st.touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
+      edges();
+    }
+    function cancel() { if (st && st.timer) clearTimeout(st.timer); st = null; }
+    function drop() {
+      var s0 = st;
+      st = null;
+      if (!s0) return;
+      if (s0.timer) clearTimeout(s0.timer);
+      cancelAnimationFrame(s0.raf);
+      if (!s0.lifted) return;
+      eatClick();
+      chip.classList.remove("lifted");
+      chip.style.transition = "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+      chip.style.transform = "";
+      if (order() !== s0.order0) {
+        var at = peers().indexOf(chip);
+        setTimeout(function () { moveFolder(id, at); }, 190);
+      } else if (s0.touch && !s0.moved) folderSheet(id);
+    }
+    chip.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      st = {x: e.clientX, y: e.clientY, touch: e.pointerType !== "mouse", lifted: false, moved: false, lastX: null};
+      if (st.touch) st.timer = setTimeout(lift, 450);
+      else { try { chip.setPointerCapture(e.pointerId); } catch (x) {} }
+    });
+    chip.addEventListener("pointermove", function (e) {
+      if (!st) return;
+      if (!st.lifted) {
+        var d = Math.abs(e.clientX - st.x) + Math.abs(e.clientY - st.y);
+        if (st.touch) { if (d > 10) cancel(); return; }
+        if (Math.abs(e.clientX - st.x) > 6) lift(); else return;
+      }
+      follow(e.clientX);
+    });
+    chip.addEventListener("touchmove", function (e) {   // lifted: the finger moves the chip, not the page
+      if (st && st.lifted) { e.preventDefault(); follow(e.touches[0].clientX); }
+    }, {passive: false});
+    chip.addEventListener("pointerup", function () { if (st && st.lifted) drop(); else cancel(); });
+    chip.addEventListener("pointercancel", function () { if (st && st.lifted) drop(); else cancel(); });
+    chip.addEventListener("touchend", function () { if (st && st.lifted) drop(); });
+    chip.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+      if (st && st.touch) return;                       // (a touch's long press lifts it; its sheet comes as it is let go)
+      folderSheet(id);
+    });
+  }
   // ---------------------------------------------------------------- a sheet from the bottom, for a paper's folder
   // (and removing it) and for a folder's name: a tap outside it, back or Escape closes it, and does nothing else
-  var appSheet = null, appSheetOpen = false;
+  var appSheet = null, appSheetOpen = false, appSheetAt = 0;
   function openAppSheet(title, html, wire) {
     var I = theme.icons || {};
     if (!appSheet) {
@@ -118,6 +204,7 @@
       try { if (!(history.state || {}).l2mSheet) history.pushState(Object.assign({}, history.state || {}, {l2mSheet: true}), ""); } catch (e) {}
     }
     appSheetOpen = true;
+    appSheetAt = Date.now();
     appSheet.classList.add("open");
     appSheet.setAttribute("aria-hidden", "false");
     if (window.L2M_pinFilm) L2M_pinFilm(appSheet, 360);
@@ -223,10 +310,20 @@
   function folderSheet(id) {
     var f = folders[id];
     if (!f || f.gone) return;
+    var l = folderList(), at = l.map(function (x) { return x.id; }).indexOf(id);
     openAppSheet("Folder", '<form class="app-newfolder app-rename"><input class="app-field" name="n" value="' + esc(f.name) +
       '" maxlength="40" autocomplete="off" aria-label="The folder\u2019s name"><button type="submit" class="app-pill">Rename</button></form>' +
+      (l.length > 1 ? '<p class="app-row app-sheet-move"><button type="button" class="app-pill" data-folder-move="-1"' + (at <= 0 ? " disabled" : "") + ">Move left</button>" +
+        '<button type="button" class="app-pill" data-folder-move="1"' + (at >= l.length - 1 ? " disabled" : "") + ">Move right</button></p>" : "") +
       '<p class="app-row app-sheet-acts"><button type="button" class="app-pill app-danger" data-folder-drop>Delete the folder</button></p>',
       function (body) {
+        Array.prototype.forEach.call(body.querySelectorAll("[data-folder-move]"), function (b) {
+          b.addEventListener("click", function () {
+            var i = folderList().map(function (x) { return x.id; }).indexOf(id) + +b.getAttribute("data-folder-move");
+            moveFolder(id, i);
+            folderSheet(id);                           // (the sheet again, its buttons for the new place)
+          });
+        });
         body.querySelector("form").addEventListener("submit", function (e) {
           e.preventDefault();
           var name = body.querySelector("input").value.trim();
@@ -603,10 +700,29 @@
   // reading places and pins (reading.json), synced the same way: per folder and per paper, the latest change wins; a
   // folder deleted stays as a mark ("gone"), so the deletion reaches the other devices. Its papers are then unfiled.
   var folders = store("folders") || {}, placed = store("placed") || {};
+  // their order: the reader's (dragged), a position each; folders from before it (none) by name, ahead
   function folderList() {
     return Object.keys(folders).filter(function (id) { return !folders[id].gone; })
-      .map(function (id) { return {id: id, name: folders[id].name}; })
-      .sort(function (a, b) { return a.name.localeCompare(b.name, undefined, {sensitivity: "base"}); });
+      .map(function (id) { return {id: id, name: folders[id].name, pos: folders[id].pos}; })
+      .sort(function (a, b) {
+        var pa = typeof a.pos === "number", pb = typeof b.pos === "number";
+        if (pa !== pb) return pa ? 1 : -1;
+        return pa ? a.pos - b.pos : a.name.localeCompare(b.name, undefined, {sensitivity: "base"});
+      });
+  }
+  function givePositions() {                // every folder a position, as it stands (once, before the first move)
+    var l = folderList();
+    if (!l.some(function (f) { return typeof f.pos !== "number"; })) return;
+    l.forEach(function (f, i) { folders[f.id] = Object.assign({}, folders[f.id], {pos: i + 1, at: Date.now()}); });
+  }
+  // a folder moved to INDEX among the others: a position between its new neighbours' (only its own changes, so
+  // moves on two devices never scramble the order)
+  function moveFolder(id, index) {
+    givePositions();
+    var l = folderList().filter(function (f) { return f.id !== id; }), a = l[index - 1], b = l[index];
+    var pos = a && b ? (a.pos + b.pos) / 2 : a ? a.pos + 1 : b ? b.pos - 1 : 1;
+    folders[id] = Object.assign({}, folders[id], {pos: pos, at: Date.now()});
+    orgChanged();
   }
   function folderOf(k) {
     var f = placed[k] && placed[k].folders && placed[k].folders[0];
@@ -623,12 +739,14 @@
   function placeIn(k, id) { placed[k] = {folders: id ? [id] : [], at: Date.now()}; orgChanged(); }
   function makeFolder(name) {
     var id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    folders[id] = {name: name, at: Date.now()};
+    givePositions();
+    var l = folderList();
+    folders[id] = {name: name, at: Date.now(), pos: l.length ? l[l.length - 1].pos + 1 : 1};    // (at the end)
     return id;
   }
-  function renameFolder(id, name) { folders[id] = {name: name, at: Date.now()}; orgChanged(); }
+  function renameFolder(id, name) { folders[id] = Object.assign({}, folders[id], {name: name, at: Date.now()}); orgChanged(); }
   function dropFolder(id) {
-    folders[id] = {name: folders[id].name, at: Date.now(), gone: true};
+    folders[id] = Object.assign({}, folders[id], {at: Date.now(), gone: true});
     if (store("folderView") === id) store("folderView", "all");
     orgChanged();
   }
@@ -1299,7 +1417,7 @@
     if (appSheetOpen && e.target.isConnected && !appSheet.contains(e.target)) {
       e.preventDefault();
       e.stopPropagation();
-      closeAppSheet();
+      if (Date.now() - appSheetAt > 400) closeAppSheet();   // (not the click of the long press that opened it)
       return;
     }
     if (panelOpen && shell && e.target.isConnected && !shell.contains(e.target)) {
@@ -1646,7 +1764,7 @@
         store("folderView", b.getAttribute("data-view"));
         renderLibrary();
       });
-      if (b.hasAttribute("data-folder-chip")) onLong(b, function () { folderSheet(b.getAttribute("data-view")); });
+      if (b.hasAttribute("data-folder-chip")) chipDrag(b, b.getAttribute("data-view"));
     });
     var fadd = box.querySelector("[data-folder-add]");
     if (fadd) fadd.addEventListener("click", newFolderSheet);

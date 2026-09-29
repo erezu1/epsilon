@@ -86,7 +86,8 @@ def place_in_folder(root, key, name):
                 n, r = divmod(n, 36)
                 digits = "0123456789abcdefghijklmnopqrstuvwxyz"[r] + digits
             fid = "f" + digits + os.urandom(2).hex()
-            folders[fid] = {"name": name, "at": now}
+            last = max([v["pos"] for v in folders.values() if isinstance(v.get("pos"), (int, float))] or [len(folders)])
+            folders[fid] = {"name": name, "at": now, "pos": last + 1}     # (at the end of the reader's order)
         if (placed.get(key) or {}).get("folders") == [fid]:
             return
         placed[key] = {"folders": [fid], "at": now}
