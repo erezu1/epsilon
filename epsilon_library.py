@@ -193,12 +193,14 @@ def main_tex(folder):
     return Path(max(cands)[1]) if cands else None
 
 
-def run_converter(tex, out, kicker, title=None):
+def run_converter(tex, out, kicker, title=None, meta=None):
     cmd = [sys.executable, str(HERE / "epsilon_convert.py"), str(tex), "-o", str(out), "-q"]
     if kicker:
         cmd += ["--kicker", kicker]
     if title:
         cmd += ["--title", title]
+    if meta:                                      # (arXiv's, for a title page drawn by hand)
+        cmd += ["--fallback-title", meta.get("title") or "", "--fallback-authors", "; ".join(meta.get("authors") or [])]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     ok = r.returncode == 0 and (Path(out) / "paper.json").exists()
     return ok, (r.stdout + r.stderr).strip()
@@ -229,7 +231,7 @@ def convert_arxiv(lib, aid, refetch=True):
             out = lib.root / "papers" / key
             if out.exists():
                 shutil.rmtree(out)
-            ok, log = run_converter(tex, out, None)
+            ok, log = run_converter(tex, out, None, meta=meta)
             entry.update(status="ok" if ok else "failed", source=tex.name)
             if not ok:
                 entry["error"] = log[-800:]

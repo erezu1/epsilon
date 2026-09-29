@@ -619,8 +619,8 @@ class Converter:
         self.have_chapters = bool(re.search(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{(book|report|memoir|scrbook|scrreprt)\}", pre))
         self.grab_meta(pre)
 
-    META_RE = re.compile(r"\\(title|author|date|affiliation|affil|address|institute|emailAdd|email|thanks|"
-                         r"keywords|abstract)(?![A-Za-z])")
+    META_RE = re.compile(r"\\(title|authors?|date|affiliation|affil|address|institute|institution|emailAdd|email|thanks|"
+                         r"keywords|abstract|preprint)(?![A-Za-z])")
 
     def grab_meta(self, s):
         i = 0
@@ -640,6 +640,18 @@ class Converter:
         elif name == "author":
             parts = re.split(r"\\and(?![A-Za-z])", g)
             self.meta["authors"].extend(p.strip() for p in parts if p.strip())
+        elif name == "authors":
+            # putex.sty and the like: "A,\worksat{\X} B,\worksat{\X} and C \worksat{\Y}", the marks to the institutions
+            g = re.sub(r"\\worksat\s*\{(?:[^{}]|\{[^{}]*\})*\}", "", g)
+            parts = re.split(r",|\s+and\s+|\\and(?![A-Za-z])", g)
+            self.meta["authors"].extend(p.strip() for p in parts if p.strip())
+        elif name == "institution":                  # putex.sty: \institution{Key}{Name, place}
+            g2, j2 = read_group(s, j)
+            if g2 is not None:
+                self.meta["affil"].append(g2)
+                j = j2
+        elif name == "preprint":
+            pass
         elif name == "date":
             self.meta["date"] = g
         elif name in ("affiliation", "affil", "address", "institute"):
@@ -1451,8 +1463,8 @@ class Converter:
             if k > m.end():
                 self.setup_seen(s[m.start():k])
             return max(k, i)
-        if name in ("title", "author", "date", "affiliation", "affil", "address", "institute", "emailAdd",
-                    "email", "keywords"):
+        if name in ("title", "author", "authors", "date", "affiliation", "affil", "address", "institute", "institution",
+                    "emailAdd", "email", "keywords", "preprint"):
             return self.meta_command(s, name, i)
         if name == "begin":
             env, j = read_group(s, i)
@@ -2191,8 +2203,8 @@ class Converter:
                 out.append("\x00BIB\x00")
                 i = k
                 continue
-            if name in ("title", "author", "date", "affiliation", "affil", "address", "institute", "emailAdd",
-                        "email", "keywords", "thanks"):
+            if name in ("title", "author", "authors", "date", "affiliation", "affil", "address", "institute", "institution",
+                        "emailAdd", "email", "keywords", "thanks", "preprint"):
                 i = self.meta_command(s, name, j)
                 continue
             if name == "abstract" and s[j:j + 1] in "{ \n\t":
@@ -2508,7 +2520,16 @@ class Converter:
         return body
 
     # ------------------------------------------------------------------ title block
+    def fallbacks(self):
+        """A title page drawn by hand (no \\title or \\author): the title and authors given instead (arXiv's, from the library)."""
+        m = self.meta
+        if not m["title"] and getattr(self.args, "fallback_title", None):
+            m["title"] = self.args.fallback_title
+        if not m["authors"] and getattr(self.args, "fallback_authors", None):
+            m["authors"] = [a.strip() for a in self.args.fallback_authors.split(";") if a.strip()]
+
     def title_block(self):
+        self.fallbacks()
         m = self.meta
         if not (m["title"] or m["authors"] or m["abstract"]):
             return ""
@@ -2662,6 +2683,7 @@ class Converter:
             self.warn("internal: unresolved placeholder in the page")
             body = body.replace("\x00", "")
         macros, packages = self.mathjax_config()
+        self.fallbacks()
         return {
             "format": DOC_FORMAT, "version": DOC_VERSION, "converter": __version__,
             "source": self.src.name, "engine": self.args.engine,
@@ -2812,6 +2834,8 @@ def main():
                     help="with --html: write a page fragment without <html>/<head>/<body>, for a Claude artifact")
     ap.add_argument("--kicker", help='small line above the title, for example "Draft"')
     ap.add_argument("--title", help="override the title")
+    ap.add_argument("--fallback-title", help="the title when the source has none of its own (a title page drawn by hand)")
+    ap.add_argument("--fallback-authors", help="the authors, separated by ';', when the source names none")
     ap.add_argument("--engine", default="pdflatex", choices=["pdflatex", "xelatex", "lualatex"],
                     help="LaTeX engine used to obtain the numbering (default: pdflatex)")
     ap.add_argument("--keep-build", metavar="DIR", help="keep the LaTeX build files in DIR (for debugging)")
