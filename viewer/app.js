@@ -1631,6 +1631,37 @@
     return n ? m : null;
   }
   function measureLibrary() { return measureRows(main.querySelector('[data-pane="app:library"] .app-pane-in')); }
+  // rows leaving a list as it is drawn afresh (another folder chosen, a paper gone): a copy of each stays where it was
+  // and fades out, as the new ones fade in (they would otherwise just vanish)
+  function leavingRows(box) {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+    var top = box.getBoundingClientRect().top, rows = {};
+    Array.prototype.forEach.call(box.querySelectorAll(".lib-rows > li[data-k], .lib-head[data-k]"), function (li) {
+      var r = li.getBoundingClientRect();
+      if (r.bottom < -200 || r.top > window.innerHeight + 200) return;      // (only those in sight, or nearly)
+      rows[li.getAttribute("data-k")] = {el: li.cloneNode(true), top: r.top - top, left: r.left, width: r.width};
+    });
+    return {rows: rows, top: top};
+  }
+  function fadeLeaving(box, was) {
+    if (!was) return;
+    var now = box.getBoundingClientRect(), dy = was.top - now.top;
+    Object.keys(was.rows).forEach(function (k) {
+      var q = '[data-k="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]';
+      if (box.querySelector(".lib-rows > li" + q + ", .lib-head" + q)) return;
+      var r = was.rows[k], ol = document.createElement(r.el.tagName === "LI" ? "ol" : "div");   // (a row in a list; a header alone)
+      ol.className = r.el.tagName === "LI" ? "l2m-library lib-rows lib-ghost" : "lib-ghost";
+      ol.setAttribute("aria-hidden", "true");
+      ol.style.cssText = "position:absolute;margin:0;pointer-events:none;z-index:0;top:" + (r.top + dy) + "px;left:" + (r.left - now.left) +
+        "px;width:" + r.width + "px;transition:opacity 200ms ease;";
+      ol.appendChild(r.el);
+      if (getComputedStyle(box).position === "static") box.style.position = "relative";
+      box.appendChild(ol);
+      void ol.offsetWidth;
+      ol.style.opacity = "0";
+      setTimeout(function () { ol.remove(); }, 240);
+    });
+  }
   function slideRows(box, before, scroller) {
     if (!before || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
     var top = box.getBoundingClientRect().top, rows = [];
@@ -1728,6 +1759,7 @@
     var box = pane("app:library");
     var wasOpen = openAbstracts(box), wasAt = box.parentNode.scrollTop;
     var chipsWere = box.querySelector(".lib-folders"), chipsAt = chipsWere ? chipsWere.scrollLeft : 0;   // (the chips' scroll kept)
+    var leaving = leavingRows(box);
     var before = measureLibrary() || libTops;
     libTops = null;
     feedMath();
@@ -1827,6 +1859,7 @@
     foldAbstracts(box, wasOpen);               // (before the rows are measured: the "Abstract" buttons take room)
     if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
+    fadeLeaving(box, leaving);
     growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
       b.addEventListener("click", function () { togglePin(b.getAttribute("data-pin")); });
