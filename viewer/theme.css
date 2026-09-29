@@ -2020,10 +2020,11 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .lib-folders::-webkit-scrollbar { display: none; }
 .app-chip.lib-folder {
   flex: 0 0 auto; white-space: nowrap; font-family: var(--ui); font-size: 15px; font-weight: 500; padding: 7px 14px;
-  background: var(--bar-hover); color: var(--muted); transition: background-color 180ms ease, box-shadow 180ms ease, color 180ms ease;
+  background: linear-gradient(var(--bar-hover), var(--bar-hover)), var(--ground);    /* (the tint on the page's ground: solid, */
+  color: var(--muted); transition: background-color 180ms ease, box-shadow 180ms ease, color 180ms ease;   /* as the white one) */
 }
 .app-chip.lib-folder span { font-size: 13px; color: inherit; opacity: 0.6; margin-left: 1px; }   /* (the count: its name's colour, fainter) */
-.app-chip.lib-folder[aria-selected="true"] { background: var(--seg-on); box-shadow: var(--seg-on-shadow); color: var(--ink); }
+.app-chip.lib-folder[aria-selected="true"] { background: linear-gradient(var(--seg-on), var(--seg-on)), var(--ground); box-shadow: var(--seg-on-shadow); color: var(--ink); }
 .app-chip.lib-folder-add { color: var(--link); font-size: 18px; line-height: 1; padding: 6px 14px; }
 .app-chip.lib-folder:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
 .lib-folders + .app-note { margin-top: 18px; }
