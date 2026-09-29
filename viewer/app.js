@@ -1448,6 +1448,16 @@
     }
   }, true);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if (appSheetOpen) closeAppSheet(); else closePanel(); } });
+  // Ctrl/Cmd+F in the Library: its own search (the field focused, its words selected if it is open already)
+  document.addEventListener("keydown", function (e) {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key !== "f" && e.key !== "F")) return;
+    if (current !== "app:library" || !shell || !src) return;       // (a paper has its own; Explore the browser's)
+    e.preventDefault();
+    if (appSheetOpen) closeAppSheet("jump");
+    var f = shell.querySelector("#lib-q");
+    if (shell.querySelector("#app-bar").classList.contains("searching")) { f.focus(); f.select(); }
+    else searching(true);
+  });
 
   var mathIn = false, libMathIn = null;
   function addMath(m) {                  // the glyphs and styles of formulas drawn into feed.json or library.json
