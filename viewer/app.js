@@ -59,6 +59,205 @@
       if (b.getAttribute("data-ask") === "yes") onYes(); else if (onNo) onNo();
     };
   }
+  // a message with one action (it goes by itself, as a message does)
+  function toastAct(html, label, fn, ms) {
+    toast('<span class="app-ask"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
+          '<button type="button" class="app-pill app-ask-yes" data-act-go>' + label + "</button></span></span>", ms || 8000);
+    var t = document.getElementById("app-toast");
+    t.onclick = function (e) {
+      if (!e.target.closest("[data-act-go]")) return;
+      t.onclick = null;
+      clearTimeout(t.l2mTimer);
+      t.classList.remove("on");
+      if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
+      fn();
+    };
+  }
+  // a long press (touch, pen, a held mouse button, or the context menu): FN, and the click it ends in is eaten
+  function onLong(el, fn) {
+    var t = null, x = 0, y = 0;
+    function eat() {
+      var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
+      window.addEventListener("click", stop, true);
+      setTimeout(function () { window.removeEventListener("click", stop, true); }, 600);
+    }
+    function fire() { t = null; if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} } eat(); fn(); }
+    el.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      x = e.clientX; y = e.clientY;
+      clearTimeout(t); t = setTimeout(fire, 480);
+    });
+    el.addEventListener("pointermove", function (e) { if (t && Math.abs(e.clientX - x) + Math.abs(e.clientY - y) > 10) { clearTimeout(t); t = null; } });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (n) { el.addEventListener(n, function () { clearTimeout(t); t = null; }); });
+    el.addEventListener("contextmenu", function (e) { e.preventDefault(); if (t) { clearTimeout(t); t = null; fn(); } else fn(); });
+  }
+  // ---------------------------------------------------------------- a sheet from the bottom, for a paper's folder
+  // (and removing it) and for a folder's name: a tap outside it, back or Escape closes it, and does nothing else
+  var appSheet = null, appSheetOpen = false;
+  function openAppSheet(title, html, wire) {
+    var I = theme.icons || {};
+    if (!appSheet) {
+      appSheet = document.createElement("div");
+      appSheet.className = "l2m-fnsheet app-sheet";
+      appSheet.setAttribute("role", "dialog");
+      appSheet.setAttribute("aria-modal", "true");
+      appSheet.setAttribute("aria-hidden", "true");
+      appSheet.innerHTML = '<div class="sheet-inner"><div class="sheet-head"><span class="sheet-title"></span>' +
+        '<button type="button" class="bar-btn" data-sheet-close aria-label="Close">' + (I.close || "&times;") + "</button></div>" +
+        '<div class="app-sheet-body"></div></div>';
+      document.body.appendChild(appSheet);
+      appSheet.querySelector("[data-sheet-close]").addEventListener("click", function () { closeAppSheet(); });
+    }
+    appSheet.querySelector(".sheet-title").innerHTML = title;
+    appSheet.setAttribute("aria-label", appSheet.querySelector(".sheet-title").textContent);
+    var body = appSheet.querySelector(".app-sheet-body");
+    body.innerHTML = html;
+    wire(body);
+    if (!appSheetOpen) {
+      closePanel("jump");
+      try { if (!(history.state || {}).l2mSheet) history.pushState(Object.assign({}, history.state || {}, {l2mSheet: true}), ""); } catch (e) {}
+    }
+    appSheetOpen = true;
+    appSheet.classList.add("open");
+    appSheet.setAttribute("aria-hidden", "false");
+    if (window.L2M_pinFilm) L2M_pinFilm(appSheet, 360);
+  }
+  function closeAppSheet(how) {       // how: "pop" (closed by back), "jump" (something else follows at once)
+    if (!appSheetOpen) return;
+    appSheetOpen = false;
+    appSheet.classList.remove("open");
+    appSheet.setAttribute("aria-hidden", "true");
+    if (window.L2M_pinFilm) L2M_pinFilm(appSheet, 360);
+    if (document.activeElement && appSheet.contains(document.activeElement)) document.activeElement.blur();
+    try {
+      if (how !== "pop" && (history.state || {}).l2mSheet) {
+        if (how === "jump") { var st = Object.assign({}, history.state); delete st.l2mSheet; history.replaceState(st, ""); }
+        else { skipPop = true; history.back(); }
+      }
+    } catch (e) {}
+  }
+  // the folders as a choice: none, each folder, and a new one (named in place)
+  function folderChoice(cur) {
+    var I = theme.icons || {};
+    return '<p class="menu-head">Folder</p><div class="opt-list" role="radiogroup" aria-label="Folder">' +
+      [{id: "", name: "No folder"}].concat(folderList()).map(function (f) {
+        return '<button type="button" class="opt" role="radio" aria-checked="' + ((f.id || null) === cur) + '" data-folder="' + esc(f.id) + '">' +
+          '<span class="opt-name">' + esc(f.name) + '</span><span class="opt-check">' + (I.check || "&#10003;") + "</span></button>";
+      }).join("") +
+      '<button type="button" class="opt app-opt-new" data-folder-new><span class="opt-name">New folder&hellip;</span></button></div>' +
+      '<form class="app-newfolder" hidden><input class="app-field" name="n" placeholder="Folder name" maxlength="40" autocomplete="off" ' +
+      'aria-label="The new folder\u2019s name"><button type="submit" class="app-pill">Create</button></form>';
+  }
+  function wireChoice(body, pick) {
+    Array.prototype.forEach.call(body.querySelectorAll("[data-folder]"), function (b) {
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(body.querySelectorAll("[data-folder]"), function (o) { o.setAttribute("aria-checked", o === b ? "true" : "false"); });
+        pick(b.getAttribute("data-folder") || null);
+      });
+    });
+    var form = body.querySelector(".app-newfolder");
+    body.querySelector("[data-folder-new]").addEventListener("click", function () {
+      form.hidden = false;
+      form.querySelector("input").focus();
+    });
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var name = form.querySelector("input").value.trim();
+      if (!name) return;
+      var same = folderList().filter(function (f) { return f.name.toLowerCase() === name.toLowerCase(); })[0];
+      pick(same ? same.id : makeFolder(name), true);
+    });
+  }
+  function paperTitle(k) {
+    var x = ((lib && lib.papers) || []).filter(function (p) { return keyOf(p) === k; })[0];
+    if (x) return x.titleHtml || esc(x.title || k);
+    var f = ((feed && feed.items) || []).filter(function (i) { return arxivKey(i.id) === k; })[0];
+    return f ? f.titleHtml || esc(f.title) : esc(k);
+  }
+  // a paper's sheet: its folder; and, for one in the library, removing it (the row's own confirmation)
+  function paperSheet(k) {
+    var inLib = ((lib && lib.papers) || []).some(function (p) { return keyOf(p) === k; });
+    openAppSheet(paperTitle(k), folderChoice(folderOf(k)) +
+      (inLib && src && src.run ? '<p class="app-row app-sheet-acts"><button type="button" class="app-pill app-danger" data-sheet-remove>Remove from the library</button></p>' : ""),
+      function (body) {
+        wireChoice(body, function (id) {
+          placeIn(k, id);
+          toast(id ? "Moved to <em>" + esc(folders[id].name) + "</em>." : "Out of its folder.");
+          setTimeout(function () { closeAppSheet(); }, 220);
+        });
+        var rm = body.querySelector("[data-sheet-remove]");
+        if (rm) rm.addEventListener("click", function () {
+          closeAppSheet();
+          var li = main.querySelector('[data-pane="app:library"] li[data-k="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
+          var c = li && li.querySelector(".app-confirm");
+          if (c) { confirmOpen(c, true); setTimeout(function () { c.scrollIntoView({block: "nearest", behavior: "smooth"}); }, 320); }
+        });
+      });
+  }
+  // Explore's long press on "+": the folder first, then added
+  function addSheet(b) {
+    var id = b.getAttribute("data-convert"), k = arxivKey(id), chosen = folderOf(k);
+    openAppSheet(paperTitle(k), folderChoice(chosen) +
+      '<p class="app-row app-sheet-acts"><button type="button" class="app-pill app-ask-yes" data-sheet-add>Add to the library</button></p>',
+      function (body) {
+        function pick(fid, made) {
+          chosen = fid;
+          if (!made) return;
+          store("folders", folders);                // a new folder: kept, shown chosen, the name field folded away
+          var n = document.createElement("div");
+          n.innerHTML = folderChoice(fid);
+          body.querySelector(".opt-list").replaceWith(n.querySelector(".opt-list"));
+          body.querySelector(".app-newfolder").replaceWith(n.querySelector(".app-newfolder"));
+          wireChoice(body, pick);
+        }
+        wireChoice(body, pick);
+        body.querySelector("[data-sheet-add]").addEventListener("click", function () {
+          closeAppSheet();
+          if (chosen) placeIn(k, chosen);
+          b.disabled = true; b.classList.add("app-busy-btn"); b.innerHTML = SPIN;
+          convert([id]);
+        });
+      });
+  }
+  // a folder's sheet (a long press on its chip): its name, or it deleted (its papers unfiled)
+  function folderSheet(id) {
+    var f = folders[id];
+    if (!f || f.gone) return;
+    openAppSheet("Folder", '<form class="app-newfolder app-rename"><input class="app-field" name="n" value="' + esc(f.name) +
+      '" maxlength="40" autocomplete="off" aria-label="The folder\u2019s name"><button type="submit" class="app-pill">Rename</button></form>' +
+      '<p class="app-row app-sheet-acts"><button type="button" class="app-pill app-danger" data-folder-drop>Delete the folder</button></p>',
+      function (body) {
+        body.querySelector("form").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var name = body.querySelector("input").value.trim();
+          if (name && name !== f.name) renameFolder(id, name);
+          closeAppSheet();
+        });
+        body.querySelector("[data-folder-drop]").addEventListener("click", function () {
+          var name = f.name;
+          dropFolder(id);
+          closeAppSheet();
+          toast("Deleted <em>" + esc(name) + "</em>; its papers are unfiled.");
+        });
+      });
+  }
+  function newFolderSheet() {
+    openAppSheet("New folder", '<form class="app-newfolder"><input class="app-field" name="n" placeholder="Folder name" maxlength="40" autocomplete="off" ' +
+      'aria-label="The new folder\u2019s name"><button type="submit" class="app-pill">Create</button></form>',
+      function (body) {
+        var inp = body.querySelector("input");
+        setTimeout(function () { inp.focus(); }, 60);
+        body.querySelector("form").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var name = inp.value.trim();
+          if (!name) return;
+          var id = makeFolder(name);
+          store("folderView", id);
+          closeAppSheet();
+          orgChanged();
+        });
+      });
+  }
   // copying from the lists: their formulas as LaTeX ($...$), as in a paper
   document.addEventListener("copy", function (e) {
     if (!isPage(current) || !e.clipboardData) return;
@@ -400,7 +599,46 @@
     });
     store("pins", pins);
   }
-  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins); }
+  // Folders: the reader's own, each paper in at most one (kept as a list, so tags could come later). Kept with the
+  // reading places and pins (reading.json), synced the same way: per folder and per paper, the latest change wins; a
+  // folder deleted stays as a mark ("gone"), so the deletion reaches the other devices. Its papers are then unfiled.
+  var folders = store("folders") || {}, placed = store("placed") || {};
+  function folderList() {
+    return Object.keys(folders).filter(function (id) { return !folders[id].gone; })
+      .map(function (id) { return {id: id, name: folders[id].name}; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name, undefined, {sensitivity: "base"}); });
+  }
+  function folderOf(k) {
+    var f = placed[k] && placed[k].folders && placed[k].folders[0];
+    return f && folders[f] && !folders[f].gone ? f : null;
+  }
+  function orgChanged() {
+    store("folders", folders);
+    store("placed", placed);
+    readingDirty = true;
+    clearTimeout(readingTimer);
+    readingTimer = setTimeout(pushReading, 1500);
+    if (isPage(current)) { renderLibrary(); renderNew(); }
+  }
+  function placeIn(k, id) { placed[k] = {folders: id ? [id] : [], at: Date.now()}; orgChanged(); }
+  function makeFolder(name) {
+    var id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    folders[id] = {name: name, at: Date.now()};
+    return id;
+  }
+  function renameFolder(id, name) { folders[id] = {name: name, at: Date.now()}; orgChanged(); }
+  function dropFolder(id) {
+    folders[id] = {name: folders[id].name, at: Date.now(), gone: true};
+    if (store("folderView") === id) store("folderView", "all");
+    orgChanged();
+  }
+  function mergeOrg(rf, rp) {
+    Object.keys(rf || {}).forEach(function (id) { if (!folders[id] || (rf[id].at || 0) > (folders[id].at || 0)) folders[id] = rf[id]; });
+    Object.keys(rp || {}).forEach(function (k) { if (!placed[k] || (rp[k].at || 0) > (placed[k].at || 0)) placed[k] = rp[k]; });
+    store("folders", folders);
+    store("placed", placed);
+  }
+  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins) + JSON.stringify(folders) + JSON.stringify(placed); }
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
   // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
   // every device and at any moment, whatever is laid out yet
@@ -464,14 +702,14 @@
   }
   function pullReading() {
     if (!src || !src.readWithSha) return Promise.resolve();
-    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); },
+    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeOrg((r.data || {}).folders, (r.data || {}).placed); },
                                                 function () {});
   }
   var readingSent = "";                        // what was last written: the same again is not written
   function pushReading(keepalive) {
     if (!readingDirty || !src || !src.putJSON) return;
     readingDirty = false;
-    var data = {papers: reading, pins: pins}, text = JSON.stringify(data);
+    var data = {papers: reading, pins: pins, folders: folders, placed: placed}, text = JSON.stringify(data);
     if (text === readingSent) return;
     readingSent = text;
     src.putJSON("reading.json", data, readingSha, "Reading places", keepalive).then(function (sha) {
@@ -493,7 +731,7 @@
 
   // ---------------------------------------------------------------- conversions started here
   function pending() { return store("pending") || {}; }
-  function convert(ids) {
+  function convert(ids, opts) {                 // opts.choose: offer the folder in the message (one paper, from Explore)
     ids = ids.map(function (i) { return i.trim().replace(/^(https?:\/\/)?(www\.)?arxiv\.org\/(abs|pdf|html)\//, "").replace(/\.pdf$/, ""); })
       .filter(function (i) { return /^(\d{4}\.\d{4,5}|[a-z-]+(\.[A-Z]{2})?\/\d{7})(v\d+)?$/.test(i); });
     if (!ids.length) { toast("That is not an arXiv id or link."); return Promise.resolve(); }
@@ -511,7 +749,9 @@
       var p = pending();
       ids.forEach(function (i) { if (!p[arxivKey(i)]) p[arxivKey(i)] = {id: i, since: Date.now()}; });
       store("pending", p);
-      toast("Converting " + esc(ids.join(", ")) + ". It takes a few minutes; it will appear in your library.", 6000);
+      var one = ids.length === 1 && opts && opts.choose ? arxivKey(ids[0]) : null;
+      if (one && !folderOf(one)) toastAct("Adding it to your library; it takes a few minutes.", "Choose folder", function () { paperSheet(one); });
+      else toast("Converting " + esc(ids.join(", ")) + ". It takes a few minutes; it will appear in your library.", 6000);
       watch();
       refresh();
     }, function (e) { toast("Could not start the conversion: " + esc(e.message), 7000); });
@@ -525,6 +765,7 @@
       var r = removing();
       r[key] = Date.now();
       store("removing", r);
+      if (folderOf(key)) placeIn(key, null);
       if (entry && isOffline(key)) keepOffline(entry, false);
       toast("Removed <em>" + esc(entry ? entry.title : key) + "</em>.");
       watch();
@@ -1055,13 +1296,19 @@
   window.addEventListener("click", function (e) {
     // a tap outside the open panel closes it, and does nothing else (not the paper, link or button under it); a
     // control that was just redrawn is not "outside"
+    if (appSheetOpen && e.target.isConnected && !appSheet.contains(e.target)) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeAppSheet();
+      return;
+    }
     if (panelOpen && shell && e.target.isConnected && !shell.contains(e.target)) {
       e.preventDefault();
       e.stopPropagation();
       closePanel();
     }
   }, true);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if (appSheetOpen) closeAppSheet(); else closePanel(); } });
 
   var mathIn = false, libMathIn = null;
   function addMath(m) {                  // the glyphs and styles of formulas drawn into feed.json or library.json
@@ -1331,6 +1578,21 @@
     var waiting = Object.keys(p).filter(function (k) {
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
     });
+    // the folders (once there is one): chips over the list, All, each folder, Unfiled; the one chosen shows its papers
+    var flist = folderList(), view = store("folderView") || "all";
+    if (!flist.length || (view !== "all" && view !== "none" && !(folders[view] && !folders[view].gone))) view = "all";
+    function inView(k) { var f = folderOf(k); return view === "all" || (view === "none" ? !f : f === view); }
+    var counts = {all: papers.length, none: 0};
+    papers.forEach(function (x) { var f = folderOf(keyOf(x)); if (f) counts[f] = (counts[f] || 0) + 1; else counts.none++; });
+    function chip(id, name, isFolder) {
+      return '<button type="button" class="app-chip lib-folder" role="tab" aria-selected="' + (view === id) + '" data-view="' + esc(id) + '"' +
+        (isFolder ? " data-folder-chip" : "") + ">" + esc(name) + " <span>" + (counts[id] || 0) + "</span></button>";
+    }
+    var chips = flist.length ? '<div class="lib-folders" role="tablist" aria-label="Folders">' + chip("all", "All") +
+      flist.map(function (f) { return chip(f.id, f.name, true); }).join("") + chip("none", "Unfiled") +
+      '<button type="button" class="app-chip lib-folder lib-folder-add" data-folder-add aria-label="New folder">+</button></div>' : "";
+    papers = papers.filter(function (x) { return inView(keyOf(x)); });
+    waiting = waiting.filter(inView);
     function row(x) {
       var k = keyOf(x), meta = [];
       if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : "") +
@@ -1338,7 +1600,8 @@
       else if (x.kind === "draft") meta.push("your draft");
       else if (x.kind === "note") meta.push("note");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
-      var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "")).toLowerCase();
+      var fk = folderOf(k);
+      var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "") + " " + (fk ? folders[fk].name : "")).toLowerCase();
       var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;
       // the buttons float at the top right: the title's first line beside them, all the rest the row's full width
       return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow"><span class="lib-acts">' +
@@ -1346,7 +1609,7 @@
           '" aria-label="' + (isPinned(k) ? "Pinned; tap to unpin" : "Pin to the top") + '">' + (isPinned(k) ? I.pinned || I.pin || "&#9733;" : I.pin || "&#9734;") + "</button>" : "") +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
-        (src && src.run ? '<button type="button" class="bar-btn app-trash" data-remove="' + esc(k) + '" aria-label="Remove from the library">' + (I.trash || "Remove") + "</button>" : "") +
+        (src && (src.run || src.putJSON) ? '<button type="button" class="bar-btn app-more" data-more="' + esc(k) + '" aria-label="Folder' + (src.run ? ", or remove" : "") + '">' + (I.more || "&hellip;") + "</button>" : "") +
         '</span><div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-read" aria-hidden="true"><i></i></span>' +     // (unread: the empty track)
@@ -1374,8 +1637,21 @@
       '<p class="app-day lib-head" data-k="h:pinned">Pinned</p><ol class="l2m-library lib-rows" id="lib-pinned">' + pinnedRows + "</ol>" +
       (rest ? '<p class="app-day lib-head" data-k="h:rest">Recent</p><ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>" : "") :
       '<ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>";
-    box.innerHTML = (papers.length || converting ? lists :
+    box.innerHTML = chips + (papers.length || converting ? lists : view !== "all" ?
+                       '<p class="app-note">' + (view === "none" ? "Every paper is in a folder." : "Nothing here yet; move papers in with &hellip; beside them.") + "</p>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
+    Array.prototype.forEach.call(box.querySelectorAll("[data-view]"), function (b) {
+      b.addEventListener("click", function () {
+        if (store("folderView") === b.getAttribute("data-view")) return;
+        store("folderView", b.getAttribute("data-view"));
+        renderLibrary();
+      });
+      if (b.hasAttribute("data-folder-chip")) onLong(b, function () { folderSheet(b.getAttribute("data-view")); });
+    });
+    var fadd = box.querySelector("[data-folder-add]");
+    if (fadd) fadd.addEventListener("click", newFolderSheet);
+    var fsel = box.querySelector('.lib-folder[aria-selected="true"]');         // the chosen chip in sight
+    if (fsel && fsel.offsetLeft + fsel.offsetWidth > fsel.parentNode.clientWidth) fsel.parentNode.scrollLeft = fsel.offsetLeft - 18;
     foldAbstracts(box, wasOpen);               // (before the rows are measured: the "Abstract" buttons take room)
     if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
@@ -1383,10 +1659,8 @@
     Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
       b.addEventListener("click", function () { togglePin(b.getAttribute("data-pin")); });
     });
-    Array.prototype.forEach.call(box.querySelectorAll("[data-remove]"), function (b) {
-      b.addEventListener("click", function () {
-        confirmOpen(b.closest("li").querySelector(".app-confirm"), !b.closest("li").querySelector(".app-confirm").classList.contains("open"));
-      });
+    Array.prototype.forEach.call(box.querySelectorAll("[data-more]"), function (b) {
+      b.addEventListener("click", function () { paperSheet(b.getAttribute("data-more")); });
     });
     ((lib && lib.papers) || []).forEach(function (x) {       // saved papers with a newer version: saved again
       var k = keyOf(x);
@@ -1505,7 +1779,7 @@
           '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' +
           (i.type === "cross" ? "cross-list from " : "") + esc(i.category) + " &middot; " +          // the category, then the links
           '<a class="app-ext" href="https://arxiv.org/abs/' + encodeURIComponent(i.id).replace(/%2F/g, "/") + '" target="_blank" rel="noopener" aria-label="' + esc(i.id) + ' on arXiv">' + esc(i.id) + "</a>" +
-          inspireLink(i.id, [i.category]) + "</span></div>" +
+          inspireLink(i.id, [i.category]) + ((have[k] || p[k]) && folderOf(k) ? ' &middot; in <span class="app-in">' + esc(folders[folderOf(k)].name) + "</span>" : "") + "</span></div>" +
           '<div class="app-paper-act">' + act + "</div></div>" +
           '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></li>";
       }).join("") + "</ol>";
@@ -1548,6 +1822,8 @@
     foldAbstracts(box, wasOpen);
     if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
+    // a long press on "+": the folder first, then added
+    Array.prototype.forEach.call(box.querySelectorAll("[data-convert]"), function (b) { onLong(b, function () { addSheet(b); }); });
     // in New a paper's title opens and closes its abstract (the round button opens the paper)
     Array.prototype.forEach.call(box.querySelectorAll(".app-abs-title"), function (t) {
       var abs = t.closest(".app-paper").querySelector(".app-abs");
@@ -1862,12 +2138,13 @@
     var a = e.target.closest && e.target.closest("[data-p], [data-go], [data-convert]");
     if (!a) return;
     e.preventDefault();
-    if (a.hasAttribute("data-convert")) { a.disabled = true; a.classList.add("app-busy-btn"); a.innerHTML = SPIN; convert([a.getAttribute("data-convert")]); return; }
+    if (a.hasAttribute("data-convert")) { a.disabled = true; a.classList.add("app-busy-btn"); a.innerHTML = SPIN; convert([a.getAttribute("data-convert")], {choose: true}); return; }
     if (a.hasAttribute("data-p")) go(null, a.getAttribute("data-p"));
     else go(a.getAttribute("data-go"));
   });
   window.addEventListener("popstate", function (e) {
     if (skipPop) { skipPop = false; return; }
+    if (appSheetOpen) { closeAppSheet("pop"); return; }  // back closes the open sheet, nothing else
     if (panelOpen) { closePanel("pop"); return; }       // back closes the open panel, nothing else
     if (shell && shell.querySelector("#app-bar").classList.contains("searching")) { searching(false, "pop"); return; }
     var k = (e.state && e.state.l2mPaper) || wanted();
@@ -1929,6 +2206,8 @@
   main.addEventListener("touchstart", function (e) {
     var t = main.querySelector(".app-track");
     if (!t || !isPage(current) || panelOpen || e.touches.length !== 1) { sw = null; return; }
+    var chipsRow = e.target.closest && e.target.closest(".lib-folders");
+    if (chipsRow && chipsRow.scrollWidth > chipsRow.clientWidth + 2) { sw = null; return; }   // (the chips scroll)
     sw = {x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), dir: null, track: t,
           i: Math.max(0, ORDER.indexOf(current)), w: main.clientWidth};
   }, {passive: true});

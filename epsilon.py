@@ -9,6 +9,9 @@ library. The same --id updates the same note, in place, as often as you like.
                                                (amsmath, amssymb, mathtools, amsthm, graphicx, tikz, hyperref)
                                                is put around it
     cat body.tex | epsilon.py - --id my-note --title "..."    the same, from standard input
+    epsilon.py NOTE.tex --id my-note --folder "Project X"
+                                               ... and put it in the app's folder "Project X" (made if new)
+    epsilon.py --id my-note --folder "Project X"   move a note already there into a folder
     epsilon.py --remove my-note               take the note out of the library
     epsilon.py --list                         the notes and drafts in the library
 
@@ -65,6 +68,36 @@ def git(root, *a, check=True):
     if check and r.returncode != 0:
         die("git %s failed: %s" % (a[0], (r.stderr or r.stdout).strip()))
     return r
+
+
+def place_in_folder(root, key, name):
+    """Put KEY in the app's folder NAME (made if the app has none by that name). The app keeps its folders in
+    reading.json, beside the reading places, the latest change winning per folder and per paper (as it merges)."""
+    f = Path(root) / "reading.json"
+    for attempt in range(5):
+        git(root, "pull", "-q", "--rebase", check=False)
+        data = json.loads(f.read_text()) if f.exists() else {}
+        folders, placed = data.setdefault("folders", {}), data.setdefault("placed", {})
+        now = int(time.time() * 1000)
+        fid = next((i for i, v in folders.items() if not v.get("gone") and v.get("name", "").lower() == name.lower()), None)
+        if not fid:
+            n, digits = now, ""
+            while n:
+                n, r = divmod(n, 36)
+                digits = "0123456789abcdefghijklmnopqrstuvwxyz"[r] + digits
+            fid = "f" + digits + os.urandom(2).hex()
+            folders[fid] = {"name": name, "at": now}
+        if (placed.get(key) or {}).get("folders") == [fid]:
+            return
+        placed[key] = {"folders": [fid], "at": now}
+        f.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+        git(root, "add", "reading.json")
+        git(root, "commit", "-q", "-m", "Folder %s for %s" % (name, key))
+        if git(root, "push", "-q", check=False).returncode == 0:
+            return
+        git(root, "reset", "-q", "--hard", "HEAD~1")        # (the app wrote meanwhile: its version taken in, and again)
+        time.sleep(2 + 2 * attempt)
+    die("could not write the folder to the library")
 
 
 def library_clone():
@@ -179,6 +212,7 @@ def main():
     ap.add_argument("--no-wait", action="store_true", help="do not wait for the conversion on GitHub")
     ap.add_argument("--remove", metavar="ID", help="take the note ID out of the library")
     ap.add_argument("--list", action="store_true", help="list the notes and drafts in the library")
+    ap.add_argument("--folder", help="put the note in this folder of the app (made if new)")
     a = ap.parse_args()
 
     root = library_clone()
@@ -200,12 +234,22 @@ def main():
         print("removed", a.remove)
         return
 
+    if a.folder and a.id and not a.source:            # a note already there, moved into a folder
+        check_id(a.id)
+        if not lib.entry(a.id):
+            die("no note %s" % a.id)
+        place_in_folder(root, a.id, a.folder)
+        print("in folder %s: %s" % (a.folder, APP + "?p=" + a.id))
+        return
     if not a.source or not a.id:
         ap.error("give a source and --id")
     check_id(a.id)
     dest = root / "sources" / "drafts" / a.id
     stage(a.source, a.id, a.title, a.author, dest)
     (dest / ".l2m-note").write_text("pushed by epsilon\n")
+    if a.folder:                                          # the folder too, once the note is pushed (whatever comes of it)
+        import atexit
+        atexit.register(lambda: place_in_folder(root, a.id, a.folder))
     sha = L.tree_hash(dest)
     old = lib.entry(a.id)
     if old and old.get("sourceHash") == sha and old.get("status") == "ok":

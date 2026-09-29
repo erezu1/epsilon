@@ -32,10 +32,16 @@ EOF
 # a whole LaTeX document, or a project folder (figures, .bib and .sty next to it are taken along)
 python3 "$E/epsilon.py" paper/main.tex --id bf-draft
 
+# into a folder of the app's library (made if new; matched by name, any case), with the push or later
+python3 "$E/epsilon.py" notes.tex --id rmt-notes --title "Notes on supersymmetric RMT" --folder "SUSY RMT"
+python3 "$E/epsilon.py" --id rmt-notes --folder "SUSY RMT"
+
 python3 "$E/epsilon.py" --list              # the notes and drafts in the library
 python3 "$E/epsilon.py" --remove rmt-notes  # take a note out
 ```
 
+- Folders: when a note belongs to a project the user keeps a folder for (or asks for one), pass `--folder` with
+  that project's name; the note shows in that folder of the Library (the user's other folders are theirs).
 - It waits and prints `ok: <link>`, or the converter's error (exit status 1). `--no-wait` returns at once;
   `--here` converts on this machine first (quicker; needs TeX and Node).
 - Ids: letters, digits and `. _ ~ -`; pick a stable, descriptive id per note (e.g. `project-topic`) and reuse it
