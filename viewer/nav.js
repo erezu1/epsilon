@@ -742,7 +742,7 @@ window.L2M_nav = function (opts) {
       curBtn.setAttribute("aria-label", "Font: " + f0.name + ", tap to choose another");
     }
     var want = {"data-theme-opt": look, "data-size-opt": session.size || DEF.size, "data-tone-opt": session.tone || DEF.tone,
-                "data-margins-opt": session.margins || "wide",
+                "data-width-opt": session.width || "narrow",
                 "data-full-opt": session.full === "on" ? "on" : "off"};
     for (var attr in want) {
       var segs = el.querySelectorAll("[" + attr + "]");
@@ -843,14 +843,14 @@ window.L2M_nav = function (opts) {
         if (session.full === "on") fullEnter(); else fullLeave();
         return;
       }
-      var b = e.target.closest("[data-font], [data-theme-opt], [data-size-opt], [data-tone-opt], [data-margins-opt]");
+      var b = e.target.closest("[data-font], [data-theme-opt], [data-size-opt], [data-tone-opt], [data-width-opt]");
       if (!b) return;
       if (b.hasAttribute("data-font")) setTimeout(function () { openFonts(false); }, 260);   // chosen: the list folds away
       var f = b.getAttribute("data-font"), t = b.getAttribute("data-theme-opt");
-      var z = b.getAttribute("data-size-opt"), tone = b.getAttribute("data-tone-opt"), mg = b.getAttribute("data-margins-opt");
+      var z = b.getAttribute("data-size-opt"), tone = b.getAttribute("data-tone-opt"), mg = b.getAttribute("data-width-opt");
       if (mg) {
-        session.margins = mg;
-        keepPlace(function () { window.L2M_applyMargins(mg); });
+        session.width = mg;
+        window.L2M_changeWidth(mg, keepPlace);
       } else if (f) {
         session.font = f;
         keepPlace(function () { window.L2M_applyFont(f); });
@@ -869,7 +869,7 @@ window.L2M_nav = function (opts) {
       p.theme = session.theme;
       p.size = session.size;
       p.tone = session.tone;
-      p.margins = session.margins;
+      p.width = session.width;
       savePrefs(p);
       refreshSettings();
     });

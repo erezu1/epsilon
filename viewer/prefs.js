@@ -73,7 +73,19 @@
   };
   window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); };
   window.L2M_applySize = function (z) { attr("data-size", z, DEF.size); };
-  window.L2M_applyMargins = function (m) { attr("data-margins", m, "wide"); };
+  window.L2M_applyWidth = function (w) { attr("data-width", w, "narrow"); };
+  // the page width chosen: the bars and panels glide to it; the text fades out, is laid out anew (KEEP holds the
+  // reader's place through it) and fades back in
+  window.L2M_changeWidth = function (w, keep) {
+    var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    root.classList.add("l2m-widthing", "l2m-width-fade");
+    clearTimeout(root.l2mWidthT);
+    setTimeout(function () {
+      (keep || function (f) { f(); })(function () { window.L2M_applyWidth(w); });
+      root.classList.remove("l2m-width-fade");
+      root.l2mWidthT = setTimeout(function () { root.classList.remove("l2m-widthing"); }, 420);
+    }, reduced ? 0 : 150);
+  };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); };
   // a change of colours (theme, tone) cross-fades the page; the fade shows a still picture of the page, so anything
   // that moves meanwhile (a panel closing) cuts it short and moves in sight
@@ -151,7 +163,7 @@
     window.L2M_applyFont(p.font || DEF.font);
     window.L2M_applyTheme(p.theme || DEF.appearance);
     window.L2M_applySize(p.size || DEF.size);
-    window.L2M_applyMargins(p.margins || "wide");
+    window.L2M_applyWidth(p.width || "narrow");
     window.L2M_applyTone(p.tone || DEF.tone);
   };
   if (window.L2M_THEME) window.L2M_initPrefs(window.L2M_THEME);   // a bundled page carries its theme inline

@@ -1285,7 +1285,7 @@
     var prefs = window.L2M_prefs ? L2M_prefs() : {};
     var D = theme.defaults || {};
     var want = {"data-font": prefs.font || D.font, "data-size-opt": prefs.size || D.size,
-                "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone, "data-margins-opt": prefs.margins || "wide",
+                "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone, "data-width-opt": prefs.width || "narrow",
                 "data-full-opt": prefs.full === "on" ? "on" : "off"};
     Object.keys(want).forEach(function (attr) {
       Array.prototype.forEach.call(inner.querySelectorAll("[" + attr + "]"), function (b) {
@@ -1313,7 +1313,7 @@
         requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
         return;
       }
-      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-full-opt], [data-margins-opt], [data-cross]");
+      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-full-opt], [data-width-opt], [data-cross]");
       if (!b) return;
       if (b.hasAttribute("data-font")) {
         showFont(b.getAttribute("data-font"));
@@ -1328,7 +1328,7 @@
       if (b.hasAttribute("data-font")) { p.font = b.getAttribute("data-font"); L2M_applyFont(p.font); }
       if (b.hasAttribute("data-size-opt")) { p.size = b.getAttribute("data-size-opt"); L2M_applySize(p.size); }
       if (b.hasAttribute("data-full-opt")) p.full = b.getAttribute("data-full-opt");
-      if (b.hasAttribute("data-margins-opt")) { p.margins = b.getAttribute("data-margins-opt"); L2M_applyMargins(p.margins); }
+      if (b.hasAttribute("data-width-opt")) { p.width = b.getAttribute("data-width-opt"); L2M_changeWidth(p.width); }
       var fade = function (f) { if (!(window.L2M_fade && L2M_fade(f))) f(); };
       if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); fade(function () { L2M_applyTheme(p.theme); }); }
       if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); fade(function () { L2M_applyTone(p.tone); }); }

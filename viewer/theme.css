@@ -667,7 +667,7 @@ figure.float img { cursor: zoom-in; }
 .viewer-cap {
   position: relative;
   width: 100%;
-  max-width: 40rem;
+  max-width: var(--page-w);
   margin-inline: auto;
   box-sizing: border-box;
   max-height: 55vh;
@@ -925,7 +925,7 @@ a.lib-title { color: var(--ink); }
   width: 50%; height: calc(100vh - var(--l2m-bar-h, 64px)); height: calc(100dvh - var(--l2m-bar-h, 64px));
   overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;
 }
-.app-pane-in { max-width: 40rem; margin: 0 auto; padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 72px); }
+.app-pane-in { max-width: var(--page-w); margin: 0 auto; padding: 14px 18px calc(env(safe-area-inset-bottom, 0px) + 72px); }
 .app-pane-in > .l2m-library:first-child > li:first-child, .app-pane-in > .app-note + .l2m-library > li:first-child { border-top: 0; }
 
 /* search: the field takes the whole bar */
@@ -1080,7 +1080,7 @@ a.lib-title { color: var(--ink); }
 /* the pinned date in the bar: the bar grows down to take it in and shrinks back as it lets go, the date
    fading with it; the list's own strip hides only once the bar covers it */
 .app-bar-day {
-  display: block; box-sizing: border-box; max-width: 40rem; margin: 0 auto; height: 0; overflow: hidden; opacity: 0;
+  display: block; box-sizing: border-box; max-width: var(--page-w); margin: 0 auto; height: 0; overflow: hidden; opacity: 0;
   font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-family: var(--ui);
   transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 220ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, transform 120ms linear;
 }
@@ -1592,7 +1592,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
    fading out toward its sides, so one list gives way to the other in place */
 @media (min-width: 800px) {
   .l2m-app-lists main {
-    width: 50rem; margin-inline: auto;
+    width: calc(var(--page-w) + 10rem); max-width: 100%; margin-inline: auto;
     -webkit-mask-image: linear-gradient(to right, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
     mask-image: linear-gradient(to right, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%);
   }
@@ -1712,7 +1712,7 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 .app-pane { position: relative; }
 .app-pane > .lib-refresh {
   position: absolute; z-index: 1; top: calc(var(--l2m-bar-h, 64px) + 4px); left: 50%; transform: translateX(-50%);
-  width: calc(min(40rem, 100%) - 36px); opacity: 0; transition: opacity 220ms ease;
+  width: calc(min(var(--page-w), 100%) - 36px); opacity: 0; transition: opacity 220ms ease;
 }
 .app-pane > .lib-refresh.on { opacity: 1; }
 
@@ -2067,11 +2067,22 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .lib-rows .lib-flow .lib-byline > .lib-meta { display: inline; }
 .lib-title > .app-new-tag { font-size: 0.72em; vertical-align: 2px; }
 
-/* the page's width on a wide screen (Margins, in the view settings): wide margins by default; a paper's only (the lists
-   keep theirs); the setting shows on wide screens alone */
+/* the page's width on a wide screen (Page width, in the view settings): narrow by default; papers and the lists alike
+   (one width, nothing jumps between them); the setting shows on wide screens alone */
 .set-wide-only { display: none; }
 @media (min-width: 900px) {
   .set-wide-only { display: block; }
-  :root[data-margins="medium"]:not(.l2m-app-lists) { --page-w: 50rem; }
-  :root[data-margins="narrow"]:not(.l2m-app-lists) { --page-w: 62rem; }
+  :root[data-width="medium"] { --page-w: 50rem; }
+  :root[data-width="wide"] { --page-w: 62rem; }
 }
+/* the page width changed: the bar, the peek, the note's sheet, the panels and messages glide to it, while the text
+   fades out, is laid out again out of sight and fades back in */
+.l2m-widthing .l2m-bar, .l2m-widthing .l2m-menu, .l2m-widthing .l2m-fnsheet, .l2m-widthing .app-toast, .l2m-widthing .l2m-peek {
+  transition: left 360ms cubic-bezier(0.2, 0.8, 0.2, 1), right 360ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+.l2m-widthing .bar-inner, .l2m-widthing .peek-row, .l2m-widthing .sheet-inner { transition: max-width 360ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.l2m-width-fade main, .l2m-width-fade .peek-main, .l2m-width-fade .sheet-body, .l2m-width-fade .bar-title-inner, .l2m-width-fade .peek-title {
+  opacity: 0 !important; transition: opacity 140ms ease !important;
+}
+.l2m-widthing main, .l2m-widthing .peek-main, .l2m-widthing .sheet-body, .l2m-widthing .bar-title-inner, .l2m-widthing .peek-title { transition: opacity 220ms ease; }
+@media (prefers-reduced-motion: reduce) { .l2m-widthing * { transition-duration: 0.01s !important; } }
