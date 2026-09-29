@@ -1180,6 +1180,8 @@ window.L2M_nav = function (opts) {
     }
     peekHead.addEventListener("pointerdown", function (e) {
       if (e.target.closest("button") || !peekOpen) return;
+      e.preventDefault();                 // a drag, not the start of a selection (the press's own, carried over the page)
+      root.classList.add("l2m-dragging");
       var h = window.innerHeight - peek.getBoundingClientRect().top, max = peekMax();   // where it is now, even mid-slide
       if (settle) { clearTimeout(settle.timer); settle = null; }
       peek.style.transition = "";
@@ -1197,6 +1199,7 @@ window.L2M_nav = function (opts) {
       if (raw > drag.top && e.clientY <= barHeight()) {    // (held back all the way, until the finger reaches the bar)
         var id = drag.id;
         drag = null;                    // the band gives: no longer the finger's; up it goes, and is the page
+        root.classList.remove("l2m-dragging");
         try { peekHead.releasePointerCapture(id); } catch (x) {}
         if (navigator.vibrate) { try { navigator.vibrate(10); } catch (x) {} }
         peek.classList.remove("dragging");
@@ -1211,6 +1214,7 @@ window.L2M_nav = function (opts) {
       if (!drag || e.pointerId !== drag.id) return;
       var h = drag.at, max = drag.max;
       drag = null;
+      root.classList.remove("l2m-dragging");
       peek.classList.remove("dragging");
       var avail = window.innerHeight - barHeight();
       if (h < avail * 0.17) {         // let go low: it falls away, quickening

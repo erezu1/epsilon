@@ -2087,3 +2087,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 }
 .l2m-widthing main, .l2m-widthing .peek-main, .l2m-widthing .sheet-body, .l2m-widthing .bar-title-inner, .l2m-widthing .peek-title { transition: opacity 220ms ease; }
 @media (prefers-reduced-motion: reduce) { .l2m-widthing * { transition-duration: 0.01s !important; } }
+/* the peek's head is a handle: its words are not selected by a press on it (nor by a long press), and while it is
+   dragged nothing on the page is */
+.peek-head { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.l2m-dragging, .l2m-dragging * { -webkit-user-select: none !important; user-select: none !important; }
