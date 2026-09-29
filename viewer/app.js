@@ -765,7 +765,7 @@
   // the folder shown in the library: its address says (?f=<folder>, ?f=none for Unfiled); not remembered, not synced.
   // From All a folder is a step (back returns to All before anything else); from one folder to another, the same step.
   function urlFolder() { return new URLSearchParams(location.search).get("f") || "all"; }
-  var libView = urlFolder();
+  var libView = urlFolder(), libChipsView = null;       // (the chip shown chosen, for the fade to the next)
   function showFolder(id) {
     if (id === libView) return;
     var st = history.state || {};
@@ -1802,8 +1802,10 @@
     function inView(k) { var f = folderOf(k); return view === "all" || (view === "none" ? !f : f === view); }
     var counts = {all: papers.length, none: 0};
     papers.forEach(function (x) { var f = folderOf(keyOf(x)); if (f) counts[f] = (counts[f] || 0) + 1; else counts.none++; });
+    // (drawn first as they were chosen, then the choice moved: the chips fade between the two)
+    var shownView = chipsWere && libChipsView != null ? libChipsView : view;
     function chip(id, name, isFolder) {
-      return '<button type="button" class="app-chip lib-folder" role="tab" aria-selected="' + (view === id) + '" data-view="' + esc(id) + '"' +
+      return '<button type="button" class="app-chip lib-folder" role="tab" aria-selected="' + (shownView === id) + '" data-view="' + esc(id) + '"' +
         (isFolder ? " data-folder-chip" : "") + ">" + esc(name) + " <span>" + (counts[id] || 0) + "</span></button>";
     }
     var chips = flist.length ? '<div class="lib-folders" role="tablist" aria-label="Folders">' + chip("all", "All") +
@@ -1872,6 +1874,11 @@
     if (fadd) fadd.addEventListener("click", newFolderSheet);
     var frow = box.querySelector(".lib-folders");
     if (frow && chipsAt) frow.scrollLeft = chipsAt;
+    if (frow && shownView !== view) {
+      void frow.offsetWidth;
+      Array.prototype.forEach.call(frow.querySelectorAll("[data-view]"), function (c) { c.setAttribute("aria-selected", c.getAttribute("data-view") === view ? "true" : "false"); });
+    }
+    libChipsView = frow ? view : null;
     var fsel = box.querySelector('.lib-folder[aria-selected="true"]');         // the chosen chip in sight
     if (fsel && fsel.offsetLeft + fsel.offsetWidth > fsel.parentNode.clientWidth) fsel.parentNode.scrollLeft = fsel.offsetLeft - 18;
     foldAbstracts(box, wasOpen);               // (before the rows are measured: the "Abstract" buttons take room)
