@@ -123,7 +123,7 @@
       var lo = slotLeft(first), hi = slotLeft(last) + last.offsetWidth - w;     // (pinned: its own place, both ends)
       var raw = x - st.off, left = Math.max(lo, Math.min(hi, raw));
       var shown = raw < lo ? lo - band(lo - raw, 40) : raw > hi ? hi + band(raw - hi, 40) : left;
-      var dy = st.lastY - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 22);
+      var dy = st.lastY - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 10);   // (up and down held back harder)
       // a neighbour gives way to the gap once the chip covers half of it
       for (var k = 0; !pinned && k < ps.length; k++) {
         ps = peers();
