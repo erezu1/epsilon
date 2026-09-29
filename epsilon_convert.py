@@ -2475,6 +2475,58 @@ class Converter:
         return float(f.group(1)) if f else 10.0
 
     # ------------------------------------------------------------------ a title block made by hand
+    def hand_titlepage(self, body):
+        """A title page drawn by hand (\\begin{titlepage}, no \\title): its title (the words set large), its authors
+        (the line naming them) and affiliations (the lines after, each gathered under its mark: $^a$, ${}^{b}$) taken
+        for the title block; the page itself dropped, its abstract kept."""
+        m = re.search(r"\\begin\{titlepage\}(.*?)\\end\{titlepage\}", body, re.S)
+        if not m:
+            return body
+        inner = m.group(1)
+        ab = re.search(r"\\begin\{abstract\}.*?\\end\{abstract\}", inner, re.S)
+        keep = ab.group(0) if ab else ""
+        rest = inner.replace(keep, "\n\n") if ab else inner
+        rest = re.sub(r"\\(?:begin|end)\{(?:center|flushleft|flushright)\}|\\phantom\{[^{}]*\}|\\(?:centering|noindent)(?![A-Za-z])", "\n", rest)
+        t = re.search(r"\\(?:LARGE|Large|huge|Huge)(?![A-Za-z])\s*", rest)
+        if t:
+            if rest[t.end():t.end() + 1] == "{":
+                g, e = read_group(rest, t.end()); s0 = t.start()
+            else:
+                s0 = rest.rfind("{", 0, t.start()); g, e = read_group(rest, s0) if s0 >= 0 else (None, 0)
+            if g:
+                title = re.sub(r"\\(?:LARGE|Large|huge|Huge|large|bf|bfseries|textbf|sc|scshape)(?![A-Za-z])", "", g)
+                title = re.sub(r"\\\\(\[[^\]]*\])?", " ", title).strip().strip("{}").strip()
+                if not self.meta["title"] and 3 <= len(plain_text(title)) <= 400:
+                    self.meta["title"] = title
+                rest = rest[:s0] + "\n\n" + rest[e:]
+        mark = r"\$\s*(?:\{\})?\^\s*\{?\s*([^${}]*?)\s*\}?\s*\$|\{\}\^\{([^{}]*)\}|\\textsuperscript\{([^{}]*)\}"
+        pieces = re.split(r"\\\\(?:\[[^\]]*\])?|\\vskip\s*-?[\d.]+\s*[a-z]*|\\vspace\*?\{[^{}]*\}|\\(?:big|med|small)skip(?![A-Za-z])|"
+                          r"\\par(?![A-Za-z])|\n\s*\n", rest)
+        lines = []
+        for p in pieces:
+            mk = re.search(mark, p)
+            txt = re.sub(r"\s+", " ", plain_text(re.sub(mark, " ", p))).strip(" ,;")
+            if len(txt) >= 2:
+                lines.append((next((x for x in mk.groups() if x), None) if mk and p[:mk.start()].strip(" {\\smallfootnotesize") == "" else None, txt, p))
+        known = [a.split()[-1] for a in (getattr(self.args, "fallback_authors", "") or "").split(";") if a.strip()]
+        at = next((i for i, l in enumerate(lines) if known and any(k in l[1] for k in known)), 0 if lines else None)
+        if at is None:
+            return body[:m.start()] + keep + body[m.end():]
+        if not self.meta["authors"]:
+            names = re.sub(mark, "", lines[at][2])
+            parts = [x.strip() for x in re.split(r",|\s+and\s+|\\and(?![A-Za-z])", names) if x.strip()]
+            if parts and all(len(plain_text(x)) < 80 for x in parts):
+                self.meta["authors"] = parts
+        if not self.meta["affil"]:
+            groups = []
+            for mk, txt, _ in lines[at + 1:]:
+                if mk or not groups:
+                    groups.append(txt)
+                else:
+                    groups[-1] += ", " + txt
+            self.meta["affil"] = [g for g in groups if len(g) < 300]
+        return body[:m.start()] + keep + body[m.end():]
+
     def find_handmade_title(self, body):
         """A paper without \\title often sets its title by hand before the abstract, as a group in a large size
         ({\\LARGE \\bf ...}), usually followed by the authors in bold: taken as title and authors, and dropped."""
@@ -2635,7 +2687,10 @@ class Converter:
             # subequations only affects numbering, which LaTeX already did; authors sometimes let it cross items
             body = re.sub(r"\\(begin|end)\s*\{subequations\}", "", body)
             if not re.search(r"\\title\s*[\[{]", text):
-                body = self.find_handmade_title(body)
+                body = self.find_handmade_title(self.hand_titlepage(body))
+            # a spacing set by hand (\parskip = .2\baselineskip, \tabcolsep=3pt): nothing to show
+            body = re.sub(r"\\[A-Za-z]*(?:skip|sep|indent)\s*=\s*-?[\d.]+\s*(?:\\[A-Za-z]+|pt|cm|mm|em|ex|in|bp|sp)?"
+                          r"(?:\s*(?:plus|minus)\s*-?[\d.]+\s*(?:\\[A-Za-z]+|pt|cm|mm|em|ex|in|bp|sp|fil+))*", "", body)
             self.prefetch_images(body)
             self.setup = []
             blocks = self.convert_block(body)
