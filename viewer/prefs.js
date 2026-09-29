@@ -74,16 +74,25 @@
   window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); };
   window.L2M_applySize = function (z) { attr("data-size", z, DEF.size); };
   window.L2M_applyWidth = function (w) { attr("data-width", w, "narrow"); };
-  // the page width chosen: the bars and panels glide to it; the text fades out, is laid out anew (KEEP holds the
-  // reader's place through it) and fades back in
+  // the page width chosen: at once the bars and panels glide to it while the text fades out; the text keeps its width
+  // until it is out of sight, is then laid out anew (KEEP holds the reader's place through it) and fades back in
   window.L2M_changeWidth = function (w, keep) {
     var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var held = Array.prototype.map.call(document.querySelectorAll("main, .app-pane-in, .peek-main"), function (el) {
+      var c = getComputedStyle(el), was = [el, el.style.width, el.style.maxWidth];
+      el.style.width = c.width;
+      el.style.maxWidth = c.width;
+      return was;
+    });
     root.classList.add("l2m-widthing", "l2m-width-fade");
     clearTimeout(root.l2mWidthT);
+    window.L2M_applyWidth(w);
     setTimeout(function () {
-      (keep || function (f) { f(); })(function () { window.L2M_applyWidth(w); });
+      (keep || function (f) { f(); })(function () {
+        held.forEach(function (h) { h[0].style.width = h[1]; h[0].style.maxWidth = h[2]; });
+      });
       root.classList.remove("l2m-width-fade");
-      root.l2mWidthT = setTimeout(function () { root.classList.remove("l2m-widthing"); }, 420);
+      root.l2mWidthT = setTimeout(function () { root.classList.remove("l2m-widthing"); }, 300);
     }, reduced ? 0 : 150);
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); };
