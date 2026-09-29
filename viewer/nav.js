@@ -1146,7 +1146,8 @@ window.L2M_nav = function (opts) {
     // While it is held nothing is laid out again: the peek is made as tall as it can be and only slid (a
     // transform, which the screen does alone), and it takes its new height once, where it comes to rest.
     // Above the highest place it pulls back (it follows less and less, as a rubber band) and on release springs
-    // back to it.
+    // back to it; pushed on nearly to the bar, the band gives (a tick, the peek catches up with the finger) and let
+    // go there, the peek becomes the page (as its expand button does). Brought back down first, it holds again.
     var drag = null, settle = null;
     var SPRING = "transform 460ms linear(0, 0.262, 0.470, 0.631, 0.753, 0.843, 0.908, 0.954, 0.984, 1.004, 1.016, " +
       "1.022, 1.024, 1.023, 1.022, 1.019, 1.017, 1.014, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1)";
@@ -1185,17 +1186,36 @@ window.L2M_nav = function (opts) {
       slide(h, max);
       peekHead.setPointerCapture(e.pointerId);
     });
+    function giveWay(on) {            // the band given (or holding again): a quick catch-up, not a jump
+      drag.armed = on;
+      peek.classList.toggle("armed", on);
+      if (on && navigator.vibrate) { try { navigator.vibrate(10); } catch (x) {} }
+      peek.style.transition = "transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1)";
+      clearTimeout(drag.tt);
+      drag.tt = setTimeout(function () { if (drag) peek.style.transition = ""; }, 170);
+    }
     peekHead.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.id) return;
-      var raw = drag.h + drag.y - e.clientY;
-      drag.at = raw > drag.top ? drag.top + band(raw - drag.top, drag.max - drag.top) : raw < drag.low ? fall(raw, drag.low) : raw;
+      var raw = drag.h + drag.y - e.clientY, over = raw - drag.top;
+      var give = Math.max(90, (window.innerHeight - barHeight() - drag.top) * 0.78);    // (most of the way to the bar)
+      if (!drag.armed && over > give) giveWay(true);
+      else if (drag.armed && over < give - 40) giveWay(false);
+      drag.at = drag.armed ? Math.min(raw, drag.max) :
+        raw > drag.top ? drag.top + band(raw - drag.top, drag.max - drag.top) : raw < drag.low ? fall(raw, drag.low) : raw;
       slide(drag.at, drag.max);
     });
     function dragEnd(e) {
       if (!drag || e.pointerId !== drag.id) return;
-      var h = drag.at, max = drag.max;
+      var h = drag.at, max = drag.max, armed = drag.armed;
+      clearTimeout(drag.tt);
       drag = null;
-      peek.classList.remove("dragging");
+      peek.classList.remove("dragging", "armed");
+      if (armed) {                      // let go with the band given: the peek becomes the page
+        peek.style.transition = "";
+        peek.style.transform = "";
+        expandPeek();
+        return;
+      }
       var avail = window.innerHeight - barHeight();
       if (h < avail * 0.17) {         // let go low: it falls away, quickening
         peek.style.transition = "transform 240ms cubic-bezier(0.5, 0, 1, 1), visibility 0s linear 240ms";
