@@ -2015,7 +2015,8 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
    sideways when they run past the screen */
 .lib-folders {
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-  margin: 0 -18px 10px; padding: 3px 18px 4px; touch-action: pan-x pan-y;
+  margin: -13px -18px -8px; padding: 16px 18px 22px; touch-action: pan-x pan-y;   /* (room for the shadows: a row that scrolls
+                                                                                   sideways cuts what passes its edges) */
 }
 .lib-folders::-webkit-scrollbar { display: none; }
 .app-chip.lib-folder {
