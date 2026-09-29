@@ -1745,6 +1745,7 @@ html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-use
 }
 .l2m-peek.dragging { transition: none; }
 .peek-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.peek-main { visibility: visible; }     /* (its own: the peek shown or hidden restyles its frame alone) */
 .peek-main { display: block; max-width: var(--page-w); margin: 0 auto; padding: 64px 18px 40vh; box-sizing: border-box; }
 .peek-head {
   position: absolute; z-index: 2; top: 0; left: 0; right: 0; touch-action: none; cursor: grab;

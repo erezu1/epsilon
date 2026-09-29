@@ -1346,8 +1346,13 @@ window.L2M_nav = function (opts) {
     else { peekTitle.l2mFixed = false; peekTitleNow(); }
     return true;
   }
+  // The peek closed keeps its copy laid out but out of the way (content-visibility: hidden): not drawn, not reached by
+  // Tab, and shown again at once. (Its text sets its own visibility, so showing the peek restyles only its frame, not
+  // the thousands of elements of the copy under it.)
+  function peekAside(on) { if (peekScroll) peekScroll.style.contentVisibility = on ? "hidden" : ""; }
   function openPeek(id, from) {
     peekBuild();
+    peekAside(false);
     if (!peekMain.l2mFilled || peekStale()) peekFill();
     if (!peekFind(id)) return false;
     clearTimeout(peekCloseTimer);
@@ -1433,7 +1438,7 @@ window.L2M_nav = function (opts) {
       peek.style.transition = "none";
       peek.classList.remove("open", "expanding");
       peek.setAttribute("aria-hidden", "true");
-      setTimeout(function () { peek.style.transition = ""; peek.style.height = peekH + "px"; expanding = false; }, 60);
+      setTimeout(function () { peek.style.transition = ""; peek.style.height = peekH + "px"; expanding = false; peekAside(true); }, 60);
     }, T);
   }
   function closePeek(how) {           // how: "pop" (closed by back); by hand otherwise
@@ -1446,6 +1451,7 @@ window.L2M_nav = function (opts) {
     clearTimeout(peekCloseTimer);
     peekCloseTimer = setTimeout(function () {
       if (peekOpen) return;
+      peekAside(true);
       root.classList.remove("l2m-peeking");
       document.body.style.paddingBottom = "";
     }, 340);
@@ -1710,6 +1716,28 @@ window.L2M_nav = function (opts) {
   }
   // the saved place is found once the formulas and images are in (opts.ready)
   Promise.resolve(opts.ready).then(function () { if (!dead) start(); });
+  // the peek made ready ahead, in the background: a while after the paper is in, when the page is idle (and not while
+  // the reader scrolls), so its first opening is quick and the paper's own opening no slower
+  Promise.resolve(opts.ready).then(function () {
+    var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 1); };
+    var lastScroll = 0;
+    on(window, "scroll", function () { lastScroll = Date.now(); }, {passive: true});
+    function tryBuild() {
+      if (dead || (peekMain && peekMain.l2mFilled)) return;
+      if (Date.now() - lastScroll < 800) { setTimeout(tryBuild, 900); return; }
+      idle(function (d) {
+        if (dead || (peekMain && peekMain.l2mFilled)) return;
+        if (d && d.timeRemaining && d.timeRemaining() < 8 && !d.didTimeout) { setTimeout(tryBuild, 400); return; }
+        peekBuild();
+        peekFill();
+        // laid out now, at the height it opens at, then set aside with its layout kept: opening only shows it
+        peek.style.height = Math.min(peekMax(), Math.round((window.innerHeight - barHeight()) * (peekUserH || 0.48))) + "px";
+        void peekScroll.scrollHeight;
+        peekAside(true);
+      }, {timeout: 4000});
+    }
+    setTimeout(tryBuild, 2500);
+  });
   update();
 
   return {
