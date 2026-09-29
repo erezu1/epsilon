@@ -1146,8 +1146,8 @@ window.L2M_nav = function (opts) {
     // While it is held nothing is laid out again: the peek is made as tall as it can be and only slid (a
     // transform, which the screen does alone), and it takes its new height once, where it comes to rest.
     // Above the highest place it pulls back (it follows less and less, as a rubber band) and on release springs
-    // back to it; pushed on nearly to the bar, the band gives: the peek becomes the page at once, by itself (as its
-    // expand button does), from where the band held it.
+    // back to it; pushed on until the finger reaches the bar, the band gives: the peek becomes the page at once, by
+    // itself (as its expand button does), from where the band held it.
     var drag = null, settle = null;
     var SPRING = "transform 460ms linear(0, 0.262, 0.470, 0.631, 0.753, 0.843, 0.908, 0.954, 0.984, 1.004, 1.016, " +
       "1.022, 1.024, 1.023, 1.022, 1.019, 1.017, 1.014, 1.011, 1.009, 1.007, 1.005, 1.004, 1.003, 1)";
@@ -1189,7 +1189,7 @@ window.L2M_nav = function (opts) {
     peekHead.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.id) return;
       var raw = drag.h + drag.y - e.clientY;
-      if (raw - drag.top > Math.max(90, (window.innerHeight - barHeight() - drag.top) * 0.78)) {    // (most of the way)
+      if (raw > drag.top && e.clientY <= barHeight()) {    // (held back all the way, until the finger reaches the bar)
         var id = drag.id;
         drag = null;                    // the band gives: no longer the finger's; up it goes, and is the page
         try { peekHead.releasePointerCapture(id); } catch (x) {}
