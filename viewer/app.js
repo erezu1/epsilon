@@ -110,10 +110,21 @@
     function follow(x) {
       st.lastX = x;
       if (Math.abs(x - st.x) > 6) st.moved = true;
-      var ps = peers(), i = ps.indexOf(chip), mid = x - st.off + chip.offsetWidth / 2, n = ps[i + 1], p = ps[i - 1], was;
-      if (n && mid > n.getBoundingClientRect().left + n.offsetWidth / 2) { was = slotLeft(n); chip.parentNode.insertBefore(n, chip); slide(n, was); }
-      else if (p && mid < p.getBoundingClientRect().left + p.offsetWidth / 2) { was = slotLeft(p); chip.parentNode.insertBefore(p, chip.nextSibling); slide(p, was); }
-      chip.style.transform = "translateX(" + (x - st.off - slotLeft(chip)) + "px) scale(1.06)";
+      // where the chip is: under the finger, but kept inside the row, between the first and the last folder's places
+      // (never past the row's edge, where it would be cut off)
+      var ps = peers(), row = chip.parentNode, rr = row.getBoundingClientRect(), w = chip.offsetWidth;
+      var first = ps[0], last = ps[ps.length - 1];
+      var lo = Math.max(slotLeft(first), rr.left + 2), hi = Math.min(slotLeft(last) + last.offsetWidth - w, rr.right - w - 2);
+      var left = Math.max(lo, Math.min(hi, x - st.off));
+      // a neighbour gives way once the chip covers half of it
+      for (var k = 0; k < ps.length; k++) {
+        ps = peers();
+        var i = ps.indexOf(chip), n = ps[i + 1], p = ps[i - 1], was;
+        if (n && left + w > slotLeft(n) + n.offsetWidth / 2) { was = slotLeft(n); row.insertBefore(n, chip); slide(n, was); }
+        else if (p && left < slotLeft(p) + p.offsetWidth / 2) { was = slotLeft(p); row.insertBefore(p, chip.nextSibling); slide(p, was); }
+        else break;
+      }
+      chip.style.transform = "translateX(" + (left - slotLeft(chip)) + "px) scale(1.06)";
     }
     function edges() {                                   // held by an edge of the row: it scrolls along
       if (!st || !st.lifted) return;
@@ -1711,6 +1722,7 @@
   function renderLibrary() {
     var box = pane("app:library");
     var wasOpen = openAbstracts(box), wasAt = box.parentNode.scrollTop;
+    var chipsWere = box.querySelector(".lib-folders"), chipsAt = chipsWere ? chipsWere.scrollLeft : 0;   // (the chips' scroll kept)
     var before = measureLibrary() || libTops;
     libTops = null;
     feedMath();
@@ -1803,6 +1815,8 @@
     });
     var fadd = box.querySelector("[data-folder-add]");
     if (fadd) fadd.addEventListener("click", newFolderSheet);
+    var frow = box.querySelector(".lib-folders");
+    if (frow && chipsAt) frow.scrollLeft = chipsAt;
     var fsel = box.querySelector('.lib-folder[aria-selected="true"]');         // the chosen chip in sight
     if (fsel && fsel.offsetLeft + fsel.offsetWidth > fsel.parentNode.clientWidth) fsel.parentNode.scrollLeft = fsel.offsetLeft - 18;
     foldAbstracts(box, wasOpen);               // (before the rows are measured: the "Abstract" buttons take room)
