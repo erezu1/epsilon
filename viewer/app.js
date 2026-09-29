@@ -97,7 +97,8 @@
   // others give way to the gap, and the row scrolls along at its edges. Past the first or last folder, or up and
   // down, it follows held back; let go, it glides into the gap. A long press let go where it began (or a right click)
   // opens the folder's sheet instead.
-  function chipDrag(chip, id) {
+  // All and Unfiled (PINNED) move the same way, but about their own place only, and always come back to it.
+  function chipDrag(chip, id, pinned) {
     var st = null, gap = null;
     function row() { return (gap || chip).parentNode; }
     function peers() { return Array.prototype.slice.call(row().querySelectorAll("[data-folder-chip]")); }
@@ -116,13 +117,13 @@
       st.lastX = x;
       if (y != null) st.lastY = y;
       if (Math.abs(x - st.x) > 6) st.moved = true;
-      var ps = peers(), rw = row(), w = gap.offsetWidth, first = ps[0], last = ps[ps.length - 1];
-      var lo = slotLeft(first), hi = slotLeft(last) + last.offsetWidth - w;
+      var ps = pinned ? [gap] : peers(), rw = row(), w = gap.offsetWidth, first = ps[0], last = ps[ps.length - 1];
+      var lo = slotLeft(first), hi = slotLeft(last) + last.offsetWidth - w;     // (pinned: its own place, both ends)
       var raw = x - st.off, left = Math.max(lo, Math.min(hi, raw));
       var shown = raw < lo ? lo - band(lo - raw, 60) : raw > hi ? hi + band(raw - hi, 60) : left;
       var dy = st.lastY - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 36);
       // a neighbour gives way to the gap once the chip covers half of it
-      for (var k = 0; k < ps.length; k++) {
+      for (var k = 0; !pinned && k < ps.length; k++) {
         ps = peers();
         var i = ps.indexOf(gap), n = ps[i + 1], p = ps[i - 1], was;
         if (n && left + w > slotLeft(n) + n.offsetWidth / 2) { was = slotLeft(n); rw.insertBefore(n, gap); slide(n, was); }
@@ -147,10 +148,10 @@
       st.off = st.x - r.left;
       st.top0 = r.top;
       st.lastY = st.y;
-      st.order0 = order();
+      st.order0 = pinned ? "" : order();
       gap = document.createElement("span");
       gap.className = "lib-folder-gap";
-      gap.setAttribute("data-folder-chip", "");
+      if (!pinned) gap.setAttribute("data-folder-chip", "");
       gap.setAttribute("data-view", id);
       gap.style.width = r.width + "px";
       gap.style.height = r.height + "px";
@@ -171,7 +172,7 @@
       cancelAnimationFrame(s0.raf);
       if (!s0.lifted) return;
       eatClick();
-      var t = gap.getBoundingClientRect(), changed = order() !== s0.order0, at = peers().indexOf(gap), g = gap;
+      var t = gap.getBoundingClientRect(), changed = !pinned && order() !== s0.order0, at = pinned ? -1 : peers().indexOf(gap), g = gap;
       chip.classList.remove("lifted");
       chip.style.transition = "left 180ms cubic-bezier(0.2, 0.8, 0.2, 1), top 180ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 180ms ease";
       chip.style.left = t.left + "px";
@@ -182,7 +183,7 @@
         if (gap === g) gap = null;
         if (changed) moveFolder(id, at);
       }, 190);
-      if (!changed && s0.touch && !s0.moved) folderSheet(id);
+      if (!changed && s0.touch && !s0.moved && !pinned) folderSheet(id);
     }
     chip.addEventListener("pointerdown", function (e) {
       if (e.button !== 0 || gap) return;
@@ -208,7 +209,7 @@
     chip.addEventListener("contextmenu", function (e) {
       e.preventDefault();
       if (st && st.touch) return;                       // (a touch's long press lifts it; its sheet comes as it is let go)
-      folderSheet(id);
+      if (!pinned) folderSheet(id);
     });
   }
   // ---------------------------------------------------------------- a sheet from the bottom, for a paper's folder
@@ -1868,7 +1869,7 @@
       b.addEventListener("click", function () {
         showFolder(b.getAttribute("data-view"));
       });
-      if (b.hasAttribute("data-folder-chip")) chipDrag(b, b.getAttribute("data-view"));
+      chipDrag(b, b.getAttribute("data-view"), !b.hasAttribute("data-folder-chip"));   // (All, Unfiled: about their place)
     });
     var fadd = box.querySelector("[data-folder-add]");
     if (fadd) fadd.addEventListener("click", newFolderSheet);
@@ -2522,7 +2523,7 @@
     if (!pe || !isPage(current) || panelOpen || e.touches.length !== 1 || pe.scrollTop > 0 || !src) return;
     if (shell && shell.querySelector("#app-bar").classList.contains("searching")) return;
     if (pullChip().classList.contains("spinning")) return;
-    if (e.target.closest("[data-folder-chip]")) return;              // (a folder's chip: dragged, not a pull)
+    if (e.target.closest(".lib-folder")) return;                     // (a chip: dragged, not a pull)
     pull = {y: e.touches[0].clientY, x: e.touches[0].clientX, pane: pe, d: 0, on: false};
   }, {passive: true});
   function pullMove(e) {
@@ -2556,7 +2557,7 @@
     var pe = e.target.closest && e.target.closest(".app-pane");
     if (!pe || !isPage(current) || panelOpen || !src || pe.scrollTop > 0 || pull) return;
     if (pullChip() && pullChip().classList.contains("spinning")) return;
-    if (e.target.closest("[data-folder-chip]")) return;              // (a folder's chip: dragged, not a pull)
+    if (e.target.closest(".lib-folder")) return;                     // (a chip: dragged, not a pull)
     mousePull = {pane: pe, x: e.clientX, y: e.clientY, id: e.pointerId, on: false};
   });
   window.addEventListener("pointermove", function (e) {

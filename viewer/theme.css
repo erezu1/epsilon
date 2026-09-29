@@ -2061,7 +2061,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 :root.l2m-app-lists { --fs: 17px; }
 @media (min-width: 720px) { :root.l2m-app-lists { --fs: 18px; } }
 /* a folder's chip, dragged into a new order: it lifts (larger, a shadow) and the others slide aside */
-.app-chip.lib-folder[data-folder-chip] { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.app-chip.lib-folder { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }   /* (all the chips move) */
 @media (hover: hover) and (pointer: fine) { .app-chip.lib-folder[data-folder-chip] { cursor: grab; } }
 .app-chip.lib-folder.lifted {
   z-index: 3; transform: scale(1.06); cursor: grabbing;
