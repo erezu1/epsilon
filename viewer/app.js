@@ -1494,7 +1494,9 @@
         if (window.getSelection && String(window.getSelection()).length) return;   // selecting text, not tapping
         toggle();
       });
-      p.parentNode.insertBefore(b, p);                         // (the button first: the abstract opens under it)
+      var foot = p.previousElementSibling;                     // (the button first: the abstract opens under it; in the
+      if (foot && foot.classList.contains("lib-foot")) foot.insertBefore(b, foot.firstChild);   // library, on the buttons' line)
+      else p.parentNode.insertBefore(b, p);
       var row = p.closest("[data-k]");
       if (keepOpen && row && keepOpen[row.getAttribute("data-k")]) toggle(true, true);
     });
@@ -1721,19 +1723,23 @@
       var fk = folderOf(k);
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "") + " " + (fk ? folders[fk].name : "")).toLowerCase();
       var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;
-      // the buttons float at the top right: the title's first line beside them, all the rest the row's full width
-      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow"><span class="lib-acts">' +
+      // the title the row's whole width (a new paper's tag before it); the buttons on the last line, after "Abstract"
+      var acts = '<span class="lib-acts">' +
         (x.status !== "failed" ? '<button type="button" class="bar-btn app-pin" data-pin="' + esc(k) + '" aria-pressed="' + isPinned(k) +
           '" aria-label="' + (isPinned(k) ? "Pinned; tap to unpin" : "Pin to the top") + '">' + (isPinned(k) ? I.pinned || I.pin || "&#9733;" : I.pin || "&#9734;") + "</button>" : "") +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && (src.run || src.putJSON) ? '<button type="button" class="bar-btn app-more" data-more="' + esc(k) + '" aria-label="Folder' + (src.run ? ", or remove" : "") + '">' + (I.more || "&hellip;") + "</button>" : "") +
-        '</span><div class="app-lib-text" data-p="' + esc(k) + '">' +
-        '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (x.titleHtml || esc(x.title || k)) + "</a>" +
+        "</span>";
+      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow">' +
+        '<div class="app-lib-text" data-p="' + esc(k) + '">' +
+        '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") +
+        (x.titleHtml || esc(x.title || k)) + "</a>" +
         '<span class="lib-read" aria-hidden="true"><i></i></span>' +     // (unread: the empty track)
-        '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" +
-        (meta.length || fresh(x) ? '<span class="lib-meta">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
-        "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
+        // the authors and the rest (arXiv number, category, INSPIRE, note) on one line, to keep the row short
+        '<span class="lib-authors lib-byline">' + esc(authorsLine(x.authors)) +
+        (meta.length ? '<span class="lib-meta">' + ((x.authors || []).length ? " &middot; " : "") + meta.join(" &middot; ") + "</span>" : "") + "</span></div>" +
+        '</div><div class="lib-foot">' + acts + "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
         '<div class="app-confirm" aria-hidden="true"><div class="app-confirm-in"><span class="app-confirm-q">Remove it from the library?</span>' +
         '<span class="app-confirm-acts"><button type="button" class="app-pill" data-remove-no tabindex="-1">Keep</button>' +
         '<button type="button" class="app-pill app-danger" data-remove-yes="' + esc(k) + '" tabindex="-1">Remove</button></span></div></div></li>';

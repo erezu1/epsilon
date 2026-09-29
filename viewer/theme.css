@@ -2055,3 +2055,13 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
   box-shadow: 0 8px 20px -8px var(--bar-shadow), var(--seg-on-shadow);
 }
 .app-sheet-move { display: flex; gap: 8px; padding: 2px 10px 6px; margin: 0; }
+
+/* a library row: the title the whole width (a new paper's tag before it); its last line "Abstract" and, at its end,
+   the buttons */
+.lib-rows .lib-foot { display: flex; align-items: center; min-height: 30px; margin: 2px -8px -2px 0; }
+.lib-rows .lib-foot > .app-toggle { margin: 0; }
+.lib-rows .lib-foot > .lib-acts { display: flex; margin-left: auto; }
+.lib-rows .lib-foot > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: 50%; margin: -5px 0; }   /* (tap areas whole) */
+/* the authors and the rest on one line: the details as a quieter tail of it */
+.lib-rows .lib-flow .lib-byline > .lib-meta { display: inline; }
+.lib-title > .app-new-tag { font-size: 0.72em; vertical-align: 2px; }
