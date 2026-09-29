@@ -349,9 +349,9 @@
           var name = inp.value.trim();
           if (!name) return;
           var id = makeFolder(name);
-          store("folderView", id);
-          closeAppSheet();
+          closeAppSheet("jump");
           orgChanged();
+          showFolder(id);
         });
       });
   }
@@ -728,6 +728,26 @@
     var f = placed[k] && placed[k].folders && placed[k].folders[0];
     return f && folders[f] && !folders[f].gone ? f : null;
   }
+  // the folder shown in the library: its address says (?f=<folder>, ?f=none for Unfiled); not remembered, not synced.
+  // From All a folder is a step (back returns to All before anything else); from one folder to another, the same step.
+  function urlFolder() { return new URLSearchParams(location.search).get("f") || "all"; }
+  var libView = urlFolder();
+  function showFolder(id) {
+    if (id === libView) return;
+    var st = history.state || {};
+    try {
+      if (id === "all") {
+        if (st.l2mFolderStep) { libView = "all"; history.back(); }        // (back to the All it came from)
+        else history.replaceState({l2mPaper: "app:library"}, "", location.pathname);
+      } else {
+        var next = {l2mPaper: "app:library", l2mFolderStep: true};
+        if (libView === "all" && !st.l2mFolderStep) history.pushState(next, "", "?f=" + encodeURIComponent(id));
+        else history.replaceState(next, "", "?f=" + encodeURIComponent(id));
+      }
+    } catch (e) {}
+    libView = id;
+    renderLibrary();
+  }
   function orgChanged() {
     store("folders", folders);
     store("placed", placed);
@@ -747,8 +767,8 @@
   function renameFolder(id, name) { folders[id] = Object.assign({}, folders[id], {name: name, at: Date.now()}); orgChanged(); }
   function dropFolder(id) {
     folders[id] = Object.assign({}, folders[id], {at: Date.now(), gone: true});
-    if (store("folderView") === id) store("folderView", "all");
     orgChanged();
+    if (libView === id) showFolder("all");
   }
   function mergeOrg(rf, rp) {
     Object.keys(rf || {}).forEach(function (id) { if (!folders[id] || (rf[id].at || 0) > (folders[id].at || 0)) folders[id] = rf[id]; });
@@ -1699,7 +1719,7 @@
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });
     });
     // the folders (once there is one): chips over the list, All, each folder, Unfiled; the one chosen shows its papers
-    var flist = folderList(), view = store("folderView") || "all";
+    var flist = folderList(), view = libView;
     if (!flist.length || (view !== "all" && view !== "none" && !(folders[view] && !folders[view].gone))) view = "all";
     function inView(k) { var f = folderOf(k); return view === "all" || (view === "none" ? !f : f === view); }
     var counts = {all: papers.length, none: 0};
@@ -1766,9 +1786,7 @@
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
     Array.prototype.forEach.call(box.querySelectorAll("[data-view]"), function (b) {
       b.addEventListener("click", function () {
-        if (store("folderView") === b.getAttribute("data-view")) return;
-        store("folderView", b.getAttribute("data-view"));
-        renderLibrary();
+        showFolder(b.getAttribute("data-view"));
       });
       if (b.hasAttribute("data-folder-chip")) chipDrag(b, b.getAttribute("data-view"));
     });
@@ -2237,6 +2255,7 @@
     }
     close();                                // opened from a link: the library takes the paper's place
     try { history.replaceState({l2mPaper: "app:library"}, "", location.pathname); } catch (e) {}
+    libView = "all";
     show("app:library");
   }
   function go(pageName, key) {
@@ -2254,6 +2273,7 @@
     if (listMove) newAboveLibrary = k === "app:new";
     var url = key ? "?p=" + encodeURIComponent(key) : pageName === "new" ? "?v=new" : location.pathname;
     try { history.pushState({l2mPaper: k}, "", url); } catch (e) {}
+    if (k === "app:library") libView = "all";     // (its plain address: All)
     show(k);
   }
   document.addEventListener("click", function (e) {
@@ -2272,6 +2292,10 @@
     if (panelOpen) { closePanel("pop"); return; }       // back closes the open panel, nothing else
     if (shell && shell.querySelector("#app-bar").classList.contains("searching")) { searching(false, "pop"); return; }
     var k = (e.state && e.state.l2mPaper) || wanted();
+    if (k === "app:library") {                      // (the folder its address names)
+      var f = urlFolder();
+      if (f !== libView) { libView = f; if (current === "app:library") { renderLibrary(); return; } }
+    }
     if (leavingPaper) {
       if (k === leavingPaper) { history.back(); return; }   // still one of the paper's own entries
       leavingPaper = null;
@@ -2545,7 +2569,11 @@
   }).then(function () {
     var k = wanted();
     try {
-      if (k !== "app:library" && !(history.state || {}).l2mPaper) {
+      if (k === "app:library" && libView !== "all" && !(history.state || {}).l2mFolderStep) {
+        // opened on a folder's address: All goes underneath, so back leads to it first
+        history.replaceState({l2mPaper: "app:library"}, "", location.pathname);
+        history.pushState({l2mPaper: "app:library", l2mFolderStep: true}, "", "?f=" + encodeURIComponent(libView));
+      } else if (k !== "app:library" && !(history.state || {}).l2mPaper) {
         // opened straight on New or on a paper: the library goes underneath, so back leads to it
         history.replaceState({l2mPaper: "app:library"}, "", location.pathname);
         history.pushState({l2mPaper: k}, "", k === "app:new" ? "?v=new" : "?p=" + encodeURIComponent(k));
