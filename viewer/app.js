@@ -92,12 +92,16 @@
     el.addEventListener("contextmenu", function (e) { e.preventDefault(); if (t) { clearTimeout(t); t = null; fn(); } else fn(); });
   }
   // A folder's chip dragged to a new place among the folders (All, Unfiled and + stay where they are): on a touch
-  // screen after a long press (it lifts), with a mouse as soon as it moves; the others slide aside, and the row scrolls
-  // along at its edges. A long press let go where it began (or a right click) opens the folder's sheet instead.
+  // screen after a long press (it lifts), with a mouse as soon as it moves. Lifted, it leaves a gap of its size in the
+  // row and floats over the page (in a layer of its own, so the row, which scrolls, cuts neither it nor its shadow); the
+  // others give way to the gap, and the row scrolls along at its edges. Past the first or last folder, or up and
+  // down, it follows held back; let go, it glides into the gap. A long press let go where it began (or a right click)
+  // opens the folder's sheet instead.
   function chipDrag(chip, id) {
-    var st = null;
-    function peers() { return Array.prototype.slice.call(chip.parentNode.querySelectorAll("[data-folder-chip]")); }
-    function slotLeft(el) { var row = el.parentNode; return row.getBoundingClientRect().left + el.offsetLeft - row.scrollLeft; }
+    var st = null, gap = null;
+    function row() { return (gap || chip).parentNode; }
+    function peers() { return Array.prototype.slice.call(row().querySelectorAll("[data-folder-chip]")); }
+    function slotLeft(el) { var r = el.parentNode; return r.getBoundingClientRect().left + el.offsetLeft - r.scrollLeft; }
     function order() { return peers().map(function (p) { return p.getAttribute("data-view"); }).join(); }
     function slide(el, from) {                           // from where it was to its new place
       var d = from - slotLeft(el);
@@ -112,40 +116,49 @@
       st.lastX = x;
       if (y != null) st.lastY = y;
       if (Math.abs(x - st.x) > 6) st.moved = true;
-      // where the chip is: under the finger, but kept inside the row, between the first and the last folder's places
-      // (never past the row's edge, where it would be cut off)
-      var ps = peers(), row = chip.parentNode, rr = row.getBoundingClientRect(), w = chip.offsetWidth;
-      var first = ps[0], last = ps[ps.length - 1];
-      var lo = Math.max(slotLeft(first), rr.left + 2), hi = Math.min(slotLeft(last) + last.offsetWidth - w, rr.right - w - 2);
+      var ps = peers(), rw = row(), w = gap.offsetWidth, first = ps[0], last = ps[ps.length - 1];
+      var lo = slotLeft(first), hi = slotLeft(last) + last.offsetWidth - w;
       var raw = x - st.off, left = Math.max(lo, Math.min(hi, raw));
-      // past the first or last folder's place (toward All, Unfiled), or up and down: it follows, held back
-      var shown = raw < lo ? lo - band(lo - raw, 28) : raw > hi ? hi + band(raw - hi, 28) : left;
-      var dy = (st.lastY == null ? st.y : st.lastY) - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 14);
-      // a neighbour gives way once the chip covers half of it
+      var shown = raw < lo ? lo - band(lo - raw, 60) : raw > hi ? hi + band(raw - hi, 60) : left;
+      var dy = st.lastY - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 36);
+      // a neighbour gives way to the gap once the chip covers half of it
       for (var k = 0; k < ps.length; k++) {
         ps = peers();
-        var i = ps.indexOf(chip), n = ps[i + 1], p = ps[i - 1], was;
-        if (n && left + w > slotLeft(n) + n.offsetWidth / 2) { was = slotLeft(n); row.insertBefore(n, chip); slide(n, was); }
-        else if (p && left < slotLeft(p) + p.offsetWidth / 2) { was = slotLeft(p); row.insertBefore(p, chip.nextSibling); slide(p, was); }
+        var i = ps.indexOf(gap), n = ps[i + 1], p = ps[i - 1], was;
+        if (n && left + w > slotLeft(n) + n.offsetWidth / 2) { was = slotLeft(n); rw.insertBefore(n, gap); slide(n, was); }
+        else if (p && left < slotLeft(p) + p.offsetWidth / 2) { was = slotLeft(p); rw.insertBefore(p, gap.nextSibling); slide(p, was); }
         else break;
       }
-      chip.style.transform = "translate(" + (shown - slotLeft(chip)) + "px, " + ty.toFixed(1) + "px) scale(1.06)";
+      chip.style.left = shown + "px";
+      chip.style.top = (st.top0 + ty) + "px";
     }
     function edges() {                                   // held by an edge of the row: it scrolls along
       if (!st || !st.lifted) return;
-      var row = chip.parentNode, r = row.getBoundingClientRect(), x = st.lastX;
+      var rw = row(), r = rw.getBoundingClientRect(), x = st.lastX;
       var v = x == null ? 0 : x < r.left + 36 ? -7 : x > r.right - 36 ? 7 : 0;
-      if (v && row.scrollWidth > row.clientWidth) { row.scrollLeft += v; follow(x, st.lastY); }
+      if (v && rw.scrollWidth > rw.clientWidth) { rw.scrollLeft += v; follow(x, st.lastY); }
       st.raf = requestAnimationFrame(edges);
     }
     function lift() {
       st.lifted = true;
       st.timer = null;
-      sw = null; pull = null;                            // (not the lists' swipe, nor the pull)
-      st.off = st.x - slotLeft(chip);
+      sw = null; pull = null; mousePull = null;          // (not the lists' swipe, nor the pull to refresh)
+      var r = chip.getBoundingClientRect();
+      st.off = st.x - r.left;
+      st.top0 = r.top;
+      st.lastY = st.y;
       st.order0 = order();
-      chip.style.transition = "none";
+      gap = document.createElement("span");
+      gap.className = "lib-folder-gap";
+      gap.setAttribute("data-folder-chip", "");
+      gap.setAttribute("data-view", id);
+      gap.style.width = r.width + "px";
+      gap.style.height = r.height + "px";
+      chip.parentNode.insertBefore(gap, chip);
+      document.body.appendChild(chip);
+      chip.style.cssText = "position:fixed;left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;margin:0;z-index:70;transition:none;";
       chip.classList.add("lifted");
+      if (st.pid != null) { try { chip.setPointerCapture(st.pid); } catch (x) {} }   // (moved: taken back)
       if (st.touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
       edges();
     }
@@ -158,17 +171,22 @@
       cancelAnimationFrame(s0.raf);
       if (!s0.lifted) return;
       eatClick();
+      var t = gap.getBoundingClientRect(), changed = order() !== s0.order0, at = peers().indexOf(gap), g = gap;
       chip.classList.remove("lifted");
-      chip.style.transition = "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)";
-      chip.style.transform = "";
-      if (order() !== s0.order0) {
-        var at = peers().indexOf(chip);
-        setTimeout(function () { moveFolder(id, at); }, 190);
-      } else if (s0.touch && !s0.moved) folderSheet(id);
+      chip.style.transition = "left 180ms cubic-bezier(0.2, 0.8, 0.2, 1), top 180ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 180ms ease";
+      chip.style.left = t.left + "px";
+      chip.style.top = t.top + "px";
+      setTimeout(function () {                           // landed: back in the row, in the gap's place
+        g.replaceWith(chip);
+        chip.style.cssText = "";
+        if (gap === g) gap = null;
+        if (changed) moveFolder(id, at);
+      }, 190);
+      if (!changed && s0.touch && !s0.moved) folderSheet(id);
     }
     chip.addEventListener("pointerdown", function (e) {
-      if (e.button !== 0) return;
-      st = {x: e.clientX, y: e.clientY, touch: e.pointerType !== "mouse", lifted: false, moved: false, lastX: null};
+      if (e.button !== 0 || gap) return;
+      st = {x: e.clientX, y: e.clientY, touch: e.pointerType !== "mouse", lifted: false, moved: false, lastX: null, pid: e.pointerId};
       if (st.touch) st.timer = setTimeout(lift, 450);
       else { try { chip.setPointerCapture(e.pointerId); } catch (x) {} }
     });
@@ -177,7 +195,7 @@
       if (!st.lifted) {
         var d = Math.abs(e.clientX - st.x) + Math.abs(e.clientY - st.y);
         if (st.touch) { if (d > 10) cancel(); return; }
-        if (Math.abs(e.clientX - st.x) > 6) lift(); else return;
+        if (Math.abs(e.clientX - st.x) > 6 || Math.abs(e.clientY - st.y) > 6) lift(); else return;
       }
       follow(e.clientX, e.clientY);
     });
@@ -2497,6 +2515,7 @@
     if (!pe || !isPage(current) || panelOpen || e.touches.length !== 1 || pe.scrollTop > 0 || !src) return;
     if (shell && shell.querySelector("#app-bar").classList.contains("searching")) return;
     if (pullChip().classList.contains("spinning")) return;
+    if (e.target.closest("[data-folder-chip]")) return;              // (a folder's chip: dragged, not a pull)
     pull = {y: e.touches[0].clientY, x: e.touches[0].clientX, pane: pe, d: 0, on: false};
   }, {passive: true});
   function pullMove(e) {
@@ -2530,6 +2549,7 @@
     var pe = e.target.closest && e.target.closest(".app-pane");
     if (!pe || !isPage(current) || panelOpen || !src || pe.scrollTop > 0 || pull) return;
     if (pullChip() && pullChip().classList.contains("spinning")) return;
+    if (e.target.closest("[data-folder-chip]")) return;              // (a folder's chip: dragged, not a pull)
     mousePull = {pane: pe, x: e.clientX, y: e.clientY, id: e.pointerId, on: false};
   });
   window.addEventListener("pointermove", function (e) {

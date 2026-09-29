@@ -2093,3 +2093,4 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
    dragged nothing on the page is */
 .peek-head { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .l2m-dragging, .l2m-dragging * { -webkit-user-select: none !important; user-select: none !important; }
+.lib-folder-gap { flex: 0 0 auto; display: inline-block; pointer-events: none; }   /* (a dragged chip's place in the row) */
