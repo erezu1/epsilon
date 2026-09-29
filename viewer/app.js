@@ -159,7 +159,8 @@
       gap.style.height = r.height + "px";
       chip.parentNode.insertBefore(gap, chip);
       document.body.appendChild(chip);
-      chip.style.cssText = "position:fixed;left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;margin:0;z-index:70;transition:none;";
+      chip.style.cssText = "position:fixed;left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height +
+        "px;box-sizing:border-box;margin:0;z-index:70;transition:none;";      // (its whole size as it was: no jump)
       chip.classList.add("lifted");
       if (st.pid != null) { try { chip.setPointerCapture(st.pid); } catch (x) {} }   // (moved: taken back)
       if (st.touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }

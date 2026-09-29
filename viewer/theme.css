@@ -2014,6 +2014,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 /* folders: chips over the library (All, each folder, Unfiled, +), the chosen one raised as a switch's; they scroll
    sideways when they run past the screen */
 .lib-folders {
+  position: relative;       /* (its chips' places measured from it, as their drag reckons them) */
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
   margin: -13px -18px -8px; padding: 16px 18px 22px; touch-action: pan-x pan-y;   /* (room for the shadows: a row that scrolls
                                                                                    sideways cuts what passes its edges) */
