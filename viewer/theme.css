@@ -1402,7 +1402,7 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .app-confirm-q { flex: 1 1 auto; font-family: var(--ui); }
 .app-confirm-acts { display: flex; gap: 8px; margin-left: auto; }
 .app-confirm .app-pill { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
-.app-confirm .app-pill.app-danger { background: var(--danger-bg); box-shadow: none; }
+.app-confirm .app-pill.app-danger { background: linear-gradient(var(--danger-bg), var(--danger-bg)), var(--seg-on); box-shadow: var(--seg-on-shadow); }   /* (as raised as Keep, in red) */
 @media (prefers-reduced-motion: reduce) { .app-confirm, .app-confirm-in { transition: none; } }
 
 /* 6. wider screens: the bars, panels, sheets and messages are as wide as the page, centred; the corners that meet

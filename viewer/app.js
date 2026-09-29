@@ -1052,10 +1052,15 @@
       });
     });
   }
-  document.addEventListener("click", function (e) {
-    // a tap outside the open panel closes it (a control that was just redrawn is not "outside")
-    if (panelOpen && shell && e.target.isConnected && !shell.contains(e.target)) closePanel();
-  });
+  window.addEventListener("click", function (e) {
+    // a tap outside the open panel closes it, and does nothing else (not the paper, link or button under it); a
+    // control that was just redrawn is not "outside"
+    if (panelOpen && shell && e.target.isConnected && !shell.contains(e.target)) {
+      e.preventDefault();
+      e.stopPropagation();
+      closePanel();
+    }
+  }, true);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
 
   var mathIn = false, libMathIn = null;
