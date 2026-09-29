@@ -107,15 +107,20 @@
       el.style.transition = "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)";
       el.style.transform = "";
     }
-    function follow(x) {
+    function band(v, d) { return d * (1 - 1 / (v * 0.55 / d + 1)); }        // (as the peek: less and less, up to d)
+    function follow(x, y) {
       st.lastX = x;
+      if (y != null) st.lastY = y;
       if (Math.abs(x - st.x) > 6) st.moved = true;
       // where the chip is: under the finger, but kept inside the row, between the first and the last folder's places
       // (never past the row's edge, where it would be cut off)
       var ps = peers(), row = chip.parentNode, rr = row.getBoundingClientRect(), w = chip.offsetWidth;
       var first = ps[0], last = ps[ps.length - 1];
       var lo = Math.max(slotLeft(first), rr.left + 2), hi = Math.min(slotLeft(last) + last.offsetWidth - w, rr.right - w - 2);
-      var left = Math.max(lo, Math.min(hi, x - st.off));
+      var raw = x - st.off, left = Math.max(lo, Math.min(hi, raw));
+      // past the first or last folder's place (toward All, Unfiled), or up and down: it follows, held back
+      var shown = raw < lo ? lo - band(lo - raw, 28) : raw > hi ? hi + band(raw - hi, 28) : left;
+      var dy = (st.lastY == null ? st.y : st.lastY) - st.y, ty = (dy < 0 ? -1 : 1) * band(Math.abs(dy), 14);
       // a neighbour gives way once the chip covers half of it
       for (var k = 0; k < ps.length; k++) {
         ps = peers();
@@ -124,13 +129,13 @@
         else if (p && left < slotLeft(p) + p.offsetWidth / 2) { was = slotLeft(p); row.insertBefore(p, chip.nextSibling); slide(p, was); }
         else break;
       }
-      chip.style.transform = "translateX(" + (left - slotLeft(chip)) + "px) scale(1.06)";
+      chip.style.transform = "translate(" + (shown - slotLeft(chip)) + "px, " + ty.toFixed(1) + "px) scale(1.06)";
     }
     function edges() {                                   // held by an edge of the row: it scrolls along
       if (!st || !st.lifted) return;
       var row = chip.parentNode, r = row.getBoundingClientRect(), x = st.lastX;
       var v = x == null ? 0 : x < r.left + 36 ? -7 : x > r.right - 36 ? 7 : 0;
-      if (v && row.scrollWidth > row.clientWidth) { row.scrollLeft += v; follow(x); }
+      if (v && row.scrollWidth > row.clientWidth) { row.scrollLeft += v; follow(x, st.lastY); }
       st.raf = requestAnimationFrame(edges);
     }
     function lift() {
@@ -174,10 +179,10 @@
         if (st.touch) { if (d > 10) cancel(); return; }
         if (Math.abs(e.clientX - st.x) > 6) lift(); else return;
       }
-      follow(e.clientX);
+      follow(e.clientX, e.clientY);
     });
     chip.addEventListener("touchmove", function (e) {   // lifted: the finger moves the chip, not the page
-      if (st && st.lifted) { e.preventDefault(); follow(e.touches[0].clientX); }
+      if (st && st.lifted) { e.preventDefault(); follow(e.touches[0].clientX, e.touches[0].clientY); }
     }, {passive: false});
     chip.addEventListener("pointerup", function () { if (st && st.lifted) drop(); else cancel(); });
     chip.addEventListener("pointercancel", function () { if (st && st.lifted) drop(); else cancel(); });
