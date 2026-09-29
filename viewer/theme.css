@@ -2082,7 +2082,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 }
 .l2m-widthing .bar-inner, .l2m-widthing .peek-row, .l2m-widthing .sheet-inner { transition: max-width 360ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .l2m-width-fade main, .l2m-width-fade .peek-main, .l2m-width-fade .sheet-body, .l2m-width-fade .bar-title-inner, .l2m-width-fade .peek-title {
-  opacity: 0 !important; transition: opacity 140ms ease !important;
+  opacity: 0 !important; transition: opacity 120ms ease !important;
 }
 .l2m-widthing main, .l2m-widthing .peek-main, .l2m-widthing .sheet-body, .l2m-widthing .bar-title-inner, .l2m-widthing .peek-title { transition: opacity 220ms ease; }
 @media (prefers-reduced-motion: reduce) { .l2m-widthing * { transition-duration: 0.01s !important; } }

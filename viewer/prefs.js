@@ -93,7 +93,7 @@
       });
       root.classList.remove("l2m-width-fade");
       root.l2mWidthT = setTimeout(function () { root.classList.remove("l2m-widthing"); }, 300);
-    }, reduced ? 0 : 150);
+    }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); };
   // a change of colours (theme, tone) cross-fades the page; the fade shows a still picture of the page, so anything
