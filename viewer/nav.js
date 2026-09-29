@@ -1119,6 +1119,7 @@ window.L2M_nav = function (opts) {
       '<div class="peek-head"><span class="peek-grab" aria-hidden="true"></span><div class="peek-row">' +
       '<button type="button" class="bar-btn peek-back" aria-label="Back in the second view" hidden>' + (I.back || "&lsaquo;") + "</button>" +
       '<span class="peek-title"></span>' +
+      '<button type="button" class="bar-btn peek-expand" aria-label="Read here in the full page">' + (I.expand || "&#8599;") + "</button>" +
       '<button type="button" class="bar-btn peek-close" aria-label="Close the second view">' + (I.close || "&times;") + "</button></div></div>";
     document.body.appendChild(peek);
     peekMain = peek.querySelector(".peek-main");
@@ -1127,6 +1128,7 @@ window.L2M_nav = function (opts) {
     peekTitle = peek.querySelector(".peek-title");
     peekBack = peek.querySelector(".peek-back");
     peek.querySelector(".peek-close").addEventListener("click", function () { closePeek(); });
+    peek.querySelector(".peek-expand").addEventListener("click", expandPeek);
     peekBack.addEventListener("click", function () {
       if (!peekStack.length) return;
       peekScroll.scrollTo(0, peekStack.pop());
@@ -1363,6 +1365,50 @@ window.L2M_nav = function (opts) {
     }
     return true;
   }
+  // The peek made the page: it grows up to the bar (its head joining it) while its text and the page's fade out; the
+  // page is then where the peek was, and fades back in, the peek gone. Back returns to where the page was.
+  var expanding = false;
+  function expandPeek() {
+    if (!peekOpen || expanding) return;
+    expanding = true;
+    var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var line = peekScroll.getBoundingClientRect().top + peekHead.offsetHeight, blocks = peekMain.querySelectorAll(PEEK_BLOCKS), k = -1, off = 0;
+    for (var i = 0; i < blocks.length; i++) {
+      var r = blocks[i].getBoundingClientRect();
+      if (r.bottom > line) { k = i; off = r.top - line; break; }
+    }
+    closeSheet();
+    overlayOut("l2mPeek", "hand");                   // (its history step goes now; the page's jump comes at the end)
+    peekOpen = false;
+    clearTimeout(peekCloseTimer);
+    var main = document.querySelector("main");
+    peek.classList.add("expanding");
+    main.classList.add("l2m-fading");
+    peek.style.height = (window.innerHeight - barHeight()) + "px";
+    setTimeout(function () {
+      var from = window.pageYOffset, b = k >= 0 ? main.querySelectorAll(PEEK_BLOCKS)[k] : null;
+      peek.style.transition = "none";                 // gone at once: it shows the page's ground, as the page does now
+      peek.classList.remove("open", "expanding");
+      peek.setAttribute("aria-hidden", "true");
+      root.classList.remove("l2m-peeking");
+      document.body.style.paddingBottom = "";
+      if (b) {
+        var y = Math.max(0, b.getBoundingClientRect().top + window.pageYOffset - barHeight() - off);
+        if (useHistory) {
+          try {
+            history.replaceState(assign(state(), {l2mIdx: idx, l2mY: from, l2mPaper: KEY}), "");
+            history.pushState({l2mIdx: idx + 1, l2mY: y, l2mPaper: KEY}, "");
+            idx += 1;
+          } catch (e) { mem.push(from); }
+        } else mem.push(from);
+        scrollToY(y);
+      }
+      update();
+      void main.offsetWidth;
+      main.classList.remove("l2m-fading");
+      setTimeout(function () { peek.style.transition = ""; peek.style.height = peekH + "px"; expanding = false; }, 60);
+    }, reduced ? 0 : 340);
+  }
   function closePeek(how) {           // how: "pop" (closed by back); by hand otherwise
     if (!peekOpen) return;
     overlayOut("l2mPeek", how || "hand");
@@ -1396,6 +1442,11 @@ window.L2M_nav = function (opts) {
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     eatClick();
     if (peek && peek.contains(l.a)) {           // from the peek: the top view goes there
+      closeSheet();
+      if (document.getElementById(l.id)) navigate(l.id);
+      return;
+    }
+    if (l.a.closest(".cite")) {                // a citation (a tap peeks at it): the page goes to the reference
       closeSheet();
       if (document.getElementById(l.id)) navigate(l.id);
       return;
@@ -1447,6 +1498,11 @@ window.L2M_nav = function (opts) {
     if (a && a.closest(".fnref") && openSheet(a)) {
       e.preventDefault();
       return;
+    }
+    // a citation: the reference shown in the peek (a long press goes there instead)
+    if (a && a.closest(".cite") && !(peek && peek.contains(a))) {
+      var cid = decodeURIComponent(a.getAttribute("href").slice(1));
+      if (document.getElementById(cid) && openPeek(cid, sheet && sheet.contains(a) ? null : a)) { e.preventDefault(); return; }
     }
     if (viewer && !viewer.contains(e.target)) {
       // a reference to a figure or table opens it in the viewer; so does tapping a figure
