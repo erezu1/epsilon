@@ -1381,15 +1381,13 @@ window.L2M_nav = function (opts) {
     overlayOut("l2mPeek", "hand");                   // (its history step goes now; the page's jump comes at the end)
     peekOpen = false;
     clearTimeout(peekCloseTimer);
-    var main = document.querySelector("main");
+    var main = document.querySelector("main"), T = reduced ? 0 : 340, half = reduced ? 0 : 150;
     peek.classList.add("expanding");
     main.classList.add("l2m-fading");
     peek.style.height = (window.innerHeight - barHeight()) + "px";
+    // halfway up, the page (out of sight a moment) goes to where the peek is and fades in, as the peek fades away
     setTimeout(function () {
       var from = window.pageYOffset, b = k >= 0 ? main.querySelectorAll(PEEK_BLOCKS)[k] : null;
-      peek.style.transition = "none";                 // gone at once: it shows the page's ground, as the page does now
-      peek.classList.remove("open", "expanding");
-      peek.setAttribute("aria-hidden", "true");
       root.classList.remove("l2m-peeking");
       document.body.style.paddingBottom = "";
       if (b) {
@@ -1406,8 +1404,13 @@ window.L2M_nav = function (opts) {
       update();
       void main.offsetWidth;
       main.classList.remove("l2m-fading");
+    }, half);
+    setTimeout(function () {                          // up, and faded away: gone
+      peek.style.transition = "none";
+      peek.classList.remove("open", "expanding");
+      peek.setAttribute("aria-hidden", "true");
       setTimeout(function () { peek.style.transition = ""; peek.style.height = peekH + "px"; expanding = false; }, 60);
-    }, reduced ? 0 : 340);
+    }, T);
   }
   function closePeek(how) {           // how: "pop" (closed by back); by hand otherwise
     if (!peekOpen) return;

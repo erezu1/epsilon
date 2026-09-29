@@ -1995,14 +1995,16 @@ html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
 .app-abs.open, .l2m-app-lists .app-abs.open { opacity: 1; margin-top: 0.3em; visibility: visible; transition-delay: 0s; }
 .app-toggle { margin-top: 4px; }
 
-/* the peek made the page: it grows up to the bar, its corners squaring, while its text and the page's fade out; the
-   page then fades back in where the peek was */
+/* the peek made the page: in one rise to the bar (its corners squaring), its text fades out at once and the page with
+   it; halfway, the page (now where the peek is) fades back in as the peek's ground and head fade away into the bar */
 .l2m-peek.expanding {
-  border-radius: 0; box-shadow: none;
-  transition: height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 340ms ease, box-shadow 340ms ease;
+  border-radius: 0; box-shadow: none; background-color: transparent;
+  transition: height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 340ms ease, box-shadow 200ms ease,
+              background-color 190ms ease 150ms;
 }
-.l2m-peek.expanding .peek-scroll, .l2m-peek.expanding .peek-title { opacity: 0; transition: opacity 220ms ease; }
-main { transition: opacity 260ms ease; }
-main.l2m-fading { opacity: 0; transition: opacity 200ms ease; }
+.l2m-peek.expanding .peek-scroll { opacity: 0; transition: opacity 140ms ease; }
+.l2m-peek.expanding .peek-head { opacity: 0; transition: opacity 190ms ease 150ms; }
+main { transition: opacity 190ms ease; }
+main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .peek-row .peek-expand svg { width: 19px; height: 19px; }
 @media (prefers-reduced-motion: reduce) { .l2m-peek.expanding, main, main.l2m-fading { transition-duration: 0.01s; } }
