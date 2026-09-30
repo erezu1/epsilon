@@ -1244,29 +1244,61 @@ window.L2M_nav = function (opts) {
     if (peek) peek.style.height = peekH + "px";
     if (peekOpen) document.body.style.paddingBottom = (peekH + 72) + "px";
   }
-  function peekFill() {
-    // a copy of the paper, its ids kept as data-pid (the page's own ids stay unique)
-    var src = document.querySelector("main");
-    peekMain.innerHTML = src.innerHTML;
-    Array.prototype.forEach.call(peekMain.querySelectorAll("[id]"), function (n) {
-      n.setAttribute("data-pid", n.id);
-      n.removeAttribute("id");
-    });
-    Array.prototype.forEach.call(peekMain.querySelectorAll(".fnref.active"), function (n) { n.classList.remove("active"); });
-    Array.prototype.forEach.call(peekMain.querySelectorAll(".l2m-find-g"), function (n) { n.remove(); });
-    Array.prototype.forEach.call(peekMain.querySelectorAll(".l2m-find-f, .l2m-find-now"), function (n) { n.classList.remove("l2m-find-f", "l2m-find-now"); });
+  // a copy of (part of) the paper made ready: its ids kept as data-pid (the page's own ids stay unique), the page's
+  // passing marks off, its formulas not drawn yet (drawn as they come in sight)
+  function prepCopy(root) {
+    function all(sel) { var l = Array.prototype.slice.call(root.querySelectorAll(sel)); if (root.matches && root.matches(sel)) l.push(root); return l; }
+    all("[id]").forEach(function (n) { n.setAttribute("data-pid", n.id); n.removeAttribute("id"); });
+    all(".fnref.active").forEach(function (n) { n.classList.remove("active"); });
+    all(".l2m-find-g").forEach(function (n) { n.remove(); });
+    all(".l2m-find-f, .l2m-find-now").forEach(function (n) { n.classList.remove("l2m-find-f", "l2m-find-now"); });
     if (window.L2M_math) {
-      Array.prototype.forEach.call(peekMain.querySelectorAll("mjx-container[data-n]:not([data-lazy])"), function (m) {
+      all("mjx-container[data-n]:not([data-lazy])").forEach(function (m) {
         if (L2M_math.lazy(m.getAttribute("data-n")) && !m.closest(L2M_math.eager) && m.firstElementChild) {
           m.firstElementChild.textContent = ""; m.setAttribute("data-lazy", "");
         }
       });
-      L2M_math.watch(peekMain, peekScroll);        // (its formulas drawn in as they come in sight)
     }
+  }
+  function peekFinish() {
+    if (window.L2M_math) L2M_math.watch(peekMain, peekScroll);        // (its formulas drawn in as they come in sight)
     peekHeads = Array.prototype.filter.call(peekMain.querySelectorAll("h2[data-pid], h3[data-pid]"), function (h) {
       return !h.closest(".titleblock");
     });
+    peekMain.l2mBuilding = null;
     peekMain.l2mFilled = true;
+  }
+  function peekFill() {                     // all at once (the peek wanted now)
+    peekMain.l2mBuilding = null;
+    peekMain.innerHTML = document.querySelector("main").innerHTML;
+    prepCopy(peekMain);
+    peekFinish();
+  }
+  // In the background it is made a little at a time, in the page's idle moments: a few blocks of the paper copied
+  // and laid out (they alone: the rest is not there yet), then the next few. So no moment is long, however long the
+  // paper (all at once it held a phone ~0.4s). Opened meanwhile, the rest comes at once.
+  function peekFillSlices(idle, done) {
+    var kids = Array.prototype.slice.call(document.querySelector("main").children), i = 0;
+    peekMain.innerHTML = "";
+    peekMain.l2mFilled = false;
+    var job = peekMain.l2mBuilding = {rest: function () {
+      var f = document.createDocumentFragment();
+      while (i < kids.length) f.appendChild(kids[i++].cloneNode(true));
+      prepCopy(f);
+      peekMain.appendChild(f);
+      peekFinish();
+    }};
+    function slice(d) {
+      if (dead || peekMain.l2mBuilding !== job) return;
+      var t0 = performance.now(), f = document.createDocumentFragment();
+      while (i < kids.length && performance.now() - t0 < 1) f.appendChild(kids[i++].cloneNode(true));
+      prepCopy(f);
+      peekMain.appendChild(f);
+      void peekScroll.scrollHeight;                   // (laid out now, while it is little)
+      if (i < kids.length) idle(slice, {timeout: 3000});
+      else { peekFinish(); if (done) done(); }
+    }
+    idle(slice, {timeout: 3000});
   }
   // the page draws its formulas after it opens (nearest first): a copy made meanwhile keeps some undrawn, so it
   // is made again once the page has drawn more, keeping in place what the peek shows
@@ -1357,6 +1389,7 @@ window.L2M_nav = function (opts) {
   function openPeek(id, from) {
     peekBuild();
     peekAside(false);
+    if (peekMain.l2mBuilding) peekMain.l2mBuilding.rest();      // (being made in the background: the rest now)
     if (!peekMain.l2mFilled || peekStale()) peekFill();
     if (!peekFind(id)) return false;
     clearTimeout(peekCloseTimer);
@@ -1727,18 +1760,15 @@ window.L2M_nav = function (opts) {
     var lastScroll = 0;
     on(window, "scroll", function () { lastScroll = Date.now(); }, {passive: true});
     function tryBuild() {
-      if (dead || (peekMain && peekMain.l2mFilled)) return;
+      if (dead || (peekMain && (peekMain.l2mFilled || peekMain.l2mBuilding))) return;
       if (Date.now() - lastScroll < 800) { setTimeout(tryBuild, 900); return; }
-      idle(function (d) {
-        if (dead || (peekMain && peekMain.l2mFilled)) return;
-        if (d && d.timeRemaining && d.timeRemaining() < 8 && !d.didTimeout) { setTimeout(tryBuild, 400); return; }
-        peekBuild();
-        peekFill();
-        // laid out now, at the height it opens at, then set aside with its layout kept: opening only shows it
-        peek.style.height = Math.min(peekMax(), Math.round((window.innerHeight - barHeight()) * (peekUserH || 0.48))) + "px";
-        void peekScroll.scrollHeight;
-        peekAside(true);
-      }, {timeout: 4000});
+      peekBuild();
+      // laid out at the height it opens at, a little at a time, then set aside with its layout kept: opening only
+      // shows it
+      peek.style.height = Math.min(peekMax(), Math.round((window.innerHeight - barHeight()) * (peekUserH || 0.48))) + "px";
+      peekFillSlices(function (f, o) {                  // (an idle moment, and not while the reader scrolls)
+        idle(function (d) { if (Date.now() - lastScroll < 300) setTimeout(function () { f(d); }, 400); else f(d); }, o);
+      }, function () { if (!peekOpen) peekAside(true); });
     }
     setTimeout(tryBuild, 2500);
   });

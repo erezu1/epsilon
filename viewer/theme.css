@@ -1728,7 +1728,7 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 @keyframes l2m-release { 0% { scale: 0.82; } 55% { scale: 1.06; } 100% { scale: 1; } }
 
 /* dragging a list down with the mouse to refresh: no text selected meanwhile, and the hand shows it */
-html.l2m-pulling, html.l2m-pulling * { user-select: none !important; -webkit-user-select: none !important; cursor: grabbing !important; }
+
 
 /* the peek: a second view of the paper in a sheet below (rounded top, glass head with the film's rim, the pinned
    header's small capitals for what it shows); the page above keeps room to scroll to its end */

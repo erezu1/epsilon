@@ -2570,7 +2570,8 @@
       if (Math.abs(dx) > 10 || dy < -6) { mousePull = null; return; }      // sideways or up: not a pull
       if (dy < 8) return;
       mousePull.on = true;
-      document.documentElement.classList.add("l2m-pulling");           // no text selection meanwhile
+      mousePull.pane.style.cursor = "grabbing";        // (no text selection meanwhile: the listener below; a class on the
+                                                        // page's root would restyle every element as the pull starts and ends)
       var sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges();
     }
     e.preventDefault();
@@ -2579,11 +2580,12 @@
     pullShow(mousePull.d, true);
     pull = null;
   });
+  document.addEventListener("selectstart", function (e) { if (mousePull && mousePull.on) e.preventDefault(); });
   function mousePullEnd(e) {
     if (!mousePull || (e && e.pointerId !== mousePull.id)) return;
     var m = mousePull; mousePull = null;
     if (!m.on) return;
-    document.documentElement.classList.remove("l2m-pulling");
+    m.pane.style.cursor = "";
     // the click this release makes is the pull's, not a link's
     var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
     window.addEventListener("click", stop, true);
