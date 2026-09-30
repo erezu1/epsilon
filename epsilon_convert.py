@@ -1983,7 +1983,7 @@ class Converter:
         m = re.search(r"\\begin\{thebibliography\}", text)
         if not m:
             return ""
-        body = text[m.end():]
+        body = strip_comments(text[m.end():])        # (a .bbl's own comments: INSPIRE's %%CITATION = ...;%%)
         _, j = read_group(body, 0)
         body = body[j:]
         e = body.find("\\end{thebibliography}")
