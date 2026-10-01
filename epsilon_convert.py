@@ -1928,7 +1928,7 @@ class Converter:
                 labs.append(m.group(1))
                 j = m.end()
             num = self.number_html(labs[0]) if labs else ""
-            cap_ids += labs
+            cap_ids += labs + re.findall(r"\\label\s*\{([^}]*)\}", cap or "")
             if env in ("subfigure", "subtable"):
                 name = "(%s)" % num if num else ""
             else:
@@ -1936,7 +1936,11 @@ class Converter:
             blocks.append('<figcaption><span class="capname">%s</span> %s</figcaption>'
                           % (name, self.convert_inline(cap or "")))
             blocks.extend(self.convert_block(seg[j:]))
-        key = ids[0] if ids else (cap_ids[0] if cap_ids else None)
+        # the figure's own label: its caption's (after it or in it), else one outside its subfigures, else any (a
+        # subfigure's label is the subfigure's)
+        top = [re.match(r"\\label\s*\{([^}]*)\}", sep).group(1) for _, sep in split_top_keep(body, r"\\label\s*\{[^}]*\}") if sep]
+        own = [x for x in cap_ids + top if not x.startswith(AUTO)]
+        key = own[0] if own else (ids[0] if ids else None)
         idattr = (' id="%s"' % self.sid(key)) if key else ""
         return ['<figure class="float %s"%s>%s</figure>' % (kind, idattr, "".join(blocks))] + self.pop_footnotes()
 
@@ -2221,12 +2225,14 @@ class Converter:
                 if cmd in ("paragraph", "subparagraph"):
                     _, k = read_opt(s, j)
                     title, k = read_group(s, k)
+                    labels = ""                # its labels: anchors where the paragraph starts (links and \\ref land there)
                     while True:
                         lm = LABEL_AT.match(s, k)
                         if not lm:
                             break
+                        labels += "\\label{%s}" % lm.group(1)
                         k = lm.end()
-                    para.append("\\lmobilerunin{%s}" % (title or ""))
+                    para.append("%s\\lmobilerunin{%s}" % (labels, title or ""))
                     i = k
                     continue
                 h, k = self.heading_html(cmd, star, s, j)
