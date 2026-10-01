@@ -2702,9 +2702,11 @@
         history.replaceState({l2mPaper: "app:library"}, "", location.pathname);
         history.pushState({l2mPaper: "app:library", l2mFolderStep: true}, "", "?f=" + encodeURIComponent(libView));
       } else if (k !== "app:library" && !(history.state || {}).l2mPaper) {
-        // opened straight on New or on a paper: the library goes underneath, so back leads to it
+        // opened straight on New or on a paper: the library goes underneath, so back leads to it (a paper's #… kept:
+        // the place it names)
+        var hash = location.hash;
         history.replaceState({l2mPaper: "app:library"}, "", location.pathname);
-        history.pushState({l2mPaper: k}, "", k === "app:new" ? "?v=new" : "?p=" + encodeURIComponent(k));
+        history.pushState({l2mPaper: k}, "", k === "app:new" ? "?v=new" : "?p=" + encodeURIComponent(k) + hash);
         if (k === "app:new") newAboveLibrary = true; else fromList = true;
       } else {
         history.replaceState(Object.assign({}, history.state || {}, {l2mPaper: k}), "");

@@ -68,6 +68,24 @@ window.L2M_nav = function (opts) {
   function offset() { return barHeight() + 14; }
   function yOf(el) { return Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - offset()); }
   function scrollToY(y) { window.scrollTo(0, y); }
+  // what an address's #… names: an id (a \label's, made URL-safe: eq:shock → eq-shock; a section's), or a number as
+  // the paper prints it: #eq-2.18 (equation (2.18)), #section-2.3, #figure-3, #table-1
+  function linked(hash) {
+    var name = decodeURIComponent(String(hash || "").replace(/^#/, "")), hit = null;
+    if (!name) return null;
+    var el = document.getElementById(name);
+    if (el) return el;
+    var m = /^(eq|equation|sec|section|fig|figure|tab|table)[-:]?\(?([\w.]+?)\)?$/i.exec(name), main = document.querySelector("main");
+    if (!m || !main) return null;
+    var kind = m[1].slice(0, 2).toLowerCase(), n = m[2];
+    function first(sel, test, box) {
+      Array.prototype.some.call(main.querySelectorAll(sel), function (x) { if (test(x.textContent)) { hit = x.closest(box) || x; return true; } });
+    }
+    if (kind === "eq") first(".eqno", function (t) { return t.replace(/[\s()]/g, "") === n; }, ".display");
+    else if (kind === "se") first(".secnum", function (t) { return t.trim() === n; }, "h1, h2, h3, h4, h5, h6");
+    else first(".capname", function (t) { return t.trim().replace(/\.$/, "") === (kind === "fi" ? "Figure " : "Table ") + n; }, "figure");
+    return hit;
+  }
 
   // where a link lands: a soft mark laid over the block for a moment, tinting what is under it (so an
   // equation's own grounds and fades cannot hide it), in the progress bar's blue
@@ -159,7 +177,7 @@ window.L2M_nav = function (opts) {
       if (typeof st.l2mY === "number") scrollToY(st.l2mY);
       else if (el) scrollToY(yOf(el));
     } else if (location.hash.length > 1) {
-      var t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      var t = linked(location.hash);
       if (t) scrollToY(yOf(t));
     }
     closeMenu();
@@ -1746,7 +1764,7 @@ window.L2M_nav = function (opts) {
     if (typeof st.l2mY === "number" && st.l2mPaper === KEY) {
       scrollToY(st.l2mY);
     } else if (location.hash.length > 1) {
-      var el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      var el = linked(location.hash);
       if (el) { scrollToY(yOf(el)); flash(el); }
     }
     update();
