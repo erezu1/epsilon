@@ -371,6 +371,36 @@ def png_size(data):
     return None
 
 
+def split_names(s):
+    """A line of authors as its names: at the commas outside braces and math, and at "and" (the line's own braces
+    round it all taken off)."""
+    s = s.strip()
+    while s.startswith("{"):
+        g, e = read_group(s, 0)
+        if g is None or s[e:].strip():
+            break
+        s = g.strip()
+    out, depth, math, cur = [], 0, False, ""
+    for ch in s:
+        if ch == "$":
+            math = not math
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        if ch == "," and depth == 0 and not math:
+            out.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    out.append(cur)
+    return [y for x in out for y in re.split(r"(?:^|\s+)and\s+|\\and(?![A-Za-z])", x.strip())]
+
+
+# an abstract's heading set by hand: {\bf Abstract}, \textbf{Abstract.}, \section*{Abstract}
+ABS_HEAD = r"(?:\{(?:\s*\\[A-Za-z]+)*\s*|\\(?:textbf|textsc|emph|section\*|subsection\*)\s*\{\s*)Abstract[.:]?\s*\}"
+
+
 def marked_affil(m):
     """Whether the affiliations are shown with their marks: when the authors carry them too."""
     return bool(m.get("author_marks")) and bool(m.get("affil_marks"))
@@ -649,8 +679,13 @@ class Converter:
         if name == "title":
             self.meta["title"] = g
         elif name == "author":
-            parts = re.split(r"\\and(?![A-Za-z])", g)
-            self.meta["authors"].extend(p.strip() for p in parts if p.strip())
+            # jheppub, authblk, elsarticle: \author[a,b]{Name,} ... \affiliation[a]{...}, the marks to the affiliations (the
+            # comma or "and" written with the name, jheppub's way: the commas are put back between the names)
+            parts = [re.sub(r",\s*$", "", p.strip()) for p in re.split(r"\\and(?![A-Za-z])", g)]
+            parts = [p for p in parts if p]
+            if o and o.strip() and len(parts) == 1:
+                self.meta["author_marks"][len(self.meta["authors"])] = re.sub(r"\s+", "", o)
+            self.meta["authors"].extend(parts)
         elif name == "authors":
             # putex.sty and the like: "A,\worksat{\X} B,\worksat{\X} and C \worksat{\Y}", the marks to the institutions
             keys = self.meta["inst_keys"]
@@ -674,6 +709,8 @@ class Converter:
         elif name == "date":
             self.meta["date"] = g
         elif name in ("affiliation", "affil", "address", "institute"):
+            if o and o.strip():
+                self.meta["affil_marks"][len(self.meta["affil"])] = o.strip()
             self.meta["affil"].append(g)
         elif name in ("emailAdd", "email"):
             self.meta["email"].append(g)
@@ -2497,15 +2534,31 @@ class Converter:
     def hand_titlepage(self, body):
         """A title page drawn by hand (\\begin{titlepage}, no \\title): its title (the words set large), its authors
         (the line naming them) and affiliations (the lines after, each gathered under its mark: $^a$, ${}^{b}$) taken
-        for the title block; the page itself dropped, its abstract kept."""
+        for the title block; the page itself dropped, its abstract kept. The same for front matter drawn by hand with
+        no titlepage (centred lines before the contents or the first section, with a title set large and an abstract,
+        the abstract perhaps under a heading of its own: {\\bf Abstract} and a quotation)."""
         m = re.search(r"\\begin\{titlepage\}(.*?)\\end\{titlepage\}", body, re.S)
-        if not m:
-            return body
-        inner = m.group(1)
+        if m:
+            a0, a1, inner = m.start(), m.end(), m.group(1)
+        else:
+            stop = re.search(r"\\(?:tableofcontents|newpage|clearpage|chapter|section)(?![A-Za-z])(?!\*?\s*\{\s*Abstract)", body)
+            a0, a1 = 0, stop.start() if stop else 0
+            inner = body[:a1]
+            if not (0 < a1 < 12000 and re.search(r"\\(?:LARGE|Large|huge|Huge)(?![A-Za-z])", inner)
+                    and re.search(r"\\begin\{abstract\}|" + ABS_HEAD, inner)):
+                return body
         ab = re.search(r"\\begin\{abstract\}.*?\\end\{abstract\}", inner, re.S)
         keep = ab.group(0) if ab else ""
         rest = inner.replace(keep, "\n\n") if ab else inner
-        rest = re.sub(r"\\(?:begin|end)\{(?:center|flushleft|flushright)\}|\\phantom\{[^{}]*\}|\\(?:centering|noindent)(?![A-Za-z])", "\n", rest)
+        h = None if ab else re.search(ABS_HEAD, rest)
+        if h:                                   # the abstract under its own heading: a quotation, or the text after it
+            after = rest[h.end():]
+            q = re.search(r"\\begin\{(quotation|quote)\}(.*?)\\end\{\1\}", after, re.S)
+            text = q.group(2) if q else re.sub(r"\\(?:begin|end)\{(?:center|flushleft|flushright|quotation|quote)\}", "", after)
+            keep = "\\begin{abstract}" + text + "\\end{abstract}"
+            rest = rest[:h.start()] + "\n\n" + (after[:q.start()] + after[q.end():] if q else "")
+        rest = re.sub(r"\\(?:begin|end)\{(?:center|flushleft|flushright)\}|\\phantom\{[^{}]*\}|\\(?:centering|noindent)(?![A-Za-z])|"
+                      r"\\(?:thispagestyle|pagestyle)\s*\{[^{}]*\}|\\(?:setcounter|addtocounter)\s*\{[^{}]*\}\s*\{[^{}]*\}", "\n", rest)
         t = re.search(r"\\(?:LARGE|Large|huge|Huge)(?![A-Za-z])\s*", rest)
         if t:
             if rest[t.end():t.end() + 1] == "{":
@@ -2530,10 +2583,10 @@ class Converter:
         known = [a.split()[-1] for a in (getattr(self.args, "fallback_authors", "") or "").split(";") if a.strip()]
         at = next((i for i, l in enumerate(lines) if known and any(k in l[1] for k in known)), 0 if lines else None)
         if at is None:
-            return body[:m.start()] + keep + body[m.end():]
+            return body[:a0] + keep + body[a1:]
         if not self.meta["authors"]:
             parts, marks = [], {}
-            for x in re.split(r",(?![^{$]*[}$])|\s+and\s+|\\and(?![A-Za-z])", lines[at][2]):
+            for x in split_names(lines[at][2]):
                 mk = re.search(mark, x)
                 name = re.sub(r"\s+", " ", re.sub(mark, "", x)).strip()
                 if name:
@@ -2554,11 +2607,13 @@ class Converter:
             keep_i = [i for i, g in enumerate(groups) if len(g) < 300]
             self.meta["affil"] = [groups[i] for i in keep_i]
             self.meta["affil_marks"] = {n: gm[i] for n, i in enumerate(keep_i) if i in gm}
-        return body[:m.start()] + keep + body[m.end():]
+        return body[:a0] + keep + body[a1:]
 
     def find_handmade_title(self, body):
         """A paper without \\title often sets its title by hand before the abstract, as a group in a large size
         ({\\LARGE \\bf ...}), usually followed by the authors in bold: taken as title and authors, and dropped."""
+        if self.meta["title"]:                  # (found on a title page drawn by hand)
+            return body
         stop = min([k for k in (body.find("\\begin{abstract}"), body.find("\\section")) if k >= 0] or [min(len(body), 6000)])
         head = body[:stop]
         m = re.search(r"\{\s*\\(?:LARGE|Large|huge|Huge)(?![A-Za-z])", head)
