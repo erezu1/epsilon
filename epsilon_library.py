@@ -375,12 +375,17 @@ def tex_abstract(tex):
 
 
 def draw_list(idx, root=None):
-    """Titles and abstracts of the library, with their math drawn (each paper with its own macros), for the
-    app's list. The glyphs the drawings share are kept once, in idx["math"]."""
+    """Titles and abstracts of the library, with their math drawn (each paper with its own macros), and each
+    paper's size, for the app's list. The glyphs the drawings share are kept once, in idx["math"]."""
     defs, css = {}, ""
     for p in idx.get("papers", []):
         macros = {}
         if root:
+            # the paper's size as the app downloads it (its document and its formulas), for the line that fills as it does
+            d = Path(root) / p.get("path", "papers/" + p["key"])
+            size = sum(f.stat().st_size for f in (d / "paper.json", d / "math.json") if f.exists())
+            if size:
+                p["bytes"] = size
             try:
                 macros = json.loads((Path(root) / p.get("path", "papers/" + p["key"]) / "paper.json").read_text())["math"]["macros"]
             except (OSError, ValueError, KeyError):

@@ -1288,6 +1288,9 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 /* a paper's bar is as tall with a one-line section title as with a two-line one (it never jumps between them) */
 .l2m-bar:not(.app-bar) .bar-title { min-height: calc(2.6em + 9px); box-sizing: border-box; }
 .skel-bar .skel-bar-title { width: 62%; height: 0.95em; margin: 0; }
+/* while a paper comes from the network, the stand-in bar's reading line fills as far as it has come (moved from
+   app.js, not by the scroll) */
+.l2m-bar.skel-bar .bar-progress > i > b { animation: none; transform: translateX(-100%); transition: transform 200ms ease-out; }
 
 /* the chosen option of a segmented control: a raised white pill on light glass; on dark glass a lighter raised
    pill (the text colour, faintly, with a soft top light), never a hole darker than its track */

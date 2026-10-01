@@ -436,17 +436,25 @@
     var p = function (lines, last) { var h = ""; for (var i = 0; i < lines; i++) h += skelLine(i === lines - 1 ? last : 100); return '<p class="skel-par">' + h + "</p>"; };
     return '<div class="skel-paper" aria-hidden="true">' + p(4, 64) + p(6, 80) + skelLine(44, "skel-h2") + p(5, 52) + p(6, 75) + p(4, 40) + "</div>";
   }
-  function skelBar() {                        // the paper's bar as the viewer will draw it, until it does
+  function skelBar(loading) {                 // the paper's bar as the viewer will draw it, until it does (loading: with
+                                              // the reading line, lit as far as the paper has come)
     dropSkelBar();
     var I = theme.icons || {}, h = document.createElement("div");
     h.innerHTML = '<header class="l2m-bar show skel-bar" id="l2m-skel-bar" aria-hidden="true"><div class="bar-inner">' +
       '<button type="button" class="bar-btn swap" tabindex="-1"><span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' +
       (I.close || "") + '</span></button><button type="button" class="bar-title" tabindex="-1"><span class="bar-title-inner"><span class="skel skel-bar-title"></span>' +
       '</span></button><button type="button" class="bar-btn" tabindex="-1">' + (I.search || "") + "</button>" +
-      '<button type="button" class="bar-btn" tabindex="-1">' + (I.settings || "") + "</button></div></header>";
+      '<button type="button" class="bar-btn" tabindex="-1">' + (I.settings || "") + "</button>" +
+      (loading ? '<span class="bar-progress"><i><b></b></i></span>' : "") + "</div></header>";
     var bar = h.firstChild;
     document.body.insertBefore(bar, main);
     root.style.setProperty("--l2m-bar-h", bar.getBoundingClientRect().height + "px");   // the page starts where it will
+    var line = bar.querySelector(".bar-progress");
+    if (line) {                               // over the text's margins, as the viewer places it
+      var m = main.getBoundingClientRect(), cs = getComputedStyle(main), b = line.parentNode.getBoundingClientRect();
+      line.style.left = (m.left + parseFloat(cs.paddingLeft) - b.left).toFixed(1) + "px";
+      line.style.right = (b.right - (m.right - parseFloat(cs.paddingRight))).toFixed(1) + "px";
+    }
   }
   function dropSkelBar() { var b = document.getElementById("l2m-skel-bar"); if (b) b.remove(); }
   function dropBoot() {                        // the page's own stand-ins (in index.html), shown until the app starts
@@ -474,6 +482,19 @@
   }
 
   // ---------------------------------------------------------------- where papers come from
+  // a file's body, its bytes counted as they come (onBytes(n) for each piece), for the line that fills as a paper loads
+  function bodyOf(r, onBytes) {
+    if (!onBytes || !r.body || !r.body.getReader) return r.blob();
+    var reader = r.body.getReader(), parts = [];
+    function next() {
+      return reader.read().then(function (x) {
+        if (x.done) return new Blob(parts, {type: (r.headers.get("Content-Type") || "").split(";")[0]});
+        parts.push(x.value); onBytes(x.value.byteLength);
+        return next();
+      });
+    }
+    return next();
+  }
   function staticSource() {
     function get(path) {
       return fetch(path, {cache: "no-cache"}).then(function (r) { if (!r.ok) throw new Error(path + ": " + r.status); return r; });
@@ -481,7 +502,7 @@
     return {
       kind: "site",
       json: function (p) { return get(p).then(function (r) { return r.json(); }); },
-      blob: function (p) { return get(p).then(function (r) { return r.blob(); }); },
+      blob: function (p, onBytes) { return get(p).then(function (r) { return bodyOf(r, onBytes); }); },
       base: function (p) { return p; }
     };
   }
@@ -510,7 +531,7 @@
     return {
       kind: "github", repo: repo,
       json: function (p) { return raw(p).then(function (r) { return r.json(); }); },
-      blob: function (p) { return raw(p).then(function (r) { return r.blob(); }); },
+      blob: function (p, onBytes) { return raw(p).then(function (r) { return bodyOf(r, onBytes); }); },
       run: function (workflow, inputs) {
         return call("/actions/workflows/" + workflow + "/dispatches", {method: "POST",
           headers: {"Content-Type": "application/json"}, body: JSON.stringify({ref: "main", inputs: inputs || {}})});
@@ -560,29 +581,29 @@
   function isOffline(key) { return !!offlineSet()[key]; }
   var PAPER_CACHE = "l2m-papers-v1", KEEP_PAPERS = 30;
   var IMAGE_TYPES = {svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp"};
-  function paperFile(key, entry, name) {
+  function paperFile(key, entry, name, onBytes) {      // (onBytes: told the bytes of what comes from the network)
     var base = entry.path || "papers/" + key, path = base + "/" + name, ver = entry.converted || "";
     if (isOffline(key)) {
       // the copy on this device, unless the paper has been converted again since it was saved: then the new one (and the
       // copy is saved afresh); with no network, the copy as it is
       var saved = offlineSet()[key] || {};
       if (ver && saved.ver !== ver) {
-        return src.blob(path).then(function (b) { refreshOffline(entry); return b; },
+        return src.blob(path, onBytes).then(function (b) { refreshOffline(entry); return b; },
                                     function () { return fromCache(path).then(function (r) { return r.blob(); }); });
       }
-      return fromCache(path).then(function (r) { return r.blob(); }, function () { return src.blob(path); });
+      return fromCache(path).then(function (r) { return r.blob(); }, function () { return src.blob(path, onBytes); });
     }
-    if (!window.caches || !ver || src.kind === "site") return src.blob(path);
+    if (!window.caches || !ver || src.kind === "site") return src.blob(path, onBytes);
     var ck = new URL("__papers/" + path + "?v=" + encodeURIComponent(ver), location.href).href;
     return caches.open(PAPER_CACHE).then(function (c) {
       return c.match(ck).then(function (hit) {
         if (hit) return hit.blob();
-        return src.blob(path).then(function (b) {
+        return src.blob(path, onBytes).then(function (b) {
           c.put(ck, new Response(b)).then(function () { notePaper(c, key, base, ver); }, function () {});
           return b;
         });
       });
-    }, function () { return src.blob(path); });
+    }, function () { return src.blob(path, onBytes); });
   }
   // the papers kept: the last ones opened; an older conversion of a paper goes when a newer one comes
   function notePaper(c, key, base, ver) {
@@ -2209,12 +2230,23 @@
     dropBoot();
     root.classList.add("l2m-bar-always");
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
-    skelBar();
+    // the stand-in bar's line fills as the paper comes from the network (its size is in the list)
+    var size = entry.bytes || 0, got = 0, drawn = 0;
+    function came(n) {
+      got += n;
+      if (drawn) return;
+      drawn = requestAnimationFrame(function () {
+        drawn = 0;
+        var b = document.querySelector("#l2m-skel-bar .bar-progress b");
+        if (b) b.style.transform = "translateX(" + (Math.min(1, got / size) * 100 - 100).toFixed(2) + "%)";
+      });
+    }
+    skelBar(!!size);
     main.innerHTML = skelPaper();
     root.classList.add("l2m-skel-page");      // (the stand-ins fill the screen exactly; a class, not :has(), which
                                               //  would have the whole page restyled at every change in it)
-    var docP = paperFile(key, entry, "paper.json").then(function (b) { return b.text(); }).then(JSON.parse);
-    var mathP = paperFile(key, entry, "math.json").then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
+    var docP = paperFile(key, entry, "paper.json", size && came).then(function (b) { return b.text(); }).then(JSON.parse);
+    var mathP = paperFile(key, entry, "math.json", size && came).then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
     docP.then(function (doc) {
       return mathP.then(function (cache) {
         if (current !== key) return;
