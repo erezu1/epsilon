@@ -26,7 +26,7 @@ Change the theme (a font, a colour, which buttons the bar has) and every paper f
   - the title of the current section, which fades to the next one as you scroll; tap it to open the contents panel, attached under the bar;
   - a jump-to-top button;
   - a settings button (also at the top right of the title block): choose the font (STIX Two Text, Literata, Source Serif 4, IBM Plex Sans), the text size (small, medium, large), Light, Dark or System appearance, and a Neutral or Warm tone (Warm has its own light and dark versions). Choices are remembered in the reader's browser, and the reading position is kept when the font changes.
-- **Links remember where you were.** Tapping an equation number, a section, a citation or a footnote is a real history step. The browser's back button, or the bar's back button, returns to the exact spot you left, and the target briefly highlights when you land on it.
+- **Links remember where you were.** Tapping an equation number, a section, a citation or a footnote is a real history step. The browser's back button, or the bar's back button, returns to the exact spot you left, and the target briefly highlights when you land on it. A link from outside can open a paper at one of these places too (see [Links to a place in a paper](#links-to-a-place-in-a-paper)).
 - **A library.** `epsilon_viewer.py` puts many documents behind one page: a list of papers, each opening in place, with back returning to the list. See below.
 
 ## Setup (once)
@@ -135,6 +135,23 @@ python3 epsilon_library.py --library library convert outdated --push       # aft
 ```
 
 `add-draft` copies only what the paper needs (the main file, what it inputs, its figures, `.bib`/`.bbl`/`.sty`/`.cls`/`.bst`), converts it here, and pushes; GitHub then sees the draft is already converted.
+
+## Links to a place in a paper
+
+A paper's address can end with `#` and a place in it: an equation, a section, a figure, a table, a citation. The page opens there, just below the bar, and the place is highlighted for a moment. In the app, Back then leads to the library.
+
+```
+https://erezu1.github.io/epsilon/?p=2607.14042#eq-2.18        equation (2.18) of arXiv:2607.14042, in the app
+https://erezu1.github.io/epsilon/?p=2607.14042#section-2.3    its section 2.3
+https://erezu1.github.io/epsilon/?p=rmt-notes#eq-shock        the equation labelled eq:shock in the note rmt-notes
+paper.html#figure-3                                           figure 3 of a one-file page (a site: ?p=<name>#figure-3)
+```
+
+- **The paper** (`?p=`) is its key in the library. For an arXiv paper, that's its number without the version, with `/` written as `_` (`2607.14042`, `hep-th_0605206`). A note or a draft is known by its id.
+- **By number**, as the paper prints it: `eq-2.18` for equation (2.18), and likewise `eq-3a`. Also `section-2.3` (appendices too: `section-A.1`), `figure-3` and `table-1`.
+- **By `\label`**, using the label's id: the label with every run of characters other than letters, digits and `. _ ~ -` turned into one `-`. So `\label{eq:shock}` becomes `eq-shock` and `\label{sec:2pt}` becomes `sec-2pt`. This works for equations, sections, paragraphs, figures, tables and theorems. A citation is `cite-<bibkey>`, by the same rule (`\cite{Jackiw:1984je}` gives `cite-Jackiw-1984je`). If two labels would give the same id, the second gets `-2`, and an id spelled like a number form (`eq-2.18`) is taken as the label's.
+- **The exact ids** of a paper in the library are in `papers/<key>/paper.json`. `labels` maps each label to its `number` and `id`. `headings` lists the sections, each with its `number` and `id`; an unnumbered section such as Acknowledgements has an id made from its title.
+- **Opening the link:** it opens in the browser it is tapped in, which needs the app set up with its token. On an iPhone, links open in Safari, not in the app on the Home Screen. A paper not yet in the library has to be converted first.
 
 ## A site with a library
 

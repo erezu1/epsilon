@@ -45,7 +45,7 @@ python3 "$E/epsilon.py" --remove rmt-notes  # take a note out
 - It waits and prints `ok: <link>`, or the converter's error (exit status 1). `--no-wait` returns at once;
   `--here` converts on this machine first (quicker; needs TeX and Node).
 - Ids: letters, digits and `. _ ~ -`; pick a stable, descriptive id per note (e.g. `project-topic`) and reuse it
-  to update. Not an arXiv number. Tell the user the link it prints.
+  to update. Not an arXiv number. Tell the user the link it prints (with `#…` to point at a place in it: see 3).
 - Needs git access to the private repo `erezu1/epsilon-library` (the `gh` login on this Mac).
 
 ## 2. Make a standalone HTML page from LaTeX
@@ -61,6 +61,33 @@ python3 "$E/epsilon_convert.py" paper.tex --html paper.html --artifact   # the s
   the preamble above). Harvmac (plain TeX) papers are read too.
 - It also writes `paper.l2m/` (the document as data); pass `-o DIR` to choose where.
 - Needs TeX (pdflatex, for numbering and TikZ) and Node (run `npm install` in `$E` once).
+
+## 3. Link to a place in a paper or a note
+
+When an answer mentions a particular equation, section, figure or citation of a paper in the library, or of a
+note you pushed, link to that place. The link opens the paper there, just below the bar, and highlights the
+place for a moment:
+
+```
+https://erezu1.github.io/epsilon/?p=<key>#<place>
+```
+
+- `<key>`: for an arXiv paper, its number without the version, with `/` written as `_` (`2607.14042`,
+  `hep-th_0605206`). For a note or draft, its id (the `--id` you gave; it is in the `ok: <link>` that was printed).
+- `<place>`, by number as the paper prints it: `eq-2.18` for equation (2.18), and likewise `eq-3a`. Also
+  `section-2.3` (appendices too: `section-A.1`), `figure-3` and `table-1`.
+- Or by `\label`: the label with every run of characters other than letters, digits and `. _ ~ -` turned into one `-`.
+  So `\label{eq:shock}` becomes `#eq-shock`, and `\label{sec:2pt}` becomes `#sec-2pt`. This works for equations,
+  sections, paragraphs, theorems, figures and tables. A citation is `cite-<bibkey>` by the same rule
+  (`\cite{Jackiw:1984je}` gives `#cite-Jackiw-1984je`). Labels are the surest way to link the notes you write
+  yourself.
+- To be sure of a number or an id on this Mac, look in the library's copy: `git -C "$E/library" pull -q`, then read
+  `$E/library/papers/<key>/paper.json`. There, `labels` maps each label to its `number` and `id`, and `headings`
+  lists the sections with their `number` and `id`. `python3 "$E/epsilon_library.py" --library "$E/library" list`
+  lists the papers by key.
+- Write the link into the text, e.g. `[eq. (2.18)](https://erezu1.github.io/epsilon/?p=2607.14042#eq-2.18)`.
+- It opens only papers in the library: for another arXiv paper, offer to add it first.
+- A one-file page takes the same `#<place>` (`paper.html#eq-2.18`).
 
 ## Writing LaTeX for Epsilon
 
