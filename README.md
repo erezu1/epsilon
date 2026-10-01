@@ -101,6 +101,8 @@ python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kic
 - **Text and lists:**
   - sectioning up to `\subsubsection`, `\paragraph`, `\appendix`;
   - title, authors (`\and`, several `\author`s), affiliations, `\thanks`, abstract (environment or JHEP-style `\abstract{}`), acknowledgments;
+  - affiliation marks as jheppub, authblk and elsarticle write them (`\author[a,b]{Name,}` with `\affiliation[a]{...}`), and as putex writes them (`\authors{...\worksat{\X}}` with `\institution{X}{...}`);
+  - a title page drawn by hand, in a `titlepage` or as centred lines before the contents with a `{\bf Abstract}` heading: its title, authors, marked affiliations and abstract are read into the title block;
   - `itemize`, `enumerate`, `description`, `\item[...]`;
   - `\emph`/`\textbf`/…, `{\bf ...}`-style switches, accents, dashes, quotes, `\url`, `\href`, `\verb`, `verbatim`, `quote`, `\input`/`\include`.
 - **Tables and figures:**
@@ -123,7 +125,7 @@ python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kic
 
 ## The reading app and the private library
 
-- **The app** is `viewer/`, published by GitHub Pages at https://erezu1.github.io/epsilon/. It has your library (with search, and folders of your own: chips over the list, a paper's ⋯ to file it; kept in `reading.json` beside the reading places and pins, synced to your devices), *New* (today's papers in your arXiv categories, each with *Convert*), the paper view (with *arXiv*, *PDF* and *Keep offline*), and Settings. It can be added to a phone's home screen and works offline for saved papers.
+- **The app** is `viewer/`, published by GitHub Pages at https://erezu1.github.io/epsilon/. It has your library (with search, and folders of your own: chips over the list, a paper's ⋯ to file it; kept in `reading.json` beside the reading places and pins, synced to your devices), *New* (today's papers in your arXiv categories, each with *Convert*), the paper view (with *arXiv*, *PDF* and *Keep offline*; while a paper downloads, the line under the bar's title fills as it comes, and is then the reading line), and Settings. It can be added to a phone's home screen and works offline for saved papers.
 - **The papers** live in the private repo `erezu1/epsilon-library`, which the app reads through GitHub's API with a token typed into Settings (kept on that device only). Make it at GitHub → Settings → Developer settings → Fine-grained tokens: repository access *only erezu1/epsilon-library*, permissions *Contents: read and write* and *Actions: read and write*.
 - **Converting** happens on GitHub: the library's *convert* workflow fetches the arXiv source, runs the converter with TeX Live and commits the result (about 3 minutes). The *feed* workflow refreshes `feed.json` every weekday after arXiv's announcement; the categories and whether to include cross-lists are set in the app's Settings (stored in the library's `config.json`).
 - **From this computer**, `epsilon_library.py` does the same in a clone of the library:

@@ -13,7 +13,7 @@ Options: --library DIR (default: the current folder), --push (commit and push th
 
 The folder:
     config.json      {"categories": ["hep-th"], "crossLists": false}   what the feed follows
-    library.json     the papers, for the app's list
+    library.json     the papers, for the app's list (titles and abstracts with their math drawn, each paper's size)
     feed.json        new arXiv papers in the categories, the last few announcements
     papers/<key>/    each paper's document (paper.json, images/, math.json)
     sources/arxiv/<key>/src.bin, sources/drafts/<name>/   what they were made from, to reconvert later
