@@ -2039,7 +2039,11 @@
           '<p class="app-abs">' + (i.abstractHtml || esc(i.abstract)) + "</p></li>";
       }).join("") + "</ol>";
     }).join("");
-    var meta = esc(cats.join(", ")) + (feed && feed.crossLists ? ", with cross-lists" : "") +
+    // each category its day's listing on arXiv
+    var meta = cats.map(function (c) {
+      return '<a class="app-ext" href="https://arxiv.org/list/' + encodeURIComponent(c) + '/new" target="_blank" rel="noopener" aria-label="' +
+        esc(c) + ' new on arXiv">' + esc(c) + "</a>";
+    }).join(", ") + (feed && feed.crossLists ? ", with cross-lists" : "") +
       (feedCheck ? " &middot; checking arXiv&hellip;" :
         feed && feed.updated ? " &middot; updated " + esc(new Date(feed.updated).toLocaleString(undefined, {weekday: "short", hour: "2-digit", minute: "2-digit"})) : "");
     var older = "";
