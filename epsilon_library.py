@@ -590,6 +590,20 @@ def api_day(cat, day, cross):
     return out
 
 
+def last_announcement(t=None):
+    """arXiv's last announcement before T (20:00 US Eastern, Sunday to Thursday, half an hour allowed for its pages
+    to follow) and the day it lists, the next: (when, day)."""
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    t = t or datetime.datetime.now(datetime.timezone.utc)
+    d = t.astimezone(et).date()
+    for k in range(8):
+        day = d - datetime.timedelta(days=k)
+        at = datetime.datetime(day.year, day.month, day.day, 20, 30, tzinfo=et)
+        if day.weekday() in (6, 0, 1, 2, 3) and at <= t:
+            return at, day + datetime.timedelta(days=1)
+
+
 def previous_weekday(iso):
     d = datetime.date.fromisoformat(iso) - datetime.timedelta(days=1)
     while d.weekday() >= 5:
@@ -604,6 +618,13 @@ def fetch_feed(lib, before=None):
     kinds = {"new", "cross"} if cfg.get("crossLists") else {"new"}
     old = lib.read("feed.json", {"items": []})
     items = {(i["id"], i["category"]): i for i in old.get("items", [])}
+    # a scheduled run (several a night) once the last announcement's day is in: nothing asked of arXiv
+    scheduled = os.environ.get("GITHUB_EVENT_NAME") == "schedule"
+    due, listed = last_announcement()
+    if scheduled and not before and old.get("checked") and datetime.datetime.fromisoformat(old["checked"]) >= due:
+        say("feed: the list of %s is in (since %s); nothing fetched" % (listed, old["checked"]))
+        return
+    days = []
     if before:
         # an older day, asked for from the app: the announcement before BEFORE, from the arXiv API
         day = previous_weekday(before)
@@ -630,7 +651,12 @@ def fetch_feed(lib, before=None):
         time.sleep(3)
         for i in got:
             items[(i["id"], cat)] = i
+        days.append(announced)
         say("%s: %s, %d papers" % (cat, announced, len(got)))
+    # checked: when the last announcement's day was found in (arXiv's page showing that day: not when it is late,
+    # or on a holiday, so it is looked for again)
+    t = now()
+    checked = t if days and all(d >= listed.isoformat() for d in days) else old.get("checked")
     cutoff = (datetime.date.today() - datetime.timedelta(days=FEED_DAYS)).isoformat()
     keep = [i for i in items.values() if i["announced"] >= cutoff and i["category"] in cfg["categories"]
             and i["type"] in kinds]
@@ -641,16 +667,15 @@ def fetch_feed(lib, before=None):
     # a scheduled run with nothing new (GitHub's runs, several a night, most before or after the day's list) leaves
     # the file as it is; one the app started always writes it, as the app watches for its end
     sig = lambda its: [(i["id"], i["category"], i["announced"], i["type"]) for i in its]
-    if (not before and os.environ.get("GITHUB_EVENT_NAME") == "schedule" and sig(keep) == sig(old.get("items", []))
+    if (not before and scheduled and sig(keep) == sig(old.get("items", [])) and checked == old.get("checked")
             and old.get("categories") == cfg["categories"] and old.get("crossLists", False) == cfg.get("crossLists", False)):
-        say("feed: nothing new (%d papers)" % len(keep))
+        say("feed: nothing new (%d papers; the list of %s not yet out)" % (len(keep), listed))
         return
     htmls, cache, css = math_html([tex_text(i["title"]) for i in keep] + [tex_text(i["abstract"]) for i in keep])
     for k, i in enumerate(keep):
         i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]
-    # (checked: when the newest day was last looked for; updated: any change, as the app watches for its run's end)
-    t = now()
-    lib.write("feed.json", {"updated": t, "checked": old.get("checked") if before else t,
+    # (updated: at every run but a scheduled one with nothing new, as the app watches for its run's end)
+    lib.write("feed.json", {"updated": t, "checked": checked,
                             "categories": cfg["categories"], "crossLists": cfg.get("crossLists", False),
                             "items": keep, "math": {"cache": cache, "css": css}})
     say("feed: %d papers" % len(keep))

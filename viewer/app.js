@@ -2179,15 +2179,17 @@
     } catch (e) {}
     return 0;
   }
-  // the list last looked for before arXiv's last announcement (GitHub's own run at 4am late or not yet come): looked
-  // for now, as by pulling down (once per announcement; again after half an hour if it did not come)
+  // the list without arXiv's last announcement (GitHub's overnight runs late, or not yet come): looked for now, as by
+  // pulling down (checked: when that day was found in); again after half an hour if it did not come, three times at
+  // most (a holiday has none)
   function feedDue() {
     if (!feed || feedCheck || !src || !src.run || navigator.onLine === false) return;
     var seen = Date.parse(feed.checked || feed.updated || "") || 0, due = lastAnnouncement(new Date());
     if (!due || seen >= due) return;
-    var tried = store("feedAuto") || 0;
-    if (tried > due && Date.now() - tried < 30 * 60000) return;
-    store("feedAuto", Date.now());
+    var a = store("feedAuto");
+    a = a && a.d === due ? a : {d: due, n: 0, t: 0};
+    if (a.n >= 3 || Date.now() - a.t < 30 * 60000) return;
+    store("feedAuto", {d: due, n: a.n + 1, t: Date.now()});
     checkFeed(true);
   }
   // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
