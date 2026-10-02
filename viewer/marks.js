@@ -762,8 +762,9 @@ window.L2M_marks = function (host) {
       sheet.classList.add("open");
       sheet.setAttribute("aria-hidden", "false");
       if (window.L2M_pinFilm) L2M_pinFilm(sheet, 360);
-      fitKeyboard();
+      fitKeyboard(false);
     }
+    keyboardOver(true);                            // (before the note takes the keyboard)
     keepInSight();
     hideDock();
     relay();
@@ -779,16 +780,25 @@ window.L2M_marks = function (host) {
     if (window.L2M_pinFilm) L2M_pinFilm(sheet, 360);
     if (document.activeElement && sheet.contains(document.activeElement)) document.activeElement.blur();
     sheet.style.bottom = "";
+    setTimeout(function () { if (!sheetOpen) keyboardOver(false); }, 600);   // (once the keyboard has gone)
     openId = null;
     relay();
   }
   // above the keyboard while one is up (a phone's keyboard covers the page's bottom, where the sheet is)
-  function fitKeyboard() {
-    var vv = window.visualViewport;
-    if (!sheetOpen || !vv) return;
-    var under = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  // While a note is written the keyboard lies over the page (Chrome's VirtualKeyboard API): the view keeps its size
+  // and does not pan, so the bar stays at the top however the page is scrolled (with the view shrunk instead, a scroll
+  // first pans the view down the page, and the bar, fixed to the page's top, goes out of sight). The sheet sits on it.
+  var vk = navigator.virtualKeyboard || null;
+  function keyboardOver(on) { if (vk) try { vk.overlaysContent = on; } catch (e) {} }
+  // above the keyboard while one is up (a phone's keyboard covers the page's bottom, where the sheet is); sight: the
+  // keyboard has just come (or gone), so the words are looked for again (not as the page is scrolled: that is the reader's)
+  function fitKeyboard(sight) {
+    if (!sheetOpen) return;
+    var vv = window.visualViewport, under = 0;
+    if (vk && vk.overlaysContent) under = vk.boundingRect ? vk.boundingRect.height : 0;
+    else if (vv) under = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     sheet.style.bottom = under > 40 ? under + "px" : "";
-    keepInSight();
+    if (sight) keepInSight();
   }
   // the words a note is on kept in sight while it is written: if the sheet (or the keyboard under it) covers them, the
   // page moves so they stand in the room left between the bar and the sheet (a little above its middle)
@@ -810,7 +820,11 @@ window.L2M_marks = function (host) {
       window.scrollBy(0, Math.round(top - want));
     });
   }
-  if (window.visualViewport) { on(window.visualViewport, "resize", fitKeyboard); on(window.visualViewport, "scroll", fitKeyboard); }
+  if (vk) on(vk, "geometrychange", function () { fitKeyboard(true); });
+  if (window.visualViewport) {
+    on(window.visualViewport, "resize", function () { fitKeyboard(true); });
+    on(window.visualViewport, "scroll", function () { fitKeyboard(false); });
+  }
   // (and once the keyboard is up, whether or not the window said so: a phone's keyboard comes in some 300ms)
   note.addEventListener("focus", function () { setTimeout(keepInSight, 400); });
   note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); });
@@ -1155,6 +1169,7 @@ window.L2M_marks = function (host) {
       if (laying) cancelAnimationFrame(laying);
       if (ro) ro.disconnect();
       if (sizer) sizer.disconnect();
+      keyboardOver(false);
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       store.flush(true);
