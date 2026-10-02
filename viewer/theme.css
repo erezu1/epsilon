@@ -435,11 +435,11 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   transition: opacity 220ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
 }
 .menu-inner { position: relative; width: 100%; box-sizing: border-box; max-height: min(72vh, 560px); overflow-y: auto; overscroll-behavior: contain; max-width: 44rem; margin-inline: auto; padding: 4px max(8px, env(safe-area-inset-right, 0px)) 12px max(8px, env(safe-area-inset-left, 0px)); }
-.menu-inner { --fade-top: 0px; --fade-bottom: 0px;
+.menu-inner, .mk-pane { --fade-top: 0px; --fade-bottom: 0px;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%); }
-.menu-inner.fade-top { --fade-top: 36px; }
-.menu-inner.fade-bottom { --fade-bottom: 28px; }
+.menu-inner.fade-top, .mk-pane.fade-top { --fade-top: 36px; }
+.menu-inner.fade-bottom, .mk-pane.fade-bottom { --fade-bottom: 28px; }
 .menu-head { margin: 0; padding: 6px 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .l2m-menu ol { list-style: none; margin: 0; padding: 0; }
 .l2m-menu li { margin: 0; }
@@ -2165,11 +2165,14 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-count { letter-spacing: 0.04em; }
 .mk-tab-line { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; border-radius: 2px; background: var(--ink);
   transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), width 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-/* the two lists on a strip, as the main tabs' lists: it slides to the one shown (with the finger on a swipe), and the
-   panel takes that one's height */
-.mk-view { overflow: hidden; transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* the two lists on a strip, as the settings' panes: it slides to the one shown (with the finger on a swipe), and the
+   panel takes that one's height as it goes, in the same time. Each list scrolls in its own box (as the panel's list
+   does without the tabs); the panel only holds them side by side */
+.menu-inner.mk-split { overflow: hidden; padding: 0; -webkit-mask-image: none; mask-image: none; }
+.mk-view { overflow: hidden; transition: height 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .mk-track { display: flex; align-items: flex-start; width: 200%; transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-.mk-pane { flex: 0 0 50%; min-width: 0; box-sizing: border-box; }
+.mk-pane { flex: 0 0 50%; min-width: 0; box-sizing: border-box; max-height: min(72vh, 560px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 4px max(8px, env(safe-area-inset-right, 0px)) 12px max(8px, env(safe-area-inset-left, 0px)); }
 /* Notes: the marks in the paper's order, under their sections; each its words (three lines at most) and its note */
 .mk-list { padding: 0 0 4px; }
 .mk-sec { margin: 12px 10px 2px; font: 500 12px/1.35 var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

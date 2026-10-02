@@ -828,8 +828,7 @@ window.L2M_marks = function (host) {
   // under their sections (each a jump to it, as a link is), and last the ones not found in this version
   var menuInner = host.menu && host.menu.querySelector(".menu-inner"), tocList = menuInner && menuInner.querySelector("ol");
   var menuHead = menuInner && menuInner.querySelector(".menu-head"), tabs = null, list = null, tab = "toc", listStale = true;
-  var view = null, track = null, panes = null, settle = 0;
-  var tabScroll = {toc: 0, notes: 0};
+  var view = null, track = null, panes = null, sizer = null;
   if (menuInner && tocList && menuHead) {
     tabs = document.createElement("div");
     tabs.className = "mk-tabs";
@@ -841,20 +840,30 @@ window.L2M_marks = function (host) {
     // above the list, as the main tabs are above theirs: they stay where they are as the lists scroll
     menuHead.remove();
     menuInner.before(tabs);
-    // the two lists side by side on a strip, as the main tabs' lists: it slides to the one shown (a swipe moves it
-    // with the finger), the underline with it, and the panel takes the height of the one shown
+    // the two lists side by side on a strip, as the settings' panes: it slides to the one shown (a swipe moves it with
+    // the finger), and the underline and the panel's height go with it, all at once. Each list scrolls in its own box
+    // (each stays where it was left, and the panel is only as tall as the one shown, either way)
     view = document.createElement("div");
     view.className = "mk-view";
     track = document.createElement("div");
     track.className = "mk-track";
     panes = [document.createElement("div"), document.createElement("div")];
-    panes.forEach(function (p) { p.className = "mk-pane"; p.setAttribute("role", "tabpanel"); track.appendChild(p); });
+    panes.forEach(function (p) {
+      p.className = "mk-pane"; p.setAttribute("role", "tabpanel"); track.appendChild(p);
+      p.addEventListener("scroll", function () { faded(p); }, {passive: true});
+    });
     list = document.createElement("div");
     list.className = "mk-list";
     tocList.before(view);
     view.appendChild(track);
     panes[0].appendChild(tocList);
     panes[1].appendChild(list);
+    menuInner.classList.add("mk-split");
+    // a list changing its height (marks added or removed, its formulas drawn, the screen turned) takes the panel with it
+    if (window.ResizeObserver) {
+      sizer = new ResizeObserver(function () { if (!(sw && sw.dir === "x")) fit(true); faded(panes[0]); faded(panes[1]); });
+      panes.forEach(function (p) { sizer.observe(p); });
+    }
     tabs.addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) showTab(b.getAttribute("data-tab"), true); });
     var sw = null;
     view.addEventListener("touchstart", function (e) {
@@ -866,7 +875,10 @@ window.L2M_marks = function (host) {
       var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
       if (!sw.dir && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
         sw.dir = Math.abs(dx) > 1.2 * Math.abs(dy) ? "x" : "y";
-        if (sw.dir === "x") { if (tab !== "notes" && listStale) renderList(); hold(); }
+        if (sw.dir === "x") {
+          if (tab !== "notes" && listStale) renderList();
+          sw.h = [panes[0].offsetHeight, panes[1].offsetHeight];
+        }
       }
       if (sw.dir !== "x") return;
       e.preventDefault();
@@ -874,7 +886,10 @@ window.L2M_marks = function (host) {
       if (next < 0 || next > 1) dx *= 0.25;        // (nothing that way: it gives only a little)
       track.style.transition = "none";
       track.style.transform = "translateX(" + (-sw.i * sw.w + dx) + "px)";
-      lineUnder(Math.max(0, Math.min(1, sw.i - dx / sw.w)), true);
+      var f = Math.max(0, Math.min(1, sw.i - dx / sw.w));
+      lineUnder(f, true);
+      view.style.transition = "none";              // (the panel's height with them, between the two lists')
+      view.style.height = sw.h[0] + (sw.h[1] - sw.h[0]) * f + "px";
     }, {passive: false});
     function swEnd(e) {
       if (!sw || sw.dir !== "x") { sw = null; return; }
@@ -904,36 +919,31 @@ window.L2M_marks = function (host) {
     ln.style.width = w + "px";
     ln.style.transform = "translateX(" + x + "px)";
   }
-  function hold() {                                // (a slide begun: the strip as tall as its taller list, both whole)
-    clearTimeout(settle);
-    view.style.transition = "none";
-    view.style.height = Math.max(panes[0].offsetHeight, panes[1].offsetHeight) + "px";
+  // the panel as tall as the list shown (a list at most as tall as the panel can be, and scrolled within it)
+  function fit(animate) {
+    if (!view) return;
+    view.style.transition = animate ? "" : "none";
+    view.style.height = panes[tab === "notes" ? 1 : 0].offsetHeight + "px";
+    if (!animate) { void view.offsetWidth; view.style.transition = ""; }
+  }
+  function faded(p) {                              // a list fades out at an edge where there is more of it to scroll to
+    p.classList.toggle("fade-top", p.scrollTop > 2);
+    p.classList.toggle("fade-bottom", p.scrollTop + p.clientHeight < p.scrollHeight - 2);
   }
   function showTab(name, animate) {
     if (!tabs) return;
-    var i = name === "notes" ? 1 : 0, out = panes[1 - i], from = menuInner.scrollTop;
-    if (name !== tab) { tabScroll[tab] = from; tab = name; }
+    var i = name === "notes" ? 1 : 0;
+    tab = name;
     tabs.querySelectorAll("[data-tab]").forEach(function (b) { b.setAttribute("aria-selected", String(b.getAttribute("data-tab") === name)); });
     if (name === "notes" && listStale) renderList();
     panes.forEach(function (p, k) { p.setAttribute("aria-hidden", String(k !== i)); if (k === i) p.removeAttribute("inert"); else p.setAttribute("inert", ""); });
-    // each list its own scroll: the one shown where it was left; the one going out stays where it stands as it goes
-    hold();
-    menuInner.scrollTop = tabScroll[name] || 0;
-    var shift = menuInner.scrollTop - from;
-    out.style.transition = "none";
-    out.style.transform = shift && animate ? "translateY(" + shift + "px)" : "";
+    // all at once, as the settings' tabs: the strip slides to it, the underline with it, the panel takes its height
     track.style.transition = animate ? "" : "none";
     track.style.transform = "translateX(" + (-50 * i) + "%)";
+    if (!animate) { void track.offsetWidth; track.style.transition = ""; }
     lineUnder(i, !animate);
-    // then the panel takes the height of the list shown (its other list gone from sight)
-    settle = setTimeout(function () {
-      settle = 0;
-      out.style.transform = "";
-      view.style.transition = animate ? "" : "none";
-      view.style.height = panes[i].offsetHeight + "px";
-      menuInner.dispatchEvent(new Event("scroll"));  // (its faded edges, as they now are)
-    }, animate ? 290 : 0);
-    menuInner.dispatchEvent(new Event("scroll"));
+    fit(animate);
+    faded(panes[i]);
   }
   function counted() { var all = store.all(); return Object.keys(all).filter(function (id) { return live(all[id]); }).length; }
   function listChanged() {
@@ -980,7 +990,7 @@ window.L2M_marks = function (host) {
       });
     }
     list.appendChild(frag);
-    if (view && tab === "notes" && !settle) view.style.height = panes[1].offsetHeight + "px";   // (the panel with it)
+    fit(true);                                     // (the panel with it, if it is shown)
   }
   function jumpTo(id) {                           // from the list: to the mark, as a link goes (back returns)
     var p = placed[id], r = p && rangeOf(T.M, p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
@@ -1067,9 +1077,11 @@ window.L2M_marks = function (host) {
     panelOpened: function () {                     // nav.js: the contents panel open (its tabs as left)
       if (!tabs) return;
       if (listStale) renderList();                 // (ready to slide in)
-      if (tab === "toc") tabScroll.toc = menuInner.scrollTop;    // (nav.js has put the current section in sight)
+      // the current section in the middle of the contents (their own box scrolls here, not the panel's)
+      var cur = tocList.querySelector("a.current"), p = panes[0];
+      if (cur) p.scrollTop = Math.max(0, p.scrollTop + cur.getBoundingClientRect().top - p.getBoundingClientRect().top - p.clientHeight / 2);
       showTab(tab, false);
-      requestAnimationFrame(function () { lineUnder(null, true); });
+      requestAnimationFrame(function () { lineUnder(null, true); faded(panes[0]); faded(panes[1]); });
     },
     peekOpened: function (box, gen) {               // nav.js: the peek open, its copy of the paper in box (gen: which copy)
       if (!P || P.root !== box || P.gen !== gen) { P = textOf(box); P.gen = gen; peekPlaced = {}; }
@@ -1091,11 +1103,12 @@ window.L2M_marks = function (host) {
       clearTimeout(selT); clearTimeout(tapT); clearTimeout(noteT);
       if (laying) cancelAnimationFrame(laying);
       if (ro) ro.disconnect();
+      if (sizer) sizer.disconnect();
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       store.flush(true);
       layer.remove(); peekLayer.remove(); side.remove(); dock.remove(); sheet.remove(); selLayer.remove(); gs.remove(); ge.remove();
-      if (tabs && menuHead) { tabs.remove(); menuInner.prepend(menuHead); view.replaceWith(tocList); }
+      if (tabs && menuHead) { tabs.remove(); menuInner.classList.remove("mk-split"); menuInner.prepend(menuHead); view.replaceWith(tocList); }
     }
   };
 };
