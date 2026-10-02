@@ -226,7 +226,7 @@ window.L2M_nav = function (opts) {
     backBtn.setAttribute("aria-label", name === "menu" ? "Close contents" : "Close settings");
     if (name === "menu") {
       var cur = menu.querySelector("a.current"), box = menu.querySelector(".menu-inner");
-      if (cur) box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight / 2);
+      if (cur) box.scrollTop = Math.max(0, box.scrollTop + cur.getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight / 2);
       if (marks) marks.panelOpened();
     } else {
       refreshSettings(true);
