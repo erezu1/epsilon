@@ -167,13 +167,15 @@
     // be), and is drawn in as it comes near the screen: a paper's formulas are nine elements in ten of its page, and
     // a page that small is quick to open, restyle and search. Drawing one in moves nothing (its size is set).
     var inner = [];
-    // Under each formula, a letter as wide as its drawing and unseen (a hair space; theme.css .mjx-hl): a selection
+    // Under each formula, a picture as wide as its drawing and unseen (an empty one; theme.css .mjx-hl): a selection
     // that takes the formula in is shaded there by the browser itself, at its line's whole height, as the words round
-    // it are (the drawing it would leave unshaded). The paper's readers (search, marks) pass it by
+    // it are (the drawing it would leave unshaded). A picture, not a letter: it shrinks with a drawing too wide for its
+    // line (no letter can); made one by the theme, so what reads the paper's pictures or text passes it by
+    var HL = '<span class="mjx-hl" aria-hidden="true"></span>';
     function hl(s) {
       var w = /<svg[^>]*?\swidth="([\d.]+ex)"/.exec(s), a = s.indexOf(">");
       if (!w || a < 0 || s.lastIndexOf("<mjx-container", 0) !== 0) return s;
-      return s.slice(0, a) + ' style="--w:' + w[1] + '"><span class="mjx-hl" aria-hidden="true">\u200a</span>' + s.slice(a + 1);
+      return s.slice(0, a) + ' style="--w:' + w[1] + '">' + HL + s.slice(a + 1);
     }
     function drawn(k) { return hl(svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"')); }
     function shell(k) {
