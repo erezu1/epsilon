@@ -320,7 +320,7 @@ window.L2M_nav = function (opts) {
     findLayer.textContent = "";
     var x0 = window.pageXOffset, y0 = window.pageYOffset, k = 0, rects = [];
     // every place first (one layout), then every stroke at once (one insertion)
-    hits.forEach(function (h, i) { if (h.range) rects.push([h, i, h.range.getClientRects()]); });
+    hits.forEach(function (h, i) { if (h.range) rects.push([h, i, rectsOf(h)]); });
     var frag = document.createDocumentFragment();
     rects.forEach(function (e) {
       var h = e[0], i = e[1];
@@ -357,6 +357,16 @@ window.L2M_nav = function (opts) {
   function findWhat(q) {
     q = q.trim();
     if (!q) return null;
+    var dm = /^\\\[([\s\S]*)\\\]$/.exec(q);
+    if (dm && dm[1].indexOf("\\]") < 0) q = "$" + dm[1] + "$";      // (a displayed formula, as copied: the same)
+    var parts = [], last = 0, fm, FORM = /\$([^$]+)\$|\\\[([\s\S]+?)\\\]/g;
+    while ((fm = FORM.exec(q))) {                  // words and formulas, as copied: "the trace $\mathrm{Tr}\,\rho$ is"
+      if (q.slice(last, fm.index).trim()) parts.push({t: q.slice(last, fm.index)});
+      parts.push({f: fm[1] != null ? fm[1] : fm[2]});
+      last = FORM.lastIndex;
+    }
+    if (q.slice(last).trim()) parts.push({t: q.slice(last)});
+    if (parts.length > 1 && parts.some(function (x) { return x.f != null; })) return {mixed: parts};
     if (q.charAt(0) === "$") {                       // "$...": the formulas only (the rest read as TeX)
       q = q.slice(1).replace(/\$$/, "").trim();
       if (!q) return null;
@@ -494,6 +504,7 @@ window.L2M_nav = function (opts) {
     findClear();
     var what = findWhat(findField.value);
     if (!what) { findShow(); return; }
+    if (what.mixed) { findMixed(what.mixed); return; }
     var main = document.querySelector("main"), text = "", nodes = [], starts = [], forms = [], lastBlock = null;
     var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
       if (n.nodeType === 1) {
@@ -573,6 +584,70 @@ window.L2M_nav = function (opts) {
     for (var j = 0; j < hits.length; j++) { if (hitRect(hits[j]).top >= top) { k0 = j; break; } k0 = 0; }
     findGo(hits.length ? k0 : -1, true);
   }
+  // a passage of words and formulas (as copied): the paper read with each formula as its TeX, the words in any case
+  // and any spacing; a hit is its words and its formulas, each marked as words are
+  function findMixed(parts) {
+    var main = document.querySelector("main"), text = "", pieces = [], lastBlock = null;
+    var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
+      if (n.nodeType === 1) {
+        if (n.matches("mjx-container[data-n]")) return NodeFilter.FILTER_ACCEPT;
+        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark")) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_SKIP;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }});
+    for (var n = walk.nextNode(); n; n = walk.nextNode()) {
+      var blk = (n.nodeType === 1 ? n : n.parentNode).closest(BLOCK);
+      if (blk !== lastBlock) { text += "\n"; lastBlock = blk; }
+      if (n.nodeType === 1) {
+        var t = "\u0002" + texNorm(opts.tex ? opts.tex(n.getAttribute("data-n")) : "") + "\u0003";
+        pieces.push({at: text.length, el: n, len: t.length});
+        text += t;
+      } else {
+        pieces.push({at: text.length, node: n, len: n.data.length});
+        text += n.data.toLowerCase();
+      }
+    }
+    function esc(x) { return x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+    var re = new RegExp(parts.map(function (p) {
+      return p.f != null ? "\u0002" + esc(texNorm(p.f)) + "\u0003" : esc(p.t.trim().toLowerCase()).replace(/\s+/g, "\\s+");
+    }).join("\\s*"), "g");
+    function at(k) {                                   // the piece holding the k-th character
+      var lo = 0, hi = pieces.length - 1;
+      while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (pieces[mid].at <= k) lo = mid; else hi = mid - 1; }
+      return lo;
+    }
+    var found = [], m;
+    while ((m = re.exec(text)) && found.length < 1500) {
+      if (!m[0]) { re.lastIndex++; continue; }
+      var i = m.index, j = i + m[0].length, p0 = at(i), p1 = at(j - 1), bits = [];
+      for (var k = p0; k <= p1; k++) {
+        var pc = pieces[k];
+        if (pc.el) { bits.push(pc.el); continue; }
+        var s0 = Math.max(0, i - pc.at), s1 = Math.min(pc.len, j - pc.at);
+        if (s1 <= s0) continue;
+        var rr = document.createRange(); rr.setStart(pc.node, s0); rr.setEnd(pc.node, s1); bits.push(rr);
+      }
+      var whole = document.createRange(), a = pieces[p0], b = pieces[p1];
+      if (a.el) whole.setStartBefore(a.el); else whole.setStart(a.node, Math.max(0, i - a.at));
+      if (b.el) whole.setEndAfter(b.el); else whole.setEnd(b.node, Math.min(b.len, j - b.at));
+      found.push({at: i, range: whole, bits: bits});
+    }
+    hits = found;
+    if (hits.length) strokes();
+    var top = barHeight() + 4, k0 = 0;
+    for (var q = 0; q < hits.length; q++) { if (hitRect(hits[q]).top >= top) { k0 = q; break; } }
+    findGo(hits.length ? k0 : -1, true);
+  }
+  function rectsOf(h) {                              // a hit's boxes: its words' lines, and each formula's box whole
+    if (!h.bits) return h.range.getClientRects();
+    var out = [];
+    h.bits.forEach(function (b) {
+      if (b.nodeType === 1) { var r = (b.querySelector("svg") || b).getBoundingClientRect(); if (r.width) out.push(r); }
+      else Array.prototype.push.apply(out, b.getClientRects());
+    });
+    return out;
+  }
   function hitRect(h) {
     var el = h.range || h.mark || h.el;
     return el.getBoundingClientRect();
@@ -615,12 +690,9 @@ window.L2M_nav = function (opts) {
     if (!sel || !sel.rangeCount || sel.isCollapsed) return "";
     var range = sel.getRangeAt(0), node = range.commonAncestorContainer, el = node.nodeType === 1 ? node : node.parentElement;
     if (!el || (el.closest && el.closest(".l2m-bar"))) return "";
-    var a = formulaOf(range.startContainer), b = formulaOf(range.endContainer);
-    if (a && a === b) return texOf(a);
-    var frag = range.cloneContents(), forms = frag.querySelectorAll("mjx-container[data-n]");
-    if (forms.length === 1 && !String(sel).trim()) return texOf(forms[0]);          // (one formula, selected whole)
-    var q = String(sel).replace(/\s+/g, " ").trim();
-    return q.length <= 200 ? q : "";
+    // as it would be copied: its formulas as their TeX ($...$), words and formulas searched together
+    var t = opts.tex ? texText(range) : null, q = (t != null ? t : String(sel)).replace(/\s+/g, " ").trim();
+    return q.length <= 300 ? q : "";
   }
   function openFind(q) {
     if (typeof q === "string" && q && findField) { findField.value = q; if (finding) { findRun(); findField.focus(); } }
@@ -686,17 +758,13 @@ window.L2M_nav = function (opts) {
   // ---------------------------------------------------------------- copying: formulas as their LaTeX
   // A selection with formulas in it is copied with each formula as its TeX ($...$ in a line, \[...\] on its own);
   // a formula counts whole, even when the selection only reaches into it.
-  on(document, "copy", function (e) {
-    var sel = window.getSelection && window.getSelection();
-    if (!sel || !sel.rangeCount || sel.isCollapsed || !opts.tex || !e.clipboardData) return;
-    var range = sel.getRangeAt(0), main = document.querySelector("main");
-    if (!main || !main.contains(range.commonAncestorContainer)) return;
+  function texText(range) {                         // the selection's text so (null: no formula in it)
     var r = range.cloneRange(), a = formulaOf(r.startContainer), b = formulaOf(r.endContainer);
     if (a) r.setStartBefore(a);
     if (b) r.setEndAfter(b);
     var frag = r.cloneContents();
     var forms = frag.querySelectorAll("mjx-container[data-n]");
-    if (!forms.length) return;
+    if (!forms.length) return null;
     Array.prototype.forEach.call(forms, function (f) {
       var tex = texOf(f);
       f.replaceWith(document.createTextNode(f.getAttribute("display") === "true" ? "\\[" + tex + "\\]" : "$" + tex + "$"));
@@ -707,7 +775,16 @@ window.L2M_nav = function (opts) {
     document.body.appendChild(box);
     var text = box.innerText;
     box.remove();
-    e.clipboardData.setData("text/plain", text.replace(/\n{3,}/g, "\n\n").trim());
+    return text.replace(/\n{3,}/g, "\n\n").trim();
+  }
+  on(document, "copy", function (e) {
+    var sel = window.getSelection && window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed || !opts.tex || !e.clipboardData) return;
+    var range = sel.getRangeAt(0), main = document.querySelector("main");
+    if (!main || !main.contains(range.commonAncestorContainer)) return;
+    var text = texText(range);
+    if (text == null) return;
+    e.clipboardData.setData("text/plain", text);
     e.preventDefault();
   });
 
