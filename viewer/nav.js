@@ -1920,7 +1920,8 @@ window.L2M_nav = function (opts) {
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
       find: function (q) { openFind(typeof q === "string" ? q : selectedQuery()); },
       barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },
-      strokeCss: strokeCss, lines: lines
+      strokeCss: strokeCss, lines: lines,
+      copyText: function (range) { return opts.tex ? texText(range) : null; }   // (a range's text as copied: formulas as TeX)
     });
   }
   update();

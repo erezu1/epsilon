@@ -469,7 +469,7 @@ window.L2M_marks = function (host) {
       hideDock();
       host.find();
     } else if (what === "copy" && cur) {
-      var text = cur.t.M.C.slice(cur.s, cur.e), ok = function () { if (store.toast) store.toast("Copied."); };
+      var text = ownText(), ok = function () { if (store.toast) store.toast("Copied."); };
       clearSel();
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () {});
     }
@@ -518,10 +518,13 @@ window.L2M_marks = function (host) {
   selLayer.setAttribute("aria-hidden", "true");
   function grip(kind) { var h = document.createElement("span"); h.className = "mk-grip " + kind; h.setAttribute("aria-hidden", "true"); return h; }
   var gs = grip("start"), ge = grip("end");
-  function ownWords() {                            // what is selected, as a search for it (a formula: its TeX)
-    var q = cur.t.M.C.slice(cur.s, cur.e), f = /^\$([^$]*)\$$/.exec(q);
-    return f ? f[1] : q.replace(/\$[^$]*\$/g, " ").replace(/\s+/g, " ").trim();
+  // what is selected as it is copied (and so searched for): exactly as the browser's own selection is, by nav.js's
+  // copying (its formulas as their TeX, $...$ in a line, \[...\] on its own)
+  function ownText() {
+    var r = rangeOf(cur.t.M, cur.s, cur.e), t = r && host.copyText ? host.copyText(r) : null;
+    return t != null ? t : r ? r.toString() : cur.t.M.C.slice(cur.s, cur.e);
   }
+  function ownWords() { return ownText().replace(/\s+/g, " ").trim(); }
   function drawOwn() {
     if (!cur || !cur.t.M) { selLayer.remove(); gs.remove(); ge.remove(); return; }
     var t = cur.t, box = t === T ? document.body : t.root, x0 = window.pageXOffset, y0 = window.pageYOffset;
