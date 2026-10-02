@@ -1303,7 +1303,7 @@ html:not(.l2m-app-lists) main { font-size-adjust: ex-height 0.48; }
    estimates move nothing one returns to. A block whose contents reach outside it is left whole (.l2m-cv-off:
    viewer.js looks, as each first comes in sight); figures and the notes' and references' sections are left whole
    too (the skipping would change their margins), their entries not. */
-html:not(.l2m-app-lists) main > :is(p, div, h2, h3, h4, h5, h6, ol, ul, dl, table, blockquote, pre):not(.l2m-mk-layer, .l2m-own-sel-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > :is(p, div, h2, h3, h4, h5, h6, ol, ul, dl, table, blockquote, pre):not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
 html:not(.l2m-app-lists) main > section > ol > li:not(.l2m-cv-off) {
   content-visibility: auto; contain-intrinsic-block-size: auto 200px;
 }
@@ -1952,9 +1952,17 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 @media (prefers-reduced-motion: reduce) { .app-toast-time { display: none; } }
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
 
-/* formulas in a selection: shaded as the selected text round them */
+/* a formula is selected whole: its picture has no letters to select one by one (the selection's ends never fall inside
+   it), and it is copied whole, as its LaTeX */
+main mjx-container, .peek-main mjx-container { -webkit-user-select: all; user-select: all; }
 ::selection { background-color: var(--sel); }
-mjx-container.l2m-selected { background-color: var(--sel); }
+/* Under a formula, an unseen letter as wide as its drawing (viewer.js): a hair space at a pixel's size, spaced out to
+   the drawing's width (--w, the drawing's own; spacing set on the formula, so the letter's size leaves it whole), the
+   drawing set back over it. In a selection the browser shades that letter at the line's whole height, as the words
+   round it: the drawing, which it would leave unshaded, sits on the band like a word */
+mjx-container[style*="--w"] { letter-spacing: var(--w); }
+mjx-container[style*="--w"] > svg { letter-spacing: normal; margin-left: calc(-1 * var(--w)); }
+.mjx-hl { font-size: 1px; color: transparent; }
 html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#"] { -webkit-user-select: text; user-select: text; }
 
 /* the lists' papers a size larger: title, authors, abstract (relative, so every text size and screen follows) */
@@ -2238,16 +2246,5 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-item-x { position: absolute; right: 2px; top: 4px; color: var(--muted); }
 .mk-empty { margin: 4px 10px 10px; font: 400 14px/1.5 var(--ui); color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .mk-tab-line, .l2m-mk-side, .mk-view, .mk-track { transition-duration: 0.01s; } }
-/* the paper's own selection (Android's Chrome, html.l2m-own-select: there the browser's selection would bring up its
-   search panel, so the paper's text is unselectable to it and selected by marks.js): drawn in the selection's colour,
-   with two handles to stretch it, drops as Android's own, each a fingertip's area */
-html.l2m-own-select:not(.l2m-app-lists) main, html.l2m-own-select .peek-main { -webkit-user-select: none; user-select: none; }
-.l2m-own-sel-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 2; pointer-events: none; }
-.l2m-own-sel { position: absolute; background: var(--sel); border-radius: 2px; }
-.mk-grip { position: absolute; z-index: 3; width: 44px; height: 44px; margin-left: -22px; touch-action: none; -webkit-tap-highlight-color: transparent; }
-.mk-grip::before { content: ""; position: absolute; top: 0; width: 18px; height: 18px; background: var(--link); }
-.mk-grip.start::before { left: 4px; border-radius: 50% 0 50% 50%; }
-.mk-grip.end::before { left: 22px; border-radius: 0 50% 50% 50%; }
-.mb-btn[hidden] { display: none; }
 /* a paper's marks, on its row in the library */
 .lib-marks { white-space: nowrap; }

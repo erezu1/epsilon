@@ -578,7 +578,7 @@ window.L2M_nav = function (opts) {
     var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
       if (n.nodeType === 1) {
         if (n.matches("mjx-container[data-n], l2m-math[n]")) return NodeFilter.FILTER_ACCEPT;
-        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark")) return NodeFilter.FILTER_REJECT;
+        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark, .mjx-hl")) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_SKIP;
       }
       return NodeFilter.FILTER_ACCEPT;
@@ -662,7 +662,7 @@ window.L2M_nav = function (opts) {
     var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
       if (n.nodeType === 1) {
         if (n.matches("mjx-container[data-n]")) return NodeFilter.FILTER_ACCEPT;
-        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark")) return NodeFilter.FILTER_REJECT;
+        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark, .mjx-hl")) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_SKIP;
       }
       return NodeFilter.FILTER_ACCEPT;
@@ -1451,8 +1451,9 @@ window.L2M_nav = function (opts) {
     all(".l2m-find-f, .l2m-find-now").forEach(function (n) { n.classList.remove("l2m-find-f", "l2m-find-now"); });
     if (window.L2M_math) {
       all("mjx-container[data-n]:not([data-lazy])").forEach(function (m) {
-        if (L2M_math.lazy(m.getAttribute("data-n")) && !m.closest(L2M_math.eager) && m.firstElementChild) {
-          m.firstElementChild.textContent = ""; m.setAttribute("data-lazy", "");
+        var pic = m.querySelector(":scope > svg");
+        if (L2M_math.lazy(m.getAttribute("data-n")) && !m.closest(L2M_math.eager) && pic) {
+          pic.textContent = ""; m.setAttribute("data-lazy", "");
         }
       });
     }

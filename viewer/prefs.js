@@ -136,46 +136,13 @@
   window.L2M_endFade = function () { if (fadeVT) { try { fadeVT.skipTransition(); } catch (e) {} fadeVT = null; } };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
   if (/Chrome\/\d/.test(navigator.userAgent)) document.documentElement.classList.add("l2m-marker");
-  // a selection shows over formulas too (drawn as pictures, they have no text to select): each formula it reaches is
-  // shaded as selected text is, and it is copied whole (as its LaTeX)
-  var selMarked = [], selTick = 0;
+  // while something is selected, links take part (otherwise a long press on one opens the peek, not a selection)
+  var selTick = 0;
   document.addEventListener("selectionchange", function () {
     if (selTick) return;
     selTick = requestAnimationFrame(function () {
       selTick = 0;
-      var sel = window.getSelection && window.getSelection(), now = [];
-      if (sel && sel.rangeCount && !sel.isCollapsed) {
-        var r = sel.getRangeAt(0), box = r.commonAncestorContainer;
-        box = box.nodeType === 1 ? box : box.parentElement;
-        var f = box && box.closest ? box.closest("mjx-container") : null;
-        var all = f ? [f] : box ? box.querySelectorAll("mjx-container") : [];
-        Array.prototype.forEach.call(all, function (m) { if (sel.containsNode(m, true)) now.push(m); });
-      }
-      selMarked.forEach(function (m) { if (now.indexOf(m) < 0) { m.classList.remove("l2m-selected"); m.style.boxShadow = ""; } });
-      // (all measured first, then all shaded: one layout, not one per formula)
-      var fresh = now.filter(function (m) { return selMarked.indexOf(m) < 0 && !m.closest(".eqbody"); });
-      // in a line of text: shaded exactly as high as the selected text beside it on that line (no seam above or below);
-      // with none beside it, the line's height
-      var band = fresh.length ? Array.prototype.filter.call(sel.getRangeAt(0).getClientRects(), function (q) { return q.width > 0.5; }) : [];
-      var gaps = fresh.map(function (m) {
-        var r = m.getBoundingClientRect(), mid = (r.top + r.bottom) / 2, best = null;
-        band.forEach(function (q) {
-          if (q.top > mid || q.bottom < mid || (q.left >= r.left - 0.5 && q.right <= r.right + 0.5)) return;   // (not itself)
-          if (!best || Math.abs(q.left - r.left) < Math.abs(best.left - r.left)) best = q;
-        });
-        if (best) return [Math.max(0, r.top - best.top), Math.max(0, best.bottom - r.bottom)];
-        var lh = parseFloat(getComputedStyle(m.parentElement).lineHeight) || r.height, t = Math.max(0, (lh - r.height) / 2);
-        return [t, t];
-      });
-      now.forEach(function (m) { m.classList.add("l2m-selected"); });
-      fresh.forEach(function (m, i) {
-        var a = gaps[i][0], b = gaps[i][1], sh = [];
-        if (a > 0.05) sh.push("0 " + (-a).toFixed(2) + "px 0 0 var(--sel)");
-        if (b > 0.05) sh.push("0 " + b.toFixed(2) + "px 0 0 var(--sel)");
-        m.style.boxShadow = sh.join(", ");
-      });
-      selMarked = now;
-      // while something is selected, links take part (otherwise a long press on one opens the peek, not a selection)
+      var sel = window.getSelection && window.getSelection();
       document.documentElement.classList.toggle("l2m-selecting", !!(sel && sel.rangeCount && !sel.isCollapsed));
     });
   });

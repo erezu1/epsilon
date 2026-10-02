@@ -39,7 +39,7 @@ WS = set(" \n\t\r\f    ")
 BLOCK_TAGS = {"p", "li", "h1", "h2", "h3", "h4", "h5", "h6", "figcaption", "td", "th", "dt", "dd", "blockquote", "pre"}
 BLOCK_CLASSES = {"display", "thm", "titleblock"}
 SKIP_TAGS = {"svg", "script", "style", "button", "textarea", "input", "l2m-slot"}
-SKIP_CLASSES = {"skel-paper", "l2m-mark", "l2m-mk-layer", "l2m-libnav", "l2m-actions"}
+SKIP_CLASSES = {"skel-paper", "l2m-mark", "l2m-mk-layer", "l2m-libnav", "l2m-actions", "mjx-hl"}
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 # HTML's own rule (as the browser builds the page): a paragraph open when one of these begins is ended there, so the
 # words after a displayed formula within a <p> stand outside it, in the paper's own text

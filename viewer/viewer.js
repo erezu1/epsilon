@@ -167,13 +167,22 @@
     // be), and is drawn in as it comes near the screen: a paper's formulas are nine elements in ten of its page, and
     // a page that small is quick to open, restyle and search. Drawing one in moves nothing (its size is set).
     var inner = [];
-    function drawn(k) { return svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"'); }
+    // Under each formula, a letter as wide as its drawing and unseen (a hair space; theme.css .mjx-hl): a selection
+    // that takes the formula in is shaded there by the browser itself, at its line's whole height, as the words round
+    // it are (the drawing it would leave unshaded). The paper's readers (search, marks) pass it by
+    function hl(s) {
+      var w = /<svg[^>]*?\swidth="([\d.]+ex)"/.exec(s), a = s.indexOf(">");
+      if (!w || a < 0 || s.lastIndexOf("<mjx-container", 0) !== 0) return s;
+      return s.slice(0, a) + ' style="--w:' + w[1] + '"><span class="mjx-hl" aria-hidden="true">\u200a</span>' + s.slice(a + 1);
+    }
+    function drawn(k) { return hl(svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"')); }
     function shell(k) {
       var s = svg[+k], a = s.indexOf(">", s.indexOf("<svg")) + 1, b = s.lastIndexOf("</svg>");
       if (a <= 0 || b - a < 300) return drawn(k);          // (a small one: as it is)
       inner[+k] = s.slice(a, b);
-      return s.slice(0, a).replace(/^<mjx-container/, '<mjx-container data-n="' + k + '" data-lazy=""') + s.slice(b);
+      return hl(s.slice(0, a).replace(/^<mjx-container/, '<mjx-container data-n="' + k + '" data-lazy=""') + s.slice(b));
     }
+    function picOf(el) { return el.querySelector(":scope > svg"); }    // (a formula's drawing: its svg)
     function fill(h, lazy) {
       h = mathMarkers(h);
       return svg ? h.replace(/<l2m-math n="(\d+)"><\/l2m-math>/g, function (x, k) { return lazy ? shell(k) : drawn(k); }) : h;
@@ -182,7 +191,7 @@
     function drawIn(el) {
       if (!el.hasAttribute("data-lazy")) return;
       drawnSet.add(el);
-      var k = +el.getAttribute("data-n"), pic = el.firstElementChild;
+      var k = +el.getAttribute("data-n"), pic = picOf(el);
       if (pic && inner[k] != null) pic.innerHTML = inner[k];
       el.removeAttribute("data-lazy");
       if (mathApi.onDraw) mathApi.onDraw(el);      // (the search marks what it found in it)
@@ -216,7 +225,7 @@
     function undraw(el) {                // back to its empty picture (far from the view: the page stays small)
       if (el.hasAttribute("data-lazy")) return;
       drawnSet.delete(el);
-      var pic = el.firstElementChild;
+      var pic = picOf(el);
       if (pic) pic.textContent = "";
       el.setAttribute("data-lazy", "");
       if (mathApi.onUndraw) mathApi.onUndraw(el);

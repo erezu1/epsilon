@@ -11,12 +11,6 @@
   var main = document.querySelector("main");
   var root = document.documentElement;
   var theme = window.L2M_THEME || null;
-  // Chrome for Android lays its search panel (Touch to Search) over the page's foot at every press-and-hold
-  // selection, and lets a page stop it only by making its text unselectable: there (a touch screen), a paper's text
-  // is unselectable to the browser and selected by marks.js instead. Set before anything is drawn (a class on the
-  // root set later would restyle the whole paper)
-  if (/Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent) && !(window.matchMedia && matchMedia("(pointer: fine)").matches))
-    document.documentElement.classList.add("l2m-own-select");
   // A keyboard lies over the page, which keeps its size and does not slide (Chrome's VirtualKeyboard API): with only
   // the view shrunk instead, scrolling with a keyboard up first slides the view down the page, and the bar, fixed to
   // the page's top, out of sight. What sits at the foot rises over it (theme.css: env(keyboard-inset-height)); a field
@@ -489,12 +483,16 @@
     var bar = h.firstChild;
     document.body.insertBefore(bar, main);
     root.style.setProperty("--l2m-bar-h", bar.getBoundingClientRect().height + "px");   // the page starts where it will
-    var line = bar.querySelector(".bar-progress");
-    if (line) {                               // over the text's margins, as the viewer places it
-      var m = main.getBoundingClientRect(), cs = getComputedStyle(main), b = line.parentNode.getBoundingClientRect();
-      line.style.left = (m.left + parseFloat(cs.paddingLeft) - b.left).toFixed(1) + "px";
-      line.style.right = (b.right - (m.right - parseFloat(cs.paddingRight))).toFixed(1) + "px";
-    }
+  }
+  // the stand-in's line over the text's margins, as the viewer places its reading line: measured once the page is laid
+  // out as a paper (as the library, the page's margins are others), from its layout (not as a slide moves it)
+  function placeSkelLine() {
+    var line = document.querySelector("#l2m-skel-bar .bar-progress");
+    if (!line) return;
+    var cs = getComputedStyle(main), b = line.parentNode.getBoundingClientRect();
+    var left = main.offsetLeft + parseFloat(cs.paddingLeft), right = main.offsetLeft + main.offsetWidth - parseFloat(cs.paddingRight);
+    line.style.left = (left - b.left).toFixed(1) + "px";
+    line.style.right = (b.right - right).toFixed(1) + "px";
   }
   function dropSkelBar() { var b = document.getElementById("l2m-skel-bar"); if (b) b.remove(); }
   function dropBoot() {                        // the page's own stand-ins (in index.html), shown until the app starts
@@ -2428,28 +2426,51 @@
     dropBoot();
     root.classList.add("l2m-bar-always");
     var st0 = history.state || {}, fresh = !(st0.l2mPaper === key && typeof st0.l2mY === "number");
-    // the stand-in bar's line fills as the paper comes from the network (its size is in the list)
-    var size = entry.bytes || 0, got = 0, drawn = 0;
+    // The stand-in bar's line fills as the paper is made ready, all of it: its two files coming (by their bytes, from
+    // the network or a saved copy) to 70%, read in to 80%, its fonts to 85%, and its page built to the end. Building
+    // holds the page still, so the line is sent on to the end just before, over about as long as building takes:
+    // the browser moves it by itself meanwhile
+    var size = entry.bytes || 0, got = 0, drawn = 0, lit = 0;
+    function lineTo(f, ms) {
+      lit = Math.max(lit, Math.min(1, f));
+      var b = document.querySelector("#l2m-skel-bar .bar-progress b");
+      if (!b) return;
+      b.style.transitionDuration = (ms || 200) + "ms";
+      b.style.transform = "translateX(" + (lit * 100 - 100).toFixed(2) + "%)";
+    }
     function came(n) {
       got += n;
       if (drawn) return;
-      drawn = requestAnimationFrame(function () {
-        drawn = 0;
-        var b = document.querySelector("#l2m-skel-bar .bar-progress b");
-        if (b) b.style.transform = "translateX(" + (Math.min(1, got / size) * 100 - 100).toFixed(2) + "%)";
-      });
+      drawn = requestAnimationFrame(function () { drawn = 0; lineTo(0.7 * Math.min(1, got / size)); });
     }
-    skelBar(!!size);
+    function frames() { return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); }); }
+    skelBar(true);
     main.innerHTML = skelPaper();
     root.classList.add("l2m-skel-page");      // (the stand-ins fill the screen exactly; a class, not :has(), which
                                               //  would have the whole page restyled at every change in it)
-    var docP = paperFile(key, entry, "paper.json", size && came).then(function (b) { return b.text(); }).then(JSON.parse);
-    var mathP = paperFile(key, entry, "math.json", size && came).then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
-    // both in (from the network or a saved copy, whatever the list said of their size): the line full
-    if (size) Promise.all([docP, mathP]).then(function () { got = size; came(0); }, function () {});
-    docP.then(function (doc) {
-      var fontsP = paperFonts(doc);
-      return mathP.then(function (cache) { return fontsP.then(function () { return cache; }); }).then(function (cache) {
+    placeSkelLine();
+    var docT = paperFile(key, entry, "paper.json", size && came).then(function (b) { return b.text(); });
+    var mathT = paperFile(key, entry, "math.json", size && came).then(function (b) { return b.text(); }).catch(function () { return null; });
+    var docP = Promise.all([docT, mathT]).then(function (t) {        // both in: read in, a frame between the two
+      lineTo(0.7);
+      var doc = JSON.parse(t[0]);
+      lineTo(0.75);
+      return frames().then(function () {
+        var cache = null;
+        try { cache = t[1] ? JSON.parse(t[1]) : null; } catch (e) {}
+        lineTo(0.8);
+        return {doc: doc, cache: cache};
+      });
+    });
+    docP.then(function (dc) {
+      var doc = dc.doc;
+      return paperFonts(doc).then(function () {
+        lineTo(0.85);
+        // then on to the end over about as long as the page takes to build (a long paper's a second or so on a phone),
+        // the move under way before building starts
+        lineTo(1, Math.min(2500, 300 + String(doc.body || "").length / 700));
+        return frames();
+      }).then(function () { return dc.cache; }).then(function (cache) {
         if (current !== key) return;
         doc.kicker = null;                  // no label above the title in the app
         var actions = [];

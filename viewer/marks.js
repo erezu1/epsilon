@@ -26,7 +26,7 @@ window.L2M_marks = function (host) {
 
   // ---------------------------------------------------------------- the paper's text
   function isWS(c) { return c === 32 || c === 10 || c === 9 || c === 13 || c === 12 || c === 160 || c === 8201 || c === 8202 || c === 8239; }
-  var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, .l2m-mk-layer, details.toc, .l2m-libnav, .l2m-actions";
+  var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, .l2m-mk-layer, details.toc, .l2m-libnav, .l2m-actions, .mjx-hl";
   var FORMULA = "mjx-container[data-n], l2m-math[n]";
   // A text: {root, M: {C, segs, at (node -> segment), heads}, job}. Read once (it stays as long as the paper, or the
   // peek's copy, is open): at once when a mark is made, else a little at a time in the page's idle moments (a long
@@ -282,7 +282,7 @@ window.L2M_marks = function (host) {
     for (; i < M.segs.length && M.segs[i].a < e; i++) {
       var g = M.segs[i];
       if (g.f) {                                  // a formula: its picture's box (a displayed one: within its frame)
-        var pic = g.f.firstElementChild || g.f, fr = pic.getBoundingClientRect(), eq = g.f.closest(".eqbody");
+        var pic = g.f.querySelector(":scope > svg") || g.f, fr = pic.getBoundingClientRect(), eq = g.f.closest(".eqbody");
         if (eq) {
           var er = eq.getBoundingClientRect(), l = Math.max(fr.left, er.left), rr = Math.min(fr.right, er.right);
           if (rr > l) out.push({left: l, right: rr, top: fr.top, bottom: fr.bottom});
@@ -375,7 +375,6 @@ window.L2M_marks = function (host) {
       peekLayer.appendChild(pf);
     } else peekLayer.textContent = "";
     peekBoxes = pb;
-    drawOwn();
   }
   function hit(list, x, y) {                      // the mark under a point (the shortest, if they overlap)
     var best = null;
@@ -409,8 +408,7 @@ window.L2M_marks = function (host) {
   dock.tabIndex = -1;
   dock.innerHTML = '<div class="sheet-inner mb-row">' + dots("Mark ") + '<span class="mb-sep" aria-hidden="true"></span>' +
     '<button type="button" class="mb-btn" data-mb="note">' + (I.note || "") + "<span>Note</span></button>" +
-    '<button type="button" class="mb-btn" data-mb="find">' + (I.search || "") + "<span>Find</span></button>" +
-    '<button type="button" class="mb-btn mb-copy" data-mb="copy" hidden>' + (I.copy || "") + "<span>Copy</span></button></div>";
+    '<button type="button" class="mb-btn" data-mb="find">' + (I.search || "") + "<span>Find</span></button></div>";
   document.body.appendChild(dock);
   var dockOpen = false, lastRange = null, selT = 0, mouseDown = false, pointer = "", tapT = 0;
   function textAt(node) {                          // the text a node is in: the page's, or the peek's copy's
@@ -444,7 +442,7 @@ window.L2M_marks = function (host) {
     if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
   }
   function checkSel() {
-    if (dead || cur) return;                       // (the paper's own selection: the browser's has no say)
+    if (dead) return;
     var r = selected();
     if (r) { lastRange = r.cloneRange(); if (!sheetOpen && !mouseDown) showDock(); }
     else hideDock();
@@ -463,34 +461,22 @@ window.L2M_marks = function (host) {
     var what = b.getAttribute("data-mb");
     if (what === "note") { var id = make(colourOf()); if (id) openSheet(id, true); }
     else if (what === "find") {
-      if (cur) { var q = ownWords(); clearSel(); host.find(q); return; }
       var sel = window.getSelection();             // (the selection, as it was when the bar came)
       if (lastRange && (!sel.rangeCount || sel.isCollapsed)) { sel.removeAllRanges(); sel.addRange(lastRange); }
       hideDock();
       host.find();
-    } else if (what === "copy" && cur) {
-      var text = ownText(), ok = function () { if (store.toast) store.toast("Copied."); };
-      clearSel();
-      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () {});
     }
   });
   function clearSel() {
     var sel = window.getSelection && window.getSelection();
-    if (sel && !cur) sel.removeAllRanges();
+    if (sel) sel.removeAllRanges();
     lastRange = null;
-    if (cur) { cur = null; drawOwn(); }
     hideDock();
   }
   function make(c) {                              // the selection marked: a new mark (its id)
-    var t, M, s, e, C;
-    if (cur) { t = cur.t; M = model(t); s = cur.s; e = cur.e; }
-    else {
-      var r = lastRange;
-      t = r && textAt(r.commonAncestorContainer);
-      if (!t) return null;
-      M = model(t); s = placeOf(t, r.startContainer, r.startOffset, false); e = placeOf(t, r.endContainer, r.endOffset, true);
-    }
-    C = M.C;
+    var r = lastRange, t = r && textAt(r.commonAncestorContainer);
+    if (!t) return null;
+    var M = model(t), s = placeOf(t, r.startContainer, r.startOffset, false), e = placeOf(t, r.endContainer, r.endOffset, true), C = M.C;
     if (s < 0 || e < 0) return null;
     var w = whole(C, s, e);                        // (whole words: a selection begun or ended within one takes all of it)
     s = w[0]; e = w[1];
@@ -503,182 +489,6 @@ window.L2M_marks = function (host) {
     clearSel();
     place();                                       // (in the page's text and the peek's, wherever it was made)
     return id;
-  }
-
-  // ---------------------------------------------------------------- the paper's own selection (Android's Chrome)
-  // Chrome for Android lays its search panel (Touch to Search) over the page's foot whenever text is selected by a
-  // press and hold, and a page has no say in it but making its text unselectable (Chrome's own advice). There
-  // (html.l2m-own-select, set by app.js) the paper's text is unselectable to the browser, and selected here: a press and
-  // hold on a word selects it (a formula, all of it), its two handles stretch it, the bar does the rest
-  var OWN = document.documentElement.classList.contains("l2m-own-select");
-  var cur = null;                                  // {t (its text), s, e}: what is selected
-  var ownEnds = null;
-  var selLayer = document.createElement("div");
-  selLayer.className = "l2m-own-sel-layer";
-  selLayer.setAttribute("aria-hidden", "true");
-  function grip(kind) { var h = document.createElement("span"); h.className = "mk-grip " + kind; h.setAttribute("aria-hidden", "true"); return h; }
-  var gs = grip("start"), ge = grip("end");
-  // what is selected as it is copied (and so searched for): exactly as the browser's own selection is, by nav.js's
-  // copying (its formulas as their TeX, $...$ in a line, \[...\] on its own)
-  function ownText() {
-    var r = rangeOf(cur.t.M, cur.s, cur.e), t = r && host.copyText ? host.copyText(r) : null;
-    return t != null ? t : r ? r.toString() : cur.t.M.C.slice(cur.s, cur.e);
-  }
-  function ownWords() { return ownText().replace(/\s+/g, " ").trim(); }
-  function drawOwn() {
-    if (!cur || !cur.t.M) { selLayer.remove(); gs.remove(); ge.remove(); return; }
-    var t = cur.t, box = t === T ? document.body : t.root, x0 = window.pageXOffset, y0 = window.pageYOffset;
-    if (t !== T) { var rb = t.root.getBoundingClientRect(); x0 = -rb.left; y0 = -rb.top; }
-    var ls = lines(rectsOf(t.M, cur.s, cur.e)), frag = document.createDocumentFragment();
-    ls.forEach(function (b) {
-      var d = document.createElement("span");
-      d.className = "l2m-own-sel";
-      d.style.cssText = "left:" + (b.left + x0) + "px;top:" + (b.top + y0) + "px;width:" + (b.right - b.left) + "px;height:" + (b.bottom - b.top) + "px";
-      frag.appendChild(d);
-    });
-    selLayer.textContent = "";
-    selLayer.appendChild(frag);
-    if (selLayer.parentNode !== box) box.appendChild(selLayer);
-    if (!ls.length) { gs.remove(); ge.remove(); return; }
-    var f = ls[0], l = ls[ls.length - 1];
-    ownEnds = {s: [f.left, (f.top + f.bottom) / 2], e: [l.right, (l.top + l.bottom) / 2]};   // (where each handle points)
-    gs.style.left = (f.left + x0) + "px"; gs.style.top = (f.bottom + y0) + "px";
-    ge.style.left = (l.right + x0) + "px"; ge.style.top = (l.bottom + y0) + "px";
-    if (gs.parentNode !== box) box.appendChild(gs);
-    if (ge.parentNode !== box) box.appendChild(ge);
-  }
-  // the place in a text under a point of the window: the character there (the nearest, between lines), or -1
-  function offsetAt(t, x, y) {
-    var el = document.elementFromPoint(x, y), M = t.M;
-    if (!el || !t.root.contains(el)) return -1;
-    var f = el.closest(FORMULA);
-    if (f && M.at.has(f)) { var g = M.segs[M.at.get(f)], fr = f.getBoundingClientRect(); return x < (fr.left + fr.right) / 2 ? g.a : g.b; }
-    var blk = el.closest(host.block) || el, walk = document.createTreeWalker(blk, NodeFilter.SHOW_TEXT), best = null, bestD = Infinity;
-    for (var n = walk.nextNode(); n; n = walk.nextNode()) {
-      if (!M.at.has(n)) continue;
-      var rr = document.createRange();
-      rr.selectNodeContents(n);
-      var rs = rr.getClientRects();
-      for (var i = 0; i < rs.length; i++) {
-        var q = rs[i], dy = y < q.top ? q.top - y : y > q.bottom ? y - q.bottom : 0, dx = x < q.left ? q.left - x : x > q.right ? x - q.right : 0;
-        if (dy * 4 + dx < bestD) { bestD = dy * 4 + dx; best = n; }
-      }
-    }
-    if (!best) return -1;
-    var lo = 0, hi = best.data.length, one = document.createRange();
-    while (lo < hi) {                              // (by halving, in the order it reads: a line down, or right on it, is later)
-      var mid = (lo + hi) >> 1;
-      one.setStart(best, mid);
-      one.setEnd(best, mid + 1);
-      var c = one.getBoundingClientRect();
-      if (c.bottom <= y || (c.top <= y && c.left + c.width / 2 < x)) lo = mid + 1; else hi = mid;
-    }
-    var sg = M.segs[M.at.get(best)];
-    return sg.a + given(sg, lo);
-  }
-  if (OWN) {
-    var press = null, held = false, eatUntil = 0, dragging = null, sweep = null, grabAt = null;
-    // as Android's own selection: words at a time, whichever way it goes (a place within a word takes it all)
-    function wordStart(C, k) { return wordy.test(C[k] || "") ? whole(C, k, k + 1)[0] : k; }
-    function wordEnd(C, k) { return wordy.test(C[k - 1] || "") ? whole(C, k - 1, k)[1] : k; }
-    on(document, "touchstart", function (e) {
-      if (e.touches.length !== 1 || dragging) { press = null; return; }
-      var el = e.target.nodeType === 1 ? e.target : e.target.parentNode, t = el && textAt(el);
-      if (!t || el.closest("a[href], button, input, textarea, select, .mk-grip")) { press = null; return; }
-      var p = e.touches[0];
-      press = {x: p.clientX, y: p.clientY, t: t, timer: setTimeout(function () { pressed(); }, 400)};
-    }, {passive: true});
-    on(document, "touchmove", function (e) {
-      if (press && Math.abs(e.touches[0].clientX - press.x) + Math.abs(e.touches[0].clientY - press.y) > 10) { clearTimeout(press.timer); press = null; }
-    }, {passive: true});
-    // held, then moved without letting go: the selection stretches from that word to the one under the finger (the
-    // page not scrolled meanwhile: a listener that may stop it, from the start of every touch)
-    on(document, "touchmove", function (e) {
-      if (!sweep || !cur || e.touches.length !== 1) return;
-      e.preventDefault();
-      var p = e.touches[0], C = cur.t.M.C, k = offsetAt(cur.t, p.clientX, p.clientY);
-      if (cur.t === T) {
-        var top = host.barHeight() + 40, foot = window.innerHeight - host.peekHeight() - 90;
-        if (p.clientY < top) window.scrollBy(0, -14); else if (p.clientY > foot) window.scrollBy(0, 14);
-      }
-      if (k < 0) return;
-      if (k >= sweep[1]) { cur.s = sweep[0]; cur.e = Math.max(sweep[1], wordEnd(C, k + 1)); }
-      else if (k < sweep[0]) { cur.s = wordStart(C, k); cur.e = sweep[1]; }
-      else { cur.s = sweep[0]; cur.e = sweep[1]; }
-      drawOwn();
-    }, {passive: false});
-    on(document, "touchend", function () {
-      sweep = null;
-      if (press) { clearTimeout(press.timer); press = null; }
-      if (held) { held = false; eatUntil = Date.now() + 400; }      // (the tap the hold ends in opens nothing)
-    }, {passive: true});
-    on(document, "touchcancel", function () { if (press) { clearTimeout(press.timer); press = null; } }, {passive: true});
-    on(document, "contextmenu", function (e) { if (held || Date.now() < eatUntil) e.preventDefault(); });
-    function pressed() {                           // held: the word there selected (a formula, all of it)
-      var p = press;
-      press = null;
-      if (!p || dead) return;
-      var t = p.t, M = model(t), el = document.elementFromPoint(p.x, p.y), f = el && el.closest(FORMULA), s, e;
-      if (f && M.at.has(f)) { var g = M.segs[M.at.get(f)]; s = g.a; e = g.b; }
-      else {
-        var k = offsetAt(t, p.x, p.y), C = M.C;
-        if (k < 0) return;
-        if (!wordy.test(C[k] || "") && wordy.test(C[k - 1] || "")) k--;
-        if (!wordy.test(C[k] || "")) return;       // (between words: nothing)
-        var w = whole(C, k, k + 1); s = w[0]; e = w[1];
-      }
-      if (window.getSelection) window.getSelection().removeAllRanges();
-      cur = {t: t, s: s, e: e};
-      sweep = [s, e];
-      held = true;
-      if (navigator.vibrate) try { navigator.vibrate(8); } catch (x) {}
-      drawOwn();
-      if (!sheetOpen) showDock();
-    }
-    // a handle dragged: the selection's end moved to where the finger points (just above it: the finger hides the text)
-    function grab(which) {
-      return function (e) {
-        if (!cur) return;
-        e.preventDefault();
-        e.stopPropagation();
-        dragging = which;
-        drawOwn();                                 // (the finger keeps its distance from the place the handle points to)
-        var p = e.touches[0], at = ownEnds && ownEnds[which];
-        grabAt = at ? [at[0] - p.clientX, at[1] - p.clientY] : [0, -28];
-        document.addEventListener("touchmove", drag, {passive: false});
-        document.addEventListener("touchend", drop);
-        document.addEventListener("touchcancel", drop);
-      };
-    }
-    function drag(e) {
-      if (!dragging || !cur) return;
-      e.preventDefault();
-      var p = e.touches[0], k = offsetAt(cur.t, p.clientX + grabAt[0], p.clientY + grabAt[1]), C = cur.t.M.C;
-      if (cur.t === T) {                            // near the top or the foot: the page moves on under the finger
-        var top = host.barHeight() + 40, foot = window.innerHeight - host.peekHeight() - 90;
-        if (p.clientY < top) window.scrollBy(0, -14); else if (p.clientY > foot) window.scrollBy(0, 14);
-      }
-      if (k < 0) return;
-      if (dragging === "s") { if (k >= cur.e) { cur.s = cur.e; cur.e = wordEnd(C, k); dragging = "e"; } else cur.s = wordStart(C, k); }
-      else { if (k <= cur.s) { cur.e = cur.s; cur.s = wordStart(C, k); dragging = "s"; } else cur.e = wordEnd(C, k); }
-      if (cur.e <= cur.s) cur.e = Math.min(C.length, cur.s + 1);
-      drawOwn();
-    }
-    function drop() {
-      document.removeEventListener("touchmove", drag, {passive: false});
-      document.removeEventListener("touchend", drop);
-      document.removeEventListener("touchcancel", drop);
-      if (!dragging) return;
-      dragging = null;
-      if (!cur) return;
-      var w = whole(cur.t.M.C, cur.s, cur.e);      // (whole words, as the browser's own handles leave them)
-      if (w[1] > w[0]) { cur.s = w[0]; cur.e = w[1]; }
-      drawOwn();
-      if (!sheetOpen) showDock();
-    }
-    gs.addEventListener("touchstart", grab("s"), {passive: false});
-    ge.addEventListener("touchstart", grab("e"), {passive: false});
-    dock.querySelector(".mb-copy").hidden = false;
   }
 
   // ---------------------------------------------------------------- a mark's sheet
@@ -845,7 +655,7 @@ window.L2M_marks = function (host) {
     var t = e.target;
     if (t && t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
     var r = selected();
-    if (!r && !cur) return;
+    if (!r) return;
     e.preventDefault();
     if (r) lastRange = r.cloneRange();
     var id = make(colourOf());
@@ -1087,11 +897,6 @@ window.L2M_marks = function (host) {
     if (dead || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var el = e.target.nodeType === 1 ? e.target : e.target.parentNode;
     if (!el || !el.closest || sheet.contains(el) || dock.contains(el)) return;
-    if (OWN && Date.now() < eatUntil) { eatUntil = 0; e.preventDefault(); e.stopPropagation(); return; }
-    if (cur && !el.closest(".mk-grip")) {           // (selected: a tap elsewhere lets it go, and does nothing else)
-      clearSel();
-      if (!el.closest("a[href], button, input, textarea, select, summary, label, [role='button']")) { e.preventDefault(); e.stopPropagation(); return; }
-    }
     var aside = el.closest(".l2m-mk-side");
     if (aside) { e.preventDefault(); e.stopPropagation(); openSheet(aside.getAttribute("data-id")); return; }
     var own = el.closest("a[href], button, input, textarea, select, summary, label, [role='button'], img, .fig-open");
@@ -1135,7 +940,7 @@ window.L2M_marks = function (host) {
     if (dead) return;
     listChanged();
     // the ones on this device first (the text read in idle moments), then the library's (another device's, since)
-    return (any() || OWN ? modelSoon(T).then(function () { if (!dead) { place(); go(); } }) : Promise.resolve())
+    return (any() ? modelSoon(T).then(function () { if (!dead) { place(); go(); } }) : Promise.resolve())
       .then(function () { return new Promise(function (res) { idle(res); }); })
       .then(function () { return dead ? false : store.pull(); })
       .then(function (changed) { if (!dead && changed) return modelSoon(T).then(function () { if (!dead) { place(); go(); } }); });
@@ -1182,7 +987,7 @@ window.L2M_marks = function (host) {
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       store.flush(true);
-      layer.remove(); peekLayer.remove(); side.remove(); dock.remove(); sheet.remove(); selLayer.remove(); gs.remove(); ge.remove();
+      layer.remove(); peekLayer.remove(); side.remove(); dock.remove(); sheet.remove();
       if (tabs && menuHead) { tabs.remove(); menuInner.classList.remove("mk-split"); menuInner.prepend(menuHead); view.replaceWith(tocList); }
     }
   };
