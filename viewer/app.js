@@ -11,6 +11,12 @@
   var main = document.querySelector("main");
   var root = document.documentElement;
   var theme = window.L2M_THEME || null;
+  // Chrome for Android lays its search panel (Touch to Search) over the page's foot at every press-and-hold
+  // selection, and lets a page stop it only by making its text unselectable: there (a touch screen), a paper's text
+  // is unselectable to the browser and selected by marks.js instead. Set before anything is drawn (a class on the
+  // root set later would restyle the whole paper)
+  if (/Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent) && !(window.matchMedia && matchMedia("(pointer: fine)").matches))
+    document.documentElement.classList.add("l2m-own-select");
   var src = null;              // where papers come from (see staticSource / githubSource)
   var lib = null, feed = null, config = null;
   var view = null, current = null, urls = [];

@@ -1821,7 +1821,7 @@ window.L2M_nav = function (opts) {
       tex: opts.tex || function () { return ""; },
       overlayIn: overlayIn, overlayOut: overlayOut,
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
-      find: function () { openFind(selectedQuery()); },
+      find: function (q) { openFind(typeof q === "string" ? q : selectedQuery()); },
       barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },
       strokeCss: strokeCss
     });

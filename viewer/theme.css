@@ -2183,5 +2183,16 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-item-x { position: absolute; right: 2px; top: 4px; color: var(--muted); }
 .mk-empty { margin: 4px 10px 10px; font: 400 14px/1.5 var(--ui); color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .mk-tab-line, .l2m-mk-side { transition-duration: 0.01s; } }
+/* the paper's own selection (Android's Chrome, html.l2m-own-select: there the browser's selection would bring up its
+   search panel, so the paper's text is unselectable to it and selected by marks.js): drawn in the selection's colour,
+   with two handles to stretch it, drops as Android's own, each a fingertip's area */
+html.l2m-own-select:not(.l2m-app-lists) main, html.l2m-own-select .peek-main { -webkit-user-select: none; user-select: none; }
+.l2m-own-sel-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 2; pointer-events: none; }
+.l2m-own-sel { position: absolute; background: var(--sel); border-radius: 2px; }
+.mk-grip { position: absolute; z-index: 3; width: 44px; height: 44px; margin-left: -22px; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.mk-grip::before { content: ""; position: absolute; top: 0; width: 18px; height: 18px; background: var(--link); }
+.mk-grip.start::before { left: 4px; border-radius: 50% 0 50% 50%; }
+.mk-grip.end::before { left: 22px; border-radius: 0 50% 50% 50%; }
+.mb-btn[hidden] { display: none; }
 /* a paper's marks, on its row in the library */
 .lib-marks { white-space: nowrap; }
