@@ -60,17 +60,21 @@
     };
   }
   // a message with one action (it goes by itself, as a message does)
+  // a message with one thing to do about it (Undo): gone by itself after a few seconds; its x closes it at once
   function toastAct(html, label, fn, ms) {
-    toast('<span class="app-ask"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
-          '<button type="button" class="app-pill app-ask-yes" data-act-go>' + label + "</button></span></span>", ms || 8000);
+    toast('<span class="app-ask app-act-row"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
+          '<button type="button" class="app-pill app-ask-yes" data-act-go>' + label + "</button>" +
+          '<button type="button" class="bar-btn app-toast-x" data-toast-x aria-label="Close">' + ((theme && theme.icons && theme.icons.close) || "&times;") +
+          "</button></span></span>", ms || 5000);
     var t = document.getElementById("app-toast");
     t.onclick = function (e) {
-      if (!e.target.closest("[data-act-go]")) return;
+      var go = e.target.closest("[data-act-go]");
+      if (!go && !e.target.closest("[data-toast-x]")) return;
       t.onclick = null;
       clearTimeout(t.l2mTimer);
       t.classList.remove("on");
       if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
-      fn();
+      if (go) fn();
     };
   }
   function eatClick() {                    // the click a gesture ends in: not also a tap
@@ -226,6 +230,7 @@
       appSheet.setAttribute("role", "dialog");
       appSheet.setAttribute("aria-modal", "true");
       appSheet.setAttribute("aria-hidden", "true");
+      appSheet.tabIndex = -1;
       appSheet.innerHTML = '<div class="sheet-inner"><div class="sheet-head"><span class="sheet-title"></span>' +
         '<button type="button" class="bar-btn" data-sheet-close aria-label="Close">' + (I.close || "&times;") + "</button></div>" +
         '<div class="app-sheet-body"></div></div>';

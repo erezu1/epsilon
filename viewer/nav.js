@@ -1154,7 +1154,7 @@ window.L2M_nav = function (opts) {
     peek.setAttribute("role", "region");
     peek.setAttribute("aria-label", "Second view of the paper");
     peek.setAttribute("aria-hidden", "true");
-    peek.innerHTML = '<div class="peek-scroll"><main class="peek-main"></main></div>' +
+    peek.innerHTML = '<div class="peek-scroll"><main class="peek-main" tabindex="-1"></main></div>' +
       '<div class="peek-head"><span class="peek-grab" aria-hidden="true"></span><div class="peek-row">' +
       '<button type="button" class="bar-btn peek-back" aria-label="Back in the second view" hidden>' + (I.back || "&lsaquo;") + "</button>" +
       '<span class="peek-title"></span>' +

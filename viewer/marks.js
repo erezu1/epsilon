@@ -25,7 +25,7 @@ window.L2M_marks = function (host) {
 
   // ---------------------------------------------------------------- the paper's text
   function isWS(c) { return c === 32 || c === 10 || c === 9 || c === 13 || c === 12 || c === 160 || c === 8201 || c === 8202 || c === 8239; }
-  var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, .l2m-mk-layer, details.toc, .l2m-libnav";
+  var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, .l2m-mk-layer, details.toc, .l2m-libnav, .l2m-actions";
   var FORMULA = "mjx-container[data-n], l2m-math[n]";
   // A text: {root, M: {C, segs, at (node -> segment), heads}, job}. Read once (it stays as long as the paper, or the
   // peek's copy, is open): at once when a mark is made, else a little at a time in the page's idle moments (a long
@@ -163,7 +163,68 @@ window.L2M_marks = function (host) {
       if (score > bestScore) { bestScore = score; best = i; }
       i = C.indexOf(q, i + 1);
     }
-    return best < 0 ? null : [best, best + q.length];
+    return best < 0 ? nearly(M, m) : [best, best + q.length];
+  }
+  // A mark whose words changed a little (the paper revised: a word changed, a typo mended, a formula touched):
+  // where pieces of its words still stand as they were, each piece's place less its place in the words says where
+  // the words would begin; around the likeliest beginnings the words are laid against the text, a character's
+  // change, loss or gain each an edit. Found if at most a quarter of them changed (the words just before and after
+  // choosing between near equals); its whole words, as a mark made by hand takes them. [start, end] or null
+  function align(q, t) {                           // q against the stretch of t it fits best: [start, end, edits]
+    var n = q.length, w = t.length, prev = new Int32Array(w + 1), cur = new Int32Array(w + 1);
+    var ps = new Int32Array(w + 1), cs = new Int32Array(w + 1), j;
+    for (j = 0; j <= w; j++) ps[j] = j;            // (the stretch may begin anywhere: no cost before it)
+    for (var i = 1; i <= n; i++) {
+      var qc = q.charCodeAt(i - 1);
+      cur[0] = i; cs[0] = 0;
+      for (j = 1; j <= w; j++) {
+        var sub = prev[j - 1] + (qc === t.charCodeAt(j - 1) ? 0 : 1), del = prev[j] + 1, ins = cur[j - 1] + 1;
+        if (sub <= del && sub <= ins) { cur[j] = sub; cs[j] = ps[j - 1]; }
+        else if (del <= ins) { cur[j] = del; cs[j] = ps[j]; }
+        else { cur[j] = ins; cs[j] = cs[j - 1]; }
+      }
+      var x = prev; prev = cur; cur = x; x = ps; ps = cs; cs = x;
+    }
+    var end = 0;
+    for (j = 1; j <= w; j++) if (prev[j] < prev[end]) end = j;
+    return [ps[end], end, prev[end]];
+  }
+  var wordy = /[\p{L}\p{N}\p{M}'\u2019]/u;
+  function whole(C, s, e) {                        // a stretch of the text as whole words, without spaces at its ends
+    while (s < e && isWS(C.charCodeAt(s))) s++;
+    while (e > s && isWS(C.charCodeAt(e - 1))) e--;
+    while (s > 0 && wordy.test(C[s - 1]) && wordy.test(C[s])) s--;
+    while (e < C.length && wordy.test(C[e]) && wordy.test(C[e - 1])) e++;
+    return [s, e];
+  }
+  function nearly(M, m) {
+    var C = M.C, q = m.quote || "", n = q.length;
+    if (n < 12) return null;                       // (too short to tell from its likes)
+    var K = n < 60 ? 8 : 12, step = Math.max(1, Math.floor((n - K) / 20)), votes = {}, B = 16;
+    for (var o = 0; o + K <= n; o += step) {
+      var g = q.substr(o, K), hits = [], i = g.trim().length >= 6 ? C.indexOf(g) : -1;
+      while (i >= 0 && hits.length <= 40) { hits.push(i); i = C.indexOf(g, i + 1); }
+      if (!hits.length || hits.length > 40) continue;          // (nowhere, or everywhere: it says nothing)
+      hits.forEach(function (p) { var b = Math.round((p - o) / B); votes[b] = (votes[b] || 0) + 1; });
+    }
+    function weight(b) { return (votes[b] || 0) + 0.5 * ((votes[b - 1] || 0) + (votes[b + 1] || 0)); }
+    var best = null;
+    Object.keys(votes).map(Number).filter(function (b) { return weight(b) >= 2; })
+      .sort(function (a, b) { return weight(b) - weight(a); }).slice(0, 4).forEach(function (b) {
+        var est = b * B, slack = Math.max(24, Math.round(n * 0.35)), w0 = Math.max(0, est - slack), w1 = Math.min(C.length, est + n + slack), s, e, sim;
+        if (n <= 700) {
+          var r = align(q, C.slice(w0, w1));
+          s = w0 + r[0]; e = w0 + r[1]; sim = 1 - r[2] / n;
+        } else {                                   // a long one: its first and last words, each laid against the text
+          var H = 240, z0 = Math.max(0, est + n - H - slack), a = align(q.slice(0, H), C.slice(w0, Math.min(C.length, est + H + slack))), z = align(q.slice(-H), C.slice(z0, w1));
+          s = w0 + a[0]; e = z0 + z[1]; sim = 1 - (a[2] + z[2]) / (2 * H);
+          if (e - s < n * 0.5 || e - s > n * 1.6) return;
+        }
+        if (sim < 0.75 || e <= s) return;
+        var score = sim + 0.003 * (common(C.slice(Math.max(0, s - 40), s), m.pre || "", true) + common(C.slice(e, e + 40), m.post || "", false));
+        if (!best || score > best.score) best = {s: s, e: e, score: score};
+      });
+    return best ? whole(C, best.s, best.e) : null;
   }
 
   // ---------------------------------------------------------------- the marks found
@@ -181,8 +242,11 @@ window.L2M_marks = function (host) {
         var m = all[id], r = locate(M, m);
         if (!r) { lostIds.push(id); return; }
         placed[id] = {s: r[0], e: r[1]};
-        // found elsewhere (the paper converted again): its new place kept with it, on this device (no change of its own)
-        if (r[0] !== m.start || r[1] !== m.end || m.ver !== store.version) { m.start = r[0]; m.end = r[1]; m.ver = store.version; store.place(m); }
+        // found elsewhere (the paper converted again, or revised): its new place kept with it, on this device (no change
+        // of its own); found in changed words, those words now its own, and the ones it had kept as what it read before
+        var now = M.C.slice(r[0], r[1]), moved = r[0] !== m.start || r[1] !== m.end || m.ver !== store.version;
+        if (now !== m.quote) { m.was = m.quote; m.quote = now; m.pre = M.C.slice(Math.max(0, r[0] - 40), r[0]); m.post = M.C.slice(r[1], r[1] + 40); moved = true; }
+        if (moved) { m.start = r[0]; m.end = r[1]; m.ver = store.version; store.place(m); }
       });
     }
     placePeek();
@@ -355,6 +419,7 @@ window.L2M_marks = function (host) {
   dock.setAttribute("role", "toolbar");
   dock.setAttribute("aria-label", "Mark the selection");
   dock.setAttribute("aria-hidden", "true");
+  dock.tabIndex = -1;
   dock.innerHTML = '<div class="sheet-inner mb-row">' + dots("Mark ") + '<span class="mb-sep" aria-hidden="true"></span>' +
     '<button type="button" class="mb-btn" data-mb="note">' + (I.note || "") + "<span>Note</span></button>" +
     '<button type="button" class="mb-btn" data-mb="find">' + (I.search || "") + "<span>Find</span></button></div>";
@@ -421,12 +486,8 @@ window.L2M_marks = function (host) {
     if (!t) return null;
     var M = model(t), s = placeOf(t, r.startContainer, r.startOffset, false), e = placeOf(t, r.endContainer, r.endOffset, true), C = M.C;
     if (s < 0 || e < 0) return null;
-    while (s < e && isWS(C.charCodeAt(s))) s++;
-    while (e > s && isWS(C.charCodeAt(e - 1))) e--;
-    // whole words: a selection begun or ended within one takes all of it
-    var wordy = /[\p{L}\p{N}\p{M}'’]/u;
-    while (s > 0 && wordy.test(C[s - 1]) && wordy.test(C[s])) s--;
-    while (e < C.length && wordy.test(C[e]) && wordy.test(C[e - 1])) e++;
+    var w = whole(C, s, e);                        // (whole words: a selection begun or ended within one takes all of it)
+    s = w[0]; e = w[1];
     if (e <= s) { clearSel(); return null; }
     var head = headAt(M, s), now = Date.now(), id = "m" + now.toString(36) + Math.random().toString(36).slice(2, 6);
     var m = {id: id, c: c, quote: C.slice(s, e), pre: C.slice(Math.max(0, s - 40), s), post: C.slice(e, e + 40),
@@ -444,14 +505,17 @@ window.L2M_marks = function (host) {
   sheet.setAttribute("role", "dialog");
   sheet.setAttribute("aria-label", "Mark");
   sheet.setAttribute("aria-hidden", "true");
+  sheet.tabIndex = -1;
   sheet.innerHTML = '<div class="sheet-inner"><div class="sheet-head"><div class="mk-colors" role="group" aria-label="Colour">' +
     dots("") + '</div><div class="mk-acts">' +
     '<button type="button" class="bar-btn" data-mk="link" aria-label="Copy a link to this mark">' + (I.link || "") + "</button>" +
     '<button type="button" class="bar-btn" data-mk="remove" aria-label="Remove the mark">' + (I.trash || "") + "</button>" +
     '<button type="button" class="bar-btn" data-mk="close" aria-label="Close">' + (I.close || "") + "</button></div></div>" +
-    '<div class="mk-quote"></div><textarea class="mk-note" rows="2" placeholder="Add a note" aria-label="Note"></textarea></div>';
+    '<div class="mk-quote"></div><p class="mk-was" hidden></p><p class="mk-by" hidden></p>' +
+    '<textarea class="mk-note" rows="2" placeholder="Add a note" aria-label="Note"></textarea></div>';
   document.body.appendChild(sheet);
-  var quote = sheet.querySelector(".mk-quote"), note = sheet.querySelector(".mk-note");
+  var quote = sheet.querySelector(".mk-quote"), note = sheet.querySelector(".mk-note"), was = sheet.querySelector(".mk-was");
+  var by = sheet.querySelector(".mk-by");
   var sheetOpen = false, noteT = 0;
   // a mark's words as they stand in the paper (its formulas drawn first: one not drawn yet would be copied empty);
   // at most limit characters of them
@@ -473,6 +537,11 @@ window.L2M_marks = function (host) {
     quote.textContent = "";
     quote.appendChild(wordsOf(m.id, 0));
     quote.classList.toggle("long", quote.scrollHeight > quote.clientHeight + 2);
+    // found in words that changed (the paper revised): what they were
+    was.hidden = !m.was;
+    was.textContent = m.was ? "The words changed in this version. They read: \u201c" + m.was + "\u201d" : "";
+    by.hidden = !m.by;                             // (a mark someone else made: Claude, through the library tool)
+    by.textContent = m.by ? "Marked by " + m.by : "";
     note.value = m.note || "";
     grow();
   }

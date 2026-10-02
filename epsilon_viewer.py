@@ -45,7 +45,7 @@ def artifact_page(name, viewer):
             '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
             "<style>\n%s</style>\n<script>window.L2M_THEME = %s;</script>\n<script>\n%s</script>\n"
-            '<main><p class="l2m-note">Loading&hellip;</p></main>\n'
+            '<main tabindex="-1"><p class="l2m-note">Loading&hellip;</p></main>\n'
             "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n") % (
         ascii_html(name), read("theme.css"), inline_json(theme), read("prefs.js"),
         read("marks.js"), read("nav.js"), read("viewer.js"), read("app.js"))

@@ -1909,6 +1909,11 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-ask { flex-direction: column; align-items: center; text-align: center; }
 .app-ask-q { flex: 0 0 auto; }
 .app-ask .app-confirm-acts { margin: 0 auto; justify-content: center; }
+/* a message with one thing to do (Undo): on one line, the message, then its pill and the x that closes it */
+.app-ask.app-act-row { flex-direction: row; flex-wrap: nowrap; text-align: left; }
+.app-act-row .app-ask-q { flex: 1 1 auto; min-width: 0; }
+.app-act-row .app-confirm-acts { margin: 0 -6px 0 auto; align-items: center; gap: 4px; flex: 0 0 auto; }
+.app-toast-x { color: var(--muted); }
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
 
 /* formulas in a selection: shaded as the selected text round them */
@@ -2128,6 +2133,9 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
   border: 1px solid var(--rule); border-radius: 12px; padding: 8px 12px; background: color-mix(in srgb, var(--ground) 72%, transparent);
   color: var(--ink); font: 400 16px/1.45 var(--ui); -webkit-user-select: text; user-select: text; transition: border-color 150ms ease; }
 .mk-note::placeholder { color: var(--muted); }
+.mk-was, .mk-by { margin: -4px 6px 10px; font: 400 13px/1.45 var(--ui); color: var(--muted); overflow-wrap: anywhere; }
+.mk-was { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.mk-was[hidden], .mk-by[hidden] { display: none; }
 .mk-note:focus { outline: none; border-color: var(--link); }
 @media (prefers-reduced-motion: reduce) { .l2m-mk, .mk-dot, .mk-dot i, .mb-btn { transition-duration: 0.01s; } }
 

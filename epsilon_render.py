@@ -106,7 +106,7 @@ def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=
             '  var cache = JSON.parse(document.getElementById("l2m-math").textContent);\n'
             '  L2M_open({doc: doc, theme: window.L2M_THEME, cache: cache, key: doc.source || ""});\n'
             '})();\n')
-    body = ('<main><noscript>This page needs JavaScript to show the paper.</noscript></main>\n'
+    body = ('<main tabindex="-1"><noscript>This page needs JavaScript to show the paper.</noscript></main>\n'
             '<script type="application/json" id="l2m-doc">%s</script>\n'
             '<script type="application/json" id="l2m-math">%s</script>\n'
             "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n") % (
