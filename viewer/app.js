@@ -2147,6 +2147,7 @@
       if (changed) { var oldFeed = feed; useLists(t); if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); } }
       if (changed) newVersions();
       checkApp();
+      feedDue();
       return pullReading().then(function () { if ((changed || listState() !== order) && isPage(current)) refresh(); });
     }, function () { checkApp(); });
   }
@@ -2164,9 +2165,34 @@
     });
   }
   setInterval(function () { if (document.visibilityState === "visible" && src && navigator.onLine !== false) refreshNow(); }, 300000);
+  // arXiv's last announcement (20:00 US Eastern, Sunday to Thursday), with half an hour for its pages to follow
+  function lastAnnouncement(now) {
+    try {
+      var p = {};
+      new Intl.DateTimeFormat("en-US", {timeZone: "America/New_York", year: "numeric", month: "numeric", day: "numeric",
+        hour: "numeric", minute: "numeric", hourCycle: "h23"}).formatToParts(now).forEach(function (x) { p[x.type] = +x.value; });
+      var off = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - Math.floor(now.getTime() / 60000) * 60000;   // Eastern time's lead on UTC
+      for (var k = 0; k < 7; k++) {
+        var wall = Date.UTC(p.year, p.month - 1, p.day - k, 20, 30), wd = new Date(wall).getUTCDay();
+        if (wd <= 4 && wall - off <= now.getTime()) return wall - off;
+      }
+    } catch (e) {}
+    return 0;
+  }
+  // the list last looked for before arXiv's last announcement (GitHub's own run at 4am late or not yet come): looked
+  // for now, as by pulling down (once per announcement; again after half an hour if it did not come)
+  function feedDue() {
+    if (!feed || feedCheck || !src || !src.run || navigator.onLine === false) return;
+    var seen = Date.parse(feed.checked || feed.updated || "") || 0, due = lastAnnouncement(new Date());
+    if (!due || seen >= due) return;
+    var tried = store("feedAuto") || 0;
+    if (tried > due && Date.now() - tried < 30 * 60000) return;
+    store("feedAuto", Date.now());
+    checkFeed(true);
+  }
   // refresh: GitHub fetches the day's list from arXiv (a minute or two); the app watches for it and brings it in
   var feedCheck = null;
-  function checkFeed() {
+  function checkFeed(auto) {
     if (feedCheck || !src || !src.run) return Promise.resolve();
     var was = feed && feed.updated;
     feedCheck = {tries: 0};
@@ -2191,7 +2217,7 @@
     }, function (e) {
       feedCheck = null;
       if (isPage(current)) renderNew();
-      toast("Could not start it: " + esc(e.message));
+      if (!auto) toast("Could not start it: " + esc(e.message));
     });
   }
   // a newer list: the days it adds on top are shown along with the ones already there (they arrive above them)
@@ -2728,6 +2754,7 @@
         useLists(t);
         if (feed && oldFeed) { var f = feed; feed = oldFeed; adoptFeed(f); }
       }
+      feedDue();
       return pullReading().then(function () {
         if ((changed || listState() !== order) && isPage(current)) refresh();
       });

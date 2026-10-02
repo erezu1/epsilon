@@ -512,6 +512,60 @@ def listing_day(cat, day, cross):
     return out
 
 
+def listing_new(cat, cross):
+    """The newest announcement of a category, from https://arxiv.org/list/<cat>/new: up from the announcement
+    (20:00 US Eastern), when the RSS feed comes only at midnight. Returns (day, items)."""
+    page = http_get("https://arxiv.org/list/%s/new?skip=0&show=2000" % cat).decode("utf-8", "replace")
+    m = re.search(r"Showing new listings for \w+, (\d{1,2} \w+ \d{4})", page)
+    if not m:
+        raise ValueError("no day on arXiv's /new page of %s" % cat)
+    day = datetime.datetime.strptime(m.group(1), "%d %B %Y").date().isoformat()
+    heads = [(h.start(), h.group(1).strip()) for h in re.finditer(r"<h3>([^<(]+)", page)]
+    out = []
+    for k, (a, head) in enumerate(heads):
+        kind = "new" if head.startswith("New submissions") else "cross" if head.startswith("Cross") else None
+        if kind is None or (kind == "cross" and not cross):
+            continue                                # (replacements: not new)
+        part = page[a:heads[k + 1][0] if k + 1 < len(heads) else len(page)]
+        for dt, dd in re.findall(r"<dt>(.*?)</dt>\s*<dd>(.*?)</dd>", part, re.S):
+            idm = re.search(r'id="(\d{4}\.\d{4,5}|[a-z-]+/\d{7})"', dt)
+            title = re.search(r"<div class='list-title[^']*'>(.*?)</div>", dd, re.S)
+            authors = re.search(r"<div class='list-authors'>(.*?)</div>", dd, re.S)
+            ab = re.search(r"<p class='mathjax'>(.*?)</p>", dd, re.S)
+            if not (idm and title):
+                continue
+            out.append({"id": idm.group(1), "title": re.sub(r"^Title:\s*", "", page_text(title.group(1))),
+                        "authors": [tex_accents(page_text(x)) for x in re.findall(r"<a [^>]*>(.*?)</a>", authors.group(1))] if authors else [],
+                        "abstract": page_text(ab.group(1)) if ab else "", "category": cat, "type": kind, "announced": day})
+    if not any(i["type"] == "new" for i in out) and "New submissions" in page:
+        raise ValueError("arXiv's /new page of %s could not be read" % cat)
+    return day, out
+
+
+def rss_new(cat, kinds):
+    """The same from the category's RSS feed (made at midnight US Eastern)."""
+    ns = {"arxiv": "http://arxiv.org/schemas/atom", "dc": "http://purl.org/dc/elements/1.1/"}
+    xml = http_get("https://rss.arxiv.org/rss/" + cat)
+    chan = ET.fromstring(xml).find("channel")
+    day = chan.findtext("pubDate") or ""
+    try:
+        announced = datetime.datetime.strptime(day[:16], "%a, %d %b %Y").date().isoformat()
+    except ValueError:
+        announced = now()[:10]
+    out = []
+    for it in chan.findall("item"):
+        kind = (it.findtext("arxiv:announce_type", namespaces=ns) or "").strip()
+        if kind not in kinds:
+            continue
+        aid = it.findtext("link", "").rsplit("/abs/", 1)[-1].strip()
+        desc = it.findtext("description", "")
+        abstract = re.sub(r"\s+", " ", desc.split("Abstract:", 1)[-1]).strip()
+        authors = [tex_accents(a.strip()) for a in re.split(r",\s*|\s+and\s+", it.findtext("dc:creator", "", ns)) if a.strip()]
+        out.append({"id": aid, "title": re.sub(r"\s+", " ", it.findtext("title", "")).strip(),
+                    "authors": authors, "abstract": abstract, "category": cat, "type": kind, "announced": announced})
+    return announced, out
+
+
 def api_day(cat, day, cross):
     """One announcement day of a category, from the arXiv API (for days before the RSS feed's)."""
     start, end = announcement_window(day)
@@ -543,10 +597,10 @@ def previous_weekday(iso):
 
 
 def fetch_feed(lib, before=None):
-    """New papers in the configured categories, from arXiv's RSS feeds (one announcement each)."""
+    """New papers in the configured categories: the newest announcement of each (arXiv's /new page, or its RSS
+    feed), added to the days already kept; or, with BEFORE, the announcement before that day."""
     cfg = lib.config()
     kinds = {"new", "cross"} if cfg.get("crossLists") else {"new"}
-    ns = {"arxiv": "http://arxiv.org/schemas/atom", "dc": "http://purl.org/dc/elements/1.1/"}
     old = lib.read("feed.json", {"items": []})
     items = {(i["id"], i["category"]): i for i in old.get("items", [])}
     if before:
@@ -566,26 +620,16 @@ def fetch_feed(lib, before=None):
         if not re.fullmatch(r"[a-z-]+(\.[A-Za-z-]+)?", cat):
             say("skipping odd category %r" % cat)
             continue
-        xml = http_get("https://rss.arxiv.org/rss/" + cat)
-        time.sleep(3)
-        chan = ET.fromstring(xml).find("channel")
-        day = chan.findtext("pubDate") or ""
+        # the newest day: from arXiv's /new page (there from the announcement on), else from the RSS feed
         try:
-            announced = datetime.datetime.strptime(day[:16], "%a, %d %b %Y").date().isoformat()
-        except ValueError:
-            announced = now()[:10]
-        for it in chan.findall("item"):
-            kind = (it.findtext("arxiv:announce_type", namespaces=ns) or "").strip()
-            if kind not in kinds:
-                continue
-            aid = it.findtext("link", "").rsplit("/abs/", 1)[-1].strip()
-            desc = it.findtext("description", "")
-            abstract = re.sub(r"\s+", " ", desc.split("Abstract:", 1)[-1]).strip()
-            authors = [tex_accents(a.strip()) for a in re.split(r",\s*|\s+and\s+", it.findtext("dc:creator", "", ns)) if a.strip()]
-            items[(aid, cat)] = {"id": aid, "title": re.sub(r"\s+", " ", it.findtext("title", "")).strip(),
-                                 "authors": authors, "abstract": abstract, "category": cat, "type": kind,
-                                 "announced": announced}
-        say("%s: %s" % (cat, announced))
+            announced, got = listing_new(cat, cfg.get("crossLists"))
+        except (urllib.error.URLError, ValueError) as e:
+            say("  %s: the /new page failed (%s); reading the RSS feed" % (cat, e))
+            announced, got = rss_new(cat, kinds)
+        time.sleep(3)
+        for i in got:
+            items[(i["id"], cat)] = i
+        say("%s: %s, %d papers" % (cat, announced, len(got)))
     cutoff = (datetime.date.today() - datetime.timedelta(days=FEED_DAYS)).isoformat()
     keep = [i for i in items.values() if i["announced"] >= cutoff and i["category"] in cfg["categories"]
             and i["type"] in kinds]
@@ -596,7 +640,10 @@ def fetch_feed(lib, before=None):
     htmls, cache, css = math_html([tex_text(i["title"]) for i in keep] + [tex_text(i["abstract"]) for i in keep])
     for k, i in enumerate(keep):
         i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]
-    lib.write("feed.json", {"updated": now(), "categories": cfg["categories"], "crossLists": cfg.get("crossLists", False),
+    # (checked: when the newest day was last looked for; updated: any change, as the app watches for its run's end)
+    t = now()
+    lib.write("feed.json", {"updated": t, "checked": old.get("checked") if before else t,
+                            "categories": cfg["categories"], "crossLists": cfg.get("crossLists", False),
                             "items": keep, "math": {"cache": cache, "css": css}})
     say("feed: %d papers" % len(keep))
 
