@@ -17,6 +17,24 @@
   // root set later would restyle the whole paper)
   if (/Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent) && !(window.matchMedia && matchMedia("(pointer: fine)").matches))
     document.documentElement.classList.add("l2m-own-select");
+  // A keyboard lies over the page, which keeps its size and does not slide (Chrome's VirtualKeyboard API): with only
+  // the view shrunk instead, scrolling with a keyboard up first slides the view down the page, and the bar, fixed to
+  // the page's top, out of sight. What sits at the foot rises over it (theme.css: env(keyboard-inset-height)); a field
+  // it would cover is brought above it
+  var keys = navigator.virtualKeyboard || null;
+  if (keys) {
+    try { keys.overlaysContent = true; } catch (e) {}
+    keys.addEventListener("geometrychange", function () { setTimeout(fieldInSight, 80); });
+    document.addEventListener("focusin", function () { setTimeout(fieldInSight, 400); });
+  }
+  function fieldInSight() {
+    var el = document.activeElement, h = keys && keys.boundingRect ? keys.boundingRect.height : 0;
+    if (!h || !el || !/^(INPUT|TEXTAREA)$/.test(el.tagName) || el.closest(".l2m-fnsheet, .l2m-bar, #app-bar")) return;   // (risen with it, or at the top)
+    var over = el.getBoundingClientRect().bottom - (window.innerHeight - h - 16);
+    if (over <= 0) return;
+    var box = el.closest(".menu-inner, .app-sheet-body");
+    if (box) box.scrollBy({top: over, behavior: "smooth"}); else window.scrollBy({top: over, behavior: "smooth"});
+  }
   var src = null;              // where papers come from (see staticSource / githubSource)
   var lib = null, feed = null, config = null;
   var view = null, current = null, urls = [];

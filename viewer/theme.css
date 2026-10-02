@@ -529,6 +529,9 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   visibility: hidden;
   transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, visibility 0s linear 320ms;
 }
+/* a keyboard laid over the page (app.js): what sits at the page's foot rises over it; the page scrolls on as far */
+.l2m-fnsheet { bottom: env(keyboard-inset-height, 0px); }
+body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }
 .l2m-fnsheet.open {
   transform: none;
   opacity: 1;
@@ -772,7 +775,7 @@ a.lib-title { color: var(--ink); }
 .app-paper-act { flex: 0 0 auto; }
 .app-log { font-size: 0.72em; max-height: 40vh; overflow: auto; white-space: pre-wrap; }
 .app-toast {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; box-sizing: border-box;
+  position: fixed; left: 0; right: 0; bottom: env(keyboard-inset-height, 0px); z-index: 70; box-sizing: border-box;
   padding: 14px max(18px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(18px, env(safe-area-inset-left, 0px));
   font-size: 0.92em; line-height: 1.45; color: var(--ink);
   background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
@@ -1917,7 +1920,7 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 /* a message with one thing to do, as a small card floating over the foot of the page (not a sheet): the message,
    the thing to do in the link's colour, its x; along its foot a line as the bar's reading line, filling as its time goes */
 .app-toast.snack {
-  left: 50%; right: auto; width: min(460px, calc(100% - 24px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  left: 50%; right: auto; width: min(460px, calc(100% - 24px)); bottom: calc(max(env(safe-area-inset-bottom, 0px), env(keyboard-inset-height, 0px)) + 14px);
   padding: 6px 6px 12px 18px; border: 1px solid var(--bar-line); border-radius: 18px; overflow: hidden;
   box-shadow: 0 12px 32px -14px var(--bar-shadow), 0 2px 6px -3px var(--bar-shadow);
   transform: translate(-50%, calc(100% + 30px)); font-size: 15px;

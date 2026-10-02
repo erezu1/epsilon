@@ -784,14 +784,13 @@ window.L2M_marks = function (host) {
     if (window.L2M_pinFilm) L2M_pinFilm(sheet, 360);
     if (document.activeElement && sheet.contains(document.activeElement)) document.activeElement.blur();
     sheet.style.bottom = "";
-    setTimeout(function () { if (!sheetOpen) keyboardOver(false); }, 600);   // (once the keyboard has gone)
     openId = null;
     relay();
   }
   // above the keyboard while one is up (a phone's keyboard covers the page's bottom, where the sheet is)
-  // While a note is written the keyboard lies over the page (Chrome's VirtualKeyboard API): the view keeps its size
-  // and does not pan, so the bar stays at the top however the page is scrolled (with the view shrunk instead, a scroll
-  // first pans the view down the page, and the bar, fixed to the page's top, goes out of sight). The sheet sits on it.
+  // The keyboard lies over the page (Chrome's VirtualKeyboard API; app.js asks it of the app's every field, this page
+  // of its note too): the view keeps its size and does not slide, so the bar stays at the top however the page is
+  // scrolled. The sheet sits on the keyboard.
   var vk = navigator.virtualKeyboard || null;
   function keyboardOver(on) { if (vk) try { vk.overlaysContent = on; } catch (e) {} }
   // above the keyboard while one is up (a phone's keyboard covers the page's bottom, where the sheet is); sight: the
@@ -1175,7 +1174,6 @@ window.L2M_marks = function (host) {
       if (laying) cancelAnimationFrame(laying);
       if (ro) ro.disconnect();
       if (sizer) sizer.disconnect();
-      keyboardOver(false);
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       store.flush(true);

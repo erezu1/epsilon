@@ -684,7 +684,7 @@ window.L2M_nav = function (opts) {
       if (h.range) (h.boxes || []).forEach(function (b) { b.classList.add("now"); });
       else if (h.mark) h.mark.classList.add("now");
       // in sight: below the bar, above the peek, a third of the way down if it has to move
-      var r = hitRect(h), top = barHeight() + 12, bottom = window.innerHeight - (peekOpen ? peekH : 0) - 24;
+      var r = hitRect(h), top = barHeight() + 12, bottom = window.innerHeight - Math.max(peekOpen ? peekH : 0, keyboardH()) - 24;
       if (r.top < top || r.bottom > bottom) window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - top - (bottom - top) * 0.3));
       var at = (h.glyphs && h.mark) || (h.range && h.range.startContainer.parentElement), eq = at && at.closest && at.closest(".eqbody");
       if (eq) {                                           // a wide formula scrolled sideways to it
@@ -702,6 +702,16 @@ window.L2M_nav = function (opts) {
     findCount.classList.toggle("none", !!q && !hits.length);
     findBar.querySelector(".find-prev").disabled = findBar.querySelector(".find-next").disabled = hits.length < 2;
   }
+  // a keyboard's height over the page's foot (laid over it, or the view shrunk by it), 0 with none up
+  function keyboardH() {
+    var vk = navigator.virtualKeyboard, vv = window.visualViewport;
+    if (vk && vk.overlaysContent && vk.boundingRect) return vk.boundingRect.height;
+    return vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+  }
+  // the keyboard up while searching: the place it is on, if it went under it, back in sight above it
+  if (navigator.virtualKeyboard) on(navigator.virtualKeyboard, "geometrychange", function () {
+    setTimeout(function () { if (finding && hitAt >= 0 && hits[hitAt]) findGo(hitAt, true); }, 250);
+  });
   function findStep(d) { if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
   // what is selected, as a search: a formula (or a part of one) as its TeX, text as it reads; nothing when too long
   function selectedQuery() {
