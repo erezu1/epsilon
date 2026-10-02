@@ -113,25 +113,29 @@ window.L2M_nav = function (opts) {
     try { history.replaceState(assign(state(), {l2mIdx: idx, l2mY: window.pageYOffset, l2mPaper: KEY}), ""); } catch (e) {}
   }
 
-  function navigate(id) {
-    var el = document.getElementById(id);
-    if (!el) return false;
+  // a step in the history to the place y, the address naming it (#name): back returns to where the reader was
+  function jumpTo(y, name) {
     if (finding) closeFind("jump");
     var from = window.pageYOffset;
-    var y = id === "l2m-top" ? 0 : yOf(el);
     if (useHistory) {
       try {
         history.replaceState(assign(state(), {l2mIdx: idx, l2mY: from, l2mPaper: KEY}), "");
-        var next = {l2mIdx: idx + 1, l2mY: y, l2mId: id, l2mPaper: KEY};
-        try { history.pushState(next, "", "#" + id); } catch (e1) { history.pushState(next, ""); }
+        var next = {l2mIdx: idx + 1, l2mY: y, l2mId: name, l2mPaper: KEY};
+        try { history.pushState(next, "", "#" + name); } catch (e1) { history.pushState(next, ""); }
         idx += 1;
       } catch (e2) { useHistory = false; mem.push(from); }
     } else {
       mem.push(from);
     }
     scrollToY(y);
-    if (id !== "l2m-top") flash(el);
     update();
+  }
+  function navigate(id) {
+    var el = document.getElementById(id);
+    if (!el) return false;
+    if (finding) closeFind("jump");
+    jumpTo(id === "l2m-top" ? 0 : yOf(el), id);
+    if (id !== "l2m-top") flash(el);
     return true;
   }
 
@@ -223,6 +227,7 @@ window.L2M_nav = function (opts) {
     if (name === "menu") {
       var cur = menu.querySelector("a.current"), box = menu.querySelector(".menu-inner");
       if (cur) box.scrollTop = Math.max(0, cur.offsetTop - box.clientHeight / 2);
+      if (marks) marks.panelOpened();
     } else {
       refreshSettings(true);
     }
@@ -1300,6 +1305,7 @@ window.L2M_nav = function (opts) {
   function peekFill() {                     // all at once (the peek wanted now)
     peekMain.l2mBuilding = null;
     peekMain.innerHTML = document.querySelector("main").innerHTML;
+    peekMain.l2mGen = (peekMain.l2mGen || 0) + 1;          // (a copy of its own: the marks read it anew)
     prepCopy(peekMain);
     peekFinish();
   }
@@ -1310,6 +1316,7 @@ window.L2M_nav = function (opts) {
     var kids = Array.prototype.slice.call(document.querySelector("main").children), i = 0;
     peekMain.innerHTML = "";
     peekMain.l2mFilled = false;
+    peekMain.l2mGen = (peekMain.l2mGen || 0) + 1;
     var job = peekMain.l2mBuilding = {rest: function () {
       var f = document.createDocumentFragment();
       while (i < kids.length) f.appendChild(kids[i++].cloneNode(true));
@@ -1442,6 +1449,7 @@ window.L2M_nav = function (opts) {
       peek.classList.add("open");
       overlayIn("l2mPeek");
     }
+    if (marks) marks.peekOpened(peekMain, peekMain.l2mGen || 0);
     // the link it came from stays in sight above: moved up, if the peek would cover it
     if (from && !peek.contains(from)) {
       var r = from.getBoundingClientRect(), top = barHeight(), bottom = window.innerHeight - peekHeight();
@@ -1467,6 +1475,7 @@ window.L2M_nav = function (opts) {
     closeSheet();
     overlayOut("l2mPeek", "hand");                   // (its history step goes now; the page's jump comes at the end)
     peekOpen = false;
+    if (marks) marks.peekClosed();
     clearTimeout(peekCloseTimer);
     var main = document.querySelector("main"), T = reduced ? 0 : 340, half = reduced ? 0 : 150;
     peek.classList.add("expanding");
@@ -1511,6 +1520,7 @@ window.L2M_nav = function (opts) {
     if (!peekOpen) return;
     overlayOut("l2mPeek", how || "hand");
     peekOpen = false;
+    if (marks) marks.peekClosed();
     peek.classList.remove("open");
     L2M_pinFilm(peekHead, 360);
     peek.setAttribute("aria-hidden", "true");
@@ -1807,6 +1817,7 @@ window.L2M_nav = function (opts) {
   if (opts.marks && window.L2M_marks) {
     marks = window.L2M_marks({
       store: opts.marks, icons: theme.icons || {}, block: BLOCK, ready: opts.textReady || opts.ready,   // (the text and formulas in)
+      menu: menu, closeMenu: closeMenu, jump: jumpTo,
       tex: opts.tex || function () { return ""; },
       overlayIn: overlayIn, overlayOut: overlayOut,
       closeOthers: function () { closeMenu("jump"); closeSheet(); },

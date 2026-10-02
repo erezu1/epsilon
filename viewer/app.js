@@ -759,6 +759,13 @@
   // reading places and pins (reading.json), synced the same way: per folder and per paper, the latest change wins; a
   // folder deleted stays as a mark ("gone"), so the deletion reaches the other devices. Its papers are then unfiled.
   var folders = store("folders") || {}, placed = store("placed") || {};
+  // how many marks (and notes) each paper has, for the library's rows: kept beside the reading places, so another
+  // device knows them before it opens the paper ({key: {n, w (with a note), at}}; the latest wins)
+  var markCounts = store("markCounts") || {};
+  function mergeMarkCounts(remote) {
+    Object.keys(remote || {}).forEach(function (k) { if (!markCounts[k] || (remote[k].at || 0) > (markCounts[k].at || 0)) markCounts[k] = remote[k]; });
+    store("markCounts", markCounts);
+  }
   // their order: the reader's (dragged), a position each; folders from before it (none) by name, ahead
   function folderList() {
     return Object.keys(folders).filter(function (id) { return !folders[id].gone; })
@@ -835,7 +842,7 @@
     store("folders", folders);
     store("placed", placed);
   }
-  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins) + JSON.stringify(folders) + JSON.stringify(placed); }
+  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins) + JSON.stringify(folders) + JSON.stringify(placed) + JSON.stringify(markCounts); }
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
   // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
   // every device and at any moment, whatever is laid out yet
@@ -899,14 +906,14 @@
   }
   function pullReading() {
     if (!src || !src.readWithSha) return Promise.resolve();
-    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeOrg((r.data || {}).folders, (r.data || {}).placed); },
+    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
                                                 function () {});
   }
   var readingSent = "";                        // what was last written: the same again is not written
   function pushReading(keepalive) {
     if (!readingDirty || !src || !src.putJSON) return;
     readingDirty = false;
-    var data = {papers: reading, pins: pins, folders: folders, placed: placed}, text = JSON.stringify(data);
+    var data = {papers: reading, pins: pins, folders: folders, placed: placed, marks: markCounts}, text = JSON.stringify(data);
     if (text === readingSent) return;
     readingSent = text;
     src.putJSON("reading.json", data, readingSha, "Reading places", keepalive).then(function (sha) {
@@ -944,6 +951,14 @@
       });
       return changed;
     }
+    function recount() {
+      var n = 0, w = 0, was = markCounts[key] || {};
+      Object.keys(marks).forEach(function (id) { var m = marks[id]; if (m && !m.gone && m.quote) { n++; if (m.note) w++; } });
+      if ((was.n || 0) === n && (was.w || 0) === w) return;
+      markCounts[key] = {n: n, w: w, at: Date.now()};
+      store("markCounts", markCounts);
+      readingDirty = true;
+    }
     function ahead(remote) {                      // ours has what theirs has not
       return Object.keys(marks).some(function (id) { var r = (remote || {})[id]; return !r || (marks[id].at || 0) > (r.at || 0); });
     }
@@ -958,6 +973,7 @@
         dirty = ahead(remote);                    // (what is left to write: only what theirs has not)
         if (dirty) soon(0);
         keep();
+        recount();
         return changed;
       }, function () { return false; });
     }
@@ -981,7 +997,7 @@
     return {
       version: (entry && entry.converted) || "",
       all: function () { return marks; },
-      put: function (m) { m.at = Date.now(); marks[m.id] = m; dirty = true; keep(); soon(); },
+      put: function (m) { m.at = Date.now(); marks[m.id] = m; dirty = true; keep(); soon(); recount(); },
       place: function (m) { marks[m.id] = m; keep(); },       // found anew in another conversion: nothing to write
       pull: pull,
       flush: function (keepalive) { clearTimeout(timer); send(keepalive); },
@@ -1924,6 +1940,9 @@
       else if (x.kind === "draft") meta.push("your draft");
       else if (x.kind === "note") meta.push("note");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');
+      var mc = markCounts[k];
+      if (mc && mc.n > 0) meta.push('<span class="lib-marks">' + mc.n + (mc.n === 1 ? " mark" : " marks") +
+                                    (mc.w ? " &middot; " + mc.w + (mc.w === 1 ? " note" : " notes") : "") + "</span>");
       var fk = folderOf(k);
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "") + " " + (fk ? folders[fk].name : "")).toLowerCase();
       var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;

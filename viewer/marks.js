@@ -1,34 +1,40 @@
 // Epsilon app: marks in a paper. A mark is a stretch of the paper's text marked as with a highlighter, in one of three
-// colours, with a note if the reader writes one. Text selected in the paper brings a bar up at the bottom (the
-// three colours, Note, Find); a mark tapped opens its sheet (its colour, its note, a link to it, its removal), which
-// takes a step in the history as the footnote's sheet does.
+// colours, with a note if the reader writes one. Text selected in the paper (or in the peek) brings a bar up at the
+// bottom (the three colours, Note, Find); a mark tapped opens its sheet (its colour, its note, a link to it, its
+// removal), which takes a step in the history as the footnote's sheet does. The contents panel gets a second tab,
+// Notes: the paper's marks in order under their sections, each a jump to it. On a wide screen a note stands in the
+// margin beside its mark; on a narrow one, a small sign there.
 //
 // nav.js starts it on an open paper when the host (app.js) keeps marks: L2M_marks(host) returns {closeSheet,
-// reveal, destroy}. host.store keeps them (on the device at once; in the library, merged mark by mark):
-// all() -> {id: mark}, put(mark), place(mark), pull() -> Promise(changed), flush(keepalive), link(id), version,
-// toast(html), toastAct(html, label, fn).
+// reveal, panelOpened, peekOpened, peekClosed, destroy}. host.store keeps them (on the device at once; in the
+// library, merged mark by mark): all() -> {id: mark}, put(mark), place(mark), pull() -> Promise(changed),
+// flush(keepalive), link(id), version, toast(html), toastAct(html, label, fn).
 //
 // Where a mark is. The paper's text as one string: its words (each run of spaces as one), each formula as its TeX
 // between $ signs, a line between blocks. A mark keeps its place in that string, the words it marks and a few
 // before and after: in the same conversion its place still has its words; in a new one (the paper converted again)
-// the words are looked for, those before and after choosing between repeats. A mark not found stays kept, unseen.
+// the words are looked for, those before and after choosing between repeats. A mark not found stays kept, and
+// listed under Notes as not found. The peek's copy of the paper has the same text: the same places, its own nodes.
 window.L2M_marks = function (host) {
   "use strict";
   var store = host.store, I = host.icons || {}, main = document.querySelector("main");
   var dead = false, offs = [];
   function on(t, type, fn, o) { t.addEventListener(type, fn, o); offs.push([t, type, fn, o]); }
   var NAMES = ["Green", "Pink", "Violet"];
+  function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   // ---------------------------------------------------------------- the paper's text
-  var M = null, job = null;             // M: {C, segs, at (node -> segment), heads}, made once (the paper's text stays)
   function isWS(c) { return c === 32 || c === 10 || c === 9 || c === 13 || c === 12 || c === 160 || c === 8201 || c === 8202 || c === 8239; }
-  var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, details.toc, .l2m-libnav";
+  var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, .l2m-mk-layer, details.toc, .l2m-libnav";
   var FORMULA = "mjx-container[data-n], l2m-math[n]";
-  // The text is read once (it stays as long as the paper is open): at once when a mark is made, else a little at a
-  // time in the page's idle moments (a long paper takes some tens of milliseconds on a phone)
-  function begin() {
+  // A text: {root, M: {C, segs, at (node -> segment), heads}, job}. Read once (it stays as long as the paper, or the
+  // peek's copy, is open): at once when a mark is made, else a little at a time in the page's idle moments (a long
+  // paper takes some tens of milliseconds on a phone)
+  function textOf(root) { return {root: root, M: null, job: null}; }
+  var T = textOf(main), P = null;                  // the page's text; the peek's
+  function begin(t) {
     return {C: "", segs: [], at: new Map(), heads: [], space: true, last: null,
-      walk: document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
+      walk: document.createTreeWalker(t.root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
         if (n.nodeType === 1) {
           if (n.matches(FORMULA)) return NodeFilter.FILTER_ACCEPT;
           return n.matches(SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
@@ -36,21 +42,23 @@ window.L2M_marks = function (host) {
         return NodeFilter.FILTER_ACCEPT;
       }})};
   }
-  function read(j, until) {                        // on from where it was, until a moment (0: to the end); done or not
+  function read(t, until) {                        // on from where it was, until a moment (0: to the end); done or not
+    var j = t.job;
     for (var n = j.walk.nextNode(); n; n = j.walk.nextNode()) {
       var blk = n.parentNode.closest(host.block);
       if (blk !== j.last) {
         if (j.C && j.C.charCodeAt(j.C.length - 1) !== 10) j.C += "\n";
         j.space = true;
         j.last = blk;
-        if (blk && /^H[2-5]$/.test(blk.tagName) && blk.id) j.heads.push({a: j.C.length, id: blk.id});
+        var hid = blk && /^H[2-5]$/.test(blk.tagName) && (blk.id || blk.getAttribute("data-pid"));
+        if (hid) j.heads.push({a: j.C.length, id: hid, el: blk});
       }
       if (n.nodeType === 1) {                    // a formula: its TeX
         var k = n.getAttribute("data-n") || n.getAttribute("n");
-        var t = "$" + String(host.tex(k) || "").replace(/\s+/g, " ").trim() + "$";
+        var tx = "$" + String(host.tex(k) || "").replace(/\s+/g, " ").trim() + "$";
         j.at.set(n, j.segs.length);
-        j.segs.push({f: n, a: j.C.length, b: j.C.length + t.length});
-        j.C += t;
+        j.segs.push({f: n, a: j.C.length, b: j.C.length + tx.length});
+        j.C += tx;
         j.space = false;
       } else {
         var d = n.data, pre = j.space, out = "", space = j.space;
@@ -67,19 +75,19 @@ window.L2M_marks = function (host) {
       }
       if (until && performance.now() > until) return false;
     }
-    M = {C: j.C, segs: j.segs, at: j.at, heads: j.heads};
-    job = null;
+    t.M = {C: j.C, segs: j.segs, at: j.at, heads: j.heads};
+    t.job = null;
     return true;
   }
-  function model() { if (!M) { job = job || begin(); read(job, 0); } return M; }
+  function model(t) { if (!t.M) { t.job = t.job || begin(t); read(t, 0); } return t.M; }
   function idle(f) { (window.requestIdleCallback || function (g) { return setTimeout(g, 30); })(f, {timeout: 1500}); }
-  function modelSoon() {
+  function modelSoon(t) {
     return new Promise(function (res) {
       (function slice() {
         if (dead) return;
-        if (M) { res(M); return; }
-        job = job || begin();
-        if (read(job, performance.now() + 6)) res(M); else idle(slice);
+        if (t.M) { res(t.M); return; }
+        t.job = t.job || begin(t);
+        if (read(t, performance.now() + 6)) res(t.M); else idle(slice);
       })();
     });
   }
@@ -103,9 +111,9 @@ window.L2M_marks = function (host) {
     }
     return Math.min(c, s.b - s.a);
   }
-  // a point of the page (a range's start, or its end) as a place in the text
-  function placeOf(node, off, end) {
-    var el = node.nodeType === 1 ? node : node.parentNode, f = el && el.closest ? el.closest(FORMULA) : null;
+  // a point of the page (a range's start, or its end) as a place in a text
+  function placeOf(t, node, off, end) {
+    var M = t.M, el = node.nodeType === 1 ? node : node.parentNode, f = el && el.closest ? el.closest(FORMULA) : null;
     if (f && M.at.has(f)) { var g = M.segs[M.at.get(f)]; return end ? g.b : g.a; }     // (in a formula: all of it)
     if (node.nodeType === 3 && M.at.has(node)) { var s = M.segs[M.at.get(node)]; return s.a + given(s, off); }
     var r = document.createRange();                 // between pieces of text: the next one (or, for an end, the last)
@@ -118,33 +126,32 @@ window.L2M_marks = function (host) {
     if (end) return lo > 0 ? M.segs[lo - 1].b : 0;
     return lo < M.segs.length ? M.segs[lo].a : M.C.length;
   }
-  function firstSeg(s) {                          // the first segment that ends after s
+  function firstSeg(M, s) {                        // the first segment that ends after s
     var lo = 0, hi = M.segs.length;
     while (lo < hi) { var mid = (lo + hi) >> 1; if (M.segs[mid].b <= s) lo = mid + 1; else hi = mid; }
     return lo;
   }
-  // the page's range for the text's [s, e)
-  function rangeOf(s, e) {
-    var r = document.createRange(), i = firstSeg(s), g = M.segs[i];
+  function rangeOf(M, s, e) {                      // the page's range for a text's [s, e)
+    var r = document.createRange(), g = M.segs[firstSeg(M, s)];
     if (!g) return null;
     if (g.f) r.setStartBefore(g.f); else r.setStart(g.t, srcIndex(g, Math.max(0, s - g.a)));
-    var j = firstSeg(e - 1), h = M.segs[j] || g;
+    var h = M.segs[firstSeg(M, e - 1)] || g;
     if (h.f) r.setEndAfter(h.f); else r.setEnd(h.t, e - h.a > 0 ? srcIndex(h, Math.min(e, h.b) - h.a - 1) + 1 : srcIndex(h, 0));
     return r;
   }
-  function secAt(s) {                             // the section a place is in (its heading's id)
-    var id = "";
-    M.heads.forEach(function (h) { if (h.a <= s) id = h.id; });
-    return id;
+  function headAt(M, s) {                          // the section a place is in (its heading)
+    var h = null;
+    for (var i = 0; i < M.heads.length && M.heads[i].a <= s; i++) h = M.heads[i];
+    return h;
   }
-  // where a mark is now: its own place if its words are still there; else its words (the ones before and after
-  // choosing between repeats, then the nearer); null if they are not in the paper
+  // where a mark is in a text: its own place if its words are still there; else its words (the ones before and after
+  // choosing between repeats, then the nearer); null if they are not in it
   function common(a, b, back) {
     var n = Math.min(a.length, b.length), k = 0;
     while (k < n && (back ? a[a.length - 1 - k] === b[b.length - 1 - k] : a[k] === b[k])) k++;
     return k;
   }
-  function locate(m) {
+  function locate(M, m) {
     var C = M.C, q = m.quote || "";
     if (!q) return null;
     if (C.slice(m.start, m.end) === q) return [m.start, m.end];
@@ -159,40 +166,54 @@ window.L2M_marks = function (host) {
     return best < 0 ? null : [best, best + q.length];
   }
 
-  // ---------------------------------------------------------------- the marks on the page
-  var placed = {};                      // id -> {s, e}: where each mark is in the text (only those found)
-  var lost = 0, toldLost = false;
+  // ---------------------------------------------------------------- the marks found
+  var placed = {}, lostIds = [], toldLost = false;  // placed: id -> {s, e} in the page's text; lostIds: those not found
+  var peekPlaced = {};                             // the same in the peek's (its text the page's: the same places)
   function live(m) { return m && !m.gone && m.quote; }
-  function place() {                    // every mark found in the text
+  function any() { var all = store.all(); return Object.keys(all).some(function (id) { return live(all[id]); }); }
+  function place() {                              // every mark found in the page's text (and the peek's, if open)
     var all = store.all(), ids = Object.keys(all).filter(function (id) { return live(all[id]); });
-    if (!ids.length && !M) { placed = {}; relay(); return; }
-    model();
     placed = {};
-    lost = 0;
-    ids.forEach(function (id) {
-      var m = all[id], r = locate(m);
-      if (!r) { lost++; return; }
-      placed[id] = {s: r[0], e: r[1]};
-      // found elsewhere (the paper converted again): its new place kept with it, on this device (no change of its own)
-      if (r[0] !== m.start || r[1] !== m.end || m.ver !== store.version) { m.start = r[0]; m.end = r[1]; m.ver = store.version; store.place(m); }
-    });
+    lostIds = [];
+    if (ids.length || T.M) {
+      var M = model(T);
+      ids.forEach(function (id) {
+        var m = all[id], r = locate(M, m);
+        if (!r) { lostIds.push(id); return; }
+        placed[id] = {s: r[0], e: r[1]};
+        // found elsewhere (the paper converted again): its new place kept with it, on this device (no change of its own)
+        if (r[0] !== m.start || r[1] !== m.end || m.ver !== store.version) { m.start = r[0]; m.end = r[1]; m.ver = store.version; store.place(m); }
+      });
+    }
+    placePeek();
     relay();
-    if (lost && !toldLost && store.toast) {
+    listChanged();
+    if (lostIds.length && !toldLost && store.toast) {
       toldLost = true;
-      store.toast(lost === 1 ? "A mark couldn’t be placed in this version of the paper." :
-                  lost + " marks couldn’t be placed in this version of the paper.", 6000);
+      store.toast(lostIds.length === 1 ? "A mark couldn’t be placed in this version of the paper. It’s listed under Notes." :
+                  lostIds.length + " marks couldn’t be placed in this version of the paper. They’re listed under Notes.", 6000);
     }
   }
-  // drawn as the search's finds are: a marker's stroke over each line of a mark, laid over the page in a layer of its
-  // own (the text left as it is); laid again whenever the page's layout changes
-  var layer = document.createElement("div");
-  layer.className = "l2m-mk-layer";
-  layer.setAttribute("aria-hidden", "true");
-  var boxes = [], laying = 0, openId = null, flashId = null;
+  function placePeek() {
+    peekPlaced = {};
+    if (!P || !P.M || !T.M) return;
+    if (P.M.C === T.M.C) { peekPlaced = placed; return; }
+    var all = store.all();
+    Object.keys(placed).forEach(function (id) { var r = locate(P.M, all[id]); if (r) peekPlaced[id] = {s: r[0], e: r[1]}; });
+  }
+
+  // ---------------------------------------------------------------- drawn on the page
+  // A marker's stroke over each line of a mark, as the search's finds are drawn, laid over the page in a layer of its
+  // own (the text left as it is); laid again whenever the page's layout changes. The peek's in a layer in its copy.
+  function newLayer() { var l = document.createElement("div"); l.className = "l2m-mk-layer"; l.setAttribute("aria-hidden", "true"); return l; }
+  var layer = newLayer(), peekLayer = newLayer();
+  var side = document.createElement("div");       // the notes in the margin (not blended: they are text to read)
+  side.className = "l2m-mk-side-layer";
+  var boxes = [], peekBoxes = [], laying = 0, openId = null, flashId = null, hoverId = null, peekShown = false;
   function relay() { if (!dead && !laying) laying = requestAnimationFrame(layout); }
   function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973; return h; }
-  function rectsOf(s, e) {
-    var out = [], i = firstSeg(s);
+  function rectsOf(M, s, e) {
+    var out = [], i = firstSeg(M, s);
     for (; i < M.segs.length && M.segs[i].a < e; i++) {
       var g = M.segs[i];
       if (g.f) {                                  // a formula: its picture's box (a displayed one: within its frame)
@@ -230,54 +251,96 @@ window.L2M_marks = function (host) {
       });
     return out;
   }
-  function layout() {
-    laying = 0;
-    if (dead) return;
-    var all = store.all(), ids = Object.keys(placed).filter(function (id) { return live(all[id]); });
-    if (!ids.length) { layer.textContent = ""; boxes = []; return; }
-    if (!layer.parentNode) document.body.appendChild(layer);
-    var x0 = window.pageXOffset, y0 = window.pageYOffset, mr = main.getBoundingClientRect();
-    var right = mr.right - (parseFloat(getComputedStyle(main).paddingRight) || 0);
-    // every place first (one layout), then every stroke at once (one insertion)
-    var each = ids.map(function (id) { return {id: id, m: all[id], len: placed[id].e - placed[id].s, lines: lines(rectsOf(placed[id].s, placed[id].e))}; });
-    var frag = document.createDocumentFragment(), nb = [];
-    each.forEach(function (d) {
-      var seed = hash(d.id), c = " c" + (d.m.c || 1), lit = d.id === openId || d.id === flashId ? " on" : "";
-      d.lines.forEach(function (b, j) {
+  // the strokes of the marks of a text, at their places (x0, y0: the layer's offset from the window), and their boxes
+  function strokes(M, where, x0, y0, frag, nb) {
+    var all = store.all(), out = [];
+    Object.keys(where).forEach(function (id) {
+      var m = all[id];
+      if (!live(m)) return;
+      var p = where[id], ls = lines(rectsOf(M, p.s, p.e)), seed = hash(id), c = " c" + (m.c || 1);
+      var lit = id === openId || id === flashId || id === hoverId ? " on" : "";
+      ls.forEach(function (b, j) {
         var s = document.createElement("span");
         s.className = "l2m-mk" + c + lit;
         s.style.cssText = host.strokeCss(b.left + x0, b.top + y0, b.right - b.left, b.bottom - b.top, seed + j);
         frag.appendChild(s);
-        nb.push({id: d.id, len: d.len, x0: b.left + x0 - 2, y0: b.top + y0 - 2, x1: b.right + x0 + 2, y1: b.bottom + y0 + 2});
+        nb.push({id: id, len: p.e - p.s, x0: b.left + x0 - 2, y0: b.top + y0 - 2, x1: b.right + x0 + 2, y1: b.bottom + y0 + 2});
       });
-      if (d.m.note && d.lines.length) {          // a note: a small sign in the margin, by the mark's first line
-        var f = d.lines[0], cy = (f.top + f.bottom) / 2 + y0, cx = right + x0 + 9, badge = document.createElement("span");
+      if (ls.length) out.push({id: id, m: m, first: ls[0]});
+    });
+    return out;
+  }
+  function layout() {
+    laying = 0;
+    if (dead) return;
+    var x0 = window.pageXOffset, y0 = window.pageYOffset, nb = [];
+    if (T.M && Object.keys(placed).length) {
+      if (!layer.parentNode) document.body.appendChild(layer);
+      if (!side.parentNode) document.body.appendChild(side);
+      var mr = main.getBoundingClientRect(), right = mr.right - (parseFloat(getComputedStyle(main).paddingRight) || 0);
+      // every place first (one layout), then every stroke at once (one insertion)
+      var frag = document.createDocumentFragment(), drawn = strokes(T.M, placed, x0, y0, frag, nb);
+      // a note: in the margin, beside its mark, where there is room (stacked, never one over another); else a sign
+      var room = document.documentElement.clientWidth - right - 12, wide = room >= 210 ? Math.min(270, room - 44) : 0;
+      var notes = document.createDocumentFragment(), sideNotes = [];
+      drawn.filter(function (d) { return d.m.note; }).sort(function (a, b) { return a.first.top - b.first.top; }).forEach(function (d) {
+        var c = " c" + (d.m.c || 1);
+        if (wide) {
+          var n = document.createElement("div");
+          n.className = "l2m-mk-side" + c + (d.id === openId || d.id === hoverId ? " on" : "");
+          n.setAttribute("data-id", d.id);
+          n.textContent = d.m.note;
+          n.style.left = (right + x0 + 28) + "px";
+          n.style.width = wide + "px";
+          n.style.top = (d.first.top + y0 - 2) + "px";
+          notes.appendChild(n);
+          sideNotes.push(n);
+          return;
+        }
+        var f = d.first, cy = (f.top + f.bottom) / 2 + y0, cx = right + x0 + 9, badge = document.createElement("span");
         badge.className = "l2m-mk-note" + c;
         badge.innerHTML = I.noteMark || "";
         badge.style.left = (cx - 6) + "px";
         badge.style.top = (cy - 6) + "px";
         frag.appendChild(badge);
-        nb.push({id: d.id, len: d.len, x0: cx - 14, y0: cy - 14, x1: cx + 14, y1: cy + 14});
-      }
-    });
-    layer.textContent = "";
-    layer.appendChild(frag);
+        nb.push({id: d.id, len: 0, x0: cx - 14, y0: cy - 14, x1: cx + 14, y1: cy + 14});
+      });
+      layer.textContent = "";
+      layer.appendChild(frag);
+      side.textContent = "";
+      side.appendChild(notes);
+      var below = -Infinity;                       // (heights read all at once, then moved down where they would meet)
+      sideNotes.map(function (n) { return [n, n.offsetHeight, parseFloat(n.style.top)]; }).forEach(function (e) {
+        var top = Math.max(e[2], below + 10);
+        if (top !== e[2]) e[0].style.top = top + "px";
+        below = top + e[1];
+      });
+    } else { layer.textContent = ""; side.textContent = ""; }
     boxes = nb;
+    // the peek's, while it is open (its layer in its copy: the boxes against the copy's corner)
+    var pb = [];
+    if (peekShown && P && P.M && Object.keys(peekPlaced).length) {
+      if (peekLayer.parentNode !== P.root) P.root.appendChild(peekLayer);
+      var pr = P.root.getBoundingClientRect(), pf = document.createDocumentFragment();
+      strokes(P.M, peekPlaced, -pr.left, -pr.top, pf, pb);
+      peekLayer.textContent = "";
+      peekLayer.appendChild(pf);
+    } else peekLayer.textContent = "";
+    peekBoxes = pb;
   }
-  function markAt(x, y) {                         // the mark under a point of the page (the shortest, if they overlap)
+  function hit(list, x, y) {                      // the mark under a point (the shortest, if they overlap)
     var best = null;
-    boxes.forEach(function (b) {
+    list.forEach(function (b) {
       if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1 && (!best || b.len < best.len)) best = b;
     });
     return best ? best.id : null;
   }
-  if (window.ResizeObserver) {
-    var ro = new ResizeObserver(relay);
-    ro.observe(main);
-    offs.push([{removeEventListener: function () { ro.disconnect(); }}, "", null]);
-  }
+  var ro = window.ResizeObserver ? new ResizeObserver(relay) : null;
+  if (ro) ro.observe(main);
   on(window, "resize", relay);
   on(main, "scroll", relay, true);                 // (a wide formula scrolled sideways)
+  side.addEventListener("mouseover", function (e) { var n = e.target.closest(".l2m-mk-side"); var id = n && n.getAttribute("data-id"); if (id !== hoverId) { hoverId = id; relay(); } });
+  side.addEventListener("mouseleave", function () { if (hoverId) { hoverId = null; relay(); } });
 
   // ---------------------------------------------------------------- the bar for what is selected
   function colourOf() { var p = window.L2M_prefs ? L2M_prefs() : {}; return p.markColour >= 1 && p.markColour <= 3 ? p.markColour : 1; }
@@ -297,11 +360,16 @@ window.L2M_marks = function (host) {
     '<button type="button" class="mb-btn" data-mb="find">' + (I.search || "") + "<span>Find</span></button></div>";
   document.body.appendChild(dock);
   var dockOpen = false, lastRange = null, selT = 0, mouseDown = false, pointer = "", tapT = 0;
-  function selected() {                           // what is selected in the paper, if anything
+  function textAt(node) {                          // the text a node is in: the page's, or the peek's copy's
+    if (main.contains(node)) return T;
+    if (P && peekShown && P.root.contains(node)) return P;
+    return null;
+  }
+  function selected() {                           // what is selected in the paper (or the peek), if anything
     var sel = window.getSelection && window.getSelection();
     if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
     var r = sel.getRangeAt(0);
-    if (!main.contains(r.commonAncestorContainer) || !String(sel).trim()) return null;
+    if (!textAt(r.commonAncestorContainer) || !String(sel).trim()) return null;
     return r;
   }
   function showDock() {
@@ -349,25 +417,24 @@ window.L2M_marks = function (host) {
   });
   function clearSel() { var sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges(); lastRange = null; hideDock(); }
   function make(c) {                              // the selection marked: a new mark (its id)
-    var r = lastRange;
-    if (!r) return null;
-    model();
-    var s = placeOf(r.startContainer, r.startOffset, false), e = placeOf(r.endContainer, r.endOffset, true), C = M.C;
+    var r = lastRange, t = r && textAt(r.commonAncestorContainer);
+    if (!t) return null;
+    var M = model(t), s = placeOf(t, r.startContainer, r.startOffset, false), e = placeOf(t, r.endContainer, r.endOffset, true), C = M.C;
     if (s < 0 || e < 0) return null;
     while (s < e && isWS(C.charCodeAt(s))) s++;
     while (e > s && isWS(C.charCodeAt(e - 1))) e--;
     // whole words: a selection begun or ended within one takes all of it
-    var wordy = /[\p{L}\p{N}\p{M}'\u2019]/u;
+    var wordy = /[\p{L}\p{N}\p{M}'’]/u;
     while (s > 0 && wordy.test(C[s - 1]) && wordy.test(C[s])) s--;
     while (e < C.length && wordy.test(C[e]) && wordy.test(C[e - 1])) e++;
     if (e <= s) { clearSel(); return null; }
-    var now = Date.now(), id = "m" + now.toString(36) + Math.random().toString(36).slice(2, 6);
-    store.put({id: id, c: c, quote: C.slice(s, e), pre: C.slice(Math.max(0, s - 40), s), post: C.slice(e, e + 40),
-               start: s, end: e, sec: secAt(s), ver: store.version, made: now});
-    placed[id] = {s: s, e: e};
+    var head = headAt(M, s), now = Date.now(), id = "m" + now.toString(36) + Math.random().toString(36).slice(2, 6);
+    var m = {id: id, c: c, quote: C.slice(s, e), pre: C.slice(Math.max(0, s - 40), s), post: C.slice(e, e + 40),
+             start: s, end: e, sec: head ? head.id : "", ver: store.version, made: now};
+    store.put(m);
     keepColour(c);
     clearSel();
-    relay();
+    place();                                       // (in the page's text and the peek's, wherever it was made)
     return id;
   }
 
@@ -386,20 +453,25 @@ window.L2M_marks = function (host) {
   document.body.appendChild(sheet);
   var quote = sheet.querySelector(".mk-quote"), note = sheet.querySelector(".mk-note");
   var sheetOpen = false, noteT = 0;
+  // a mark's words as they stand in the paper (its formulas drawn first: one not drawn yet would be copied empty);
+  // at most limit characters of them
+  function wordsOf(id, limit) {
+    var p = placed[id], m = store.all()[id];
+    if (!p || !T.M) { var span = document.createElement("span"); span.textContent = (m && m.quote) || ""; return span; }
+    var e = limit && p.e - p.s > limit ? p.s + limit : p.e, r = rangeOf(T.M, p.s, e);
+    for (var i = firstSeg(T.M, p.s); i < T.M.segs.length && T.M.segs[i].a < e; i++) {
+      var f = T.M.segs[i].f;
+      if (f && f.hasAttribute("data-lazy") && window.L2M_math) L2M_math.draw(f);
+    }
+    var frag = r ? r.cloneContents() : document.createDocumentFragment();
+    frag.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
+    if (e < p.e) frag.appendChild(document.createTextNode("…"));
+    return frag;
+  }
   function fill(m) {
     sheet.querySelectorAll(".mk-dot").forEach(function (b) { b.setAttribute("aria-pressed", String(+b.getAttribute("data-c") === (m.c || 1))); });
     quote.textContent = "";
-    var p = placed[m.id], r = p ? rangeOf(p.s, p.e) : null;
-    if (r) {
-      // the marked words as they stand in the paper (their formulas drawn first: one not drawn yet would come empty)
-      for (var i = firstSeg(p.s); i < M.segs.length && M.segs[i].a < p.e; i++) {
-        var f = M.segs[i].f;
-        if (f && f.hasAttribute("data-lazy") && window.L2M_math) L2M_math.draw(f);
-      }
-      var frag = r.cloneContents();
-      frag.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
-      quote.appendChild(frag);
-    } else quote.textContent = m.quote || "";
+    quote.appendChild(wordsOf(m.id, 0));
     quote.classList.toggle("long", quote.scrollHeight > quote.clientHeight + 2);
     note.value = m.note || "";
     grow();
@@ -414,6 +486,7 @@ window.L2M_marks = function (host) {
     if (v) m.note = v; else delete m.note;
     store.put(m);
     relay();
+    listChanged();
   }
   function openSheet(id, write) {
     var m = store.all()[id];
@@ -457,6 +530,18 @@ window.L2M_marks = function (host) {
   if (window.visualViewport) { on(window.visualViewport, "resize", fitKeyboard); on(window.visualViewport, "scroll", fitKeyboard); }
   note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); });
   note.addEventListener("blur", saveNote);
+  function remove(id) {                            // a mark taken off (Undo puts it back)
+    var m = store.all()[id];
+    if (!m || m.gone) return;
+    var keep = JSON.parse(JSON.stringify(m));
+    store.put({id: id, gone: true});
+    place();
+    if (store.toastAct) store.toastAct("Mark removed.", "Undo", function () {
+      delete keep.gone;
+      store.put(keep);
+      place();
+    });
+  }
   sheet.addEventListener("click", function (e) {
     var b = e.target.closest("button");
     var m = openId && store.all()[openId];
@@ -467,6 +552,7 @@ window.L2M_marks = function (host) {
       store.put(m);
       fill(m);
       relay();
+      listChanged();
       return;
     }
     var what = b.getAttribute("data-mk");
@@ -475,31 +561,139 @@ window.L2M_marks = function (host) {
       var url = store.link(m.id), done = function () { if (store.toast) store.toast("Link copied."); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function () {});
     } else if (what === "remove") {
-      var keep = JSON.parse(JSON.stringify(m));
+      var id = m.id;
       closeSheet("hand");
-      store.put({id: m.id, gone: true});
-      delete placed[m.id];
-      relay();
-      if (store.toastAct) store.toastAct("Mark removed.", "Undo", function () {
-        delete keep.gone;
-        store.put(keep);
-        place();
-      });
+      remove(id);
     }
   });
 
+  // ---------------------------------------------------------------- Notes, beside the contents
+  // The contents panel's title becomes two tabs, Contents and Notes; Notes lists the marks in the paper's order,
+  // under their sections (each a jump to it, as a link is), and last the ones not found in this version
+  var menuInner = host.menu && host.menu.querySelector(".menu-inner"), tocList = menuInner && menuInner.querySelector("ol");
+  var menuHead = menuInner && menuInner.querySelector(".menu-head"), tabs = null, list = null, tab = "toc", listStale = true;
+  var tabScroll = {toc: 0, notes: 0};
+  if (menuInner && tocList && menuHead) {
+    tabs = document.createElement("div");
+    tabs.className = "mk-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", "Contents and notes");
+    tabs.innerHTML = '<button type="button" class="mk-tab" role="tab" data-tab="toc" aria-selected="true">Contents</button>' +
+      '<button type="button" class="mk-tab" role="tab" data-tab="notes" aria-selected="false">Notes<span class="mk-count"></span></button>' +
+      '<span class="mk-tab-line" aria-hidden="true"></span>';
+    menuHead.replaceWith(tabs);
+    list = document.createElement("div");
+    list.className = "mk-list";
+    list.setAttribute("role", "tabpanel");
+    list.hidden = true;
+    tocList.setAttribute("role", "tabpanel");
+    tocList.after(list);
+    tabs.addEventListener("click", function (e) { var b = e.target.closest("[data-tab]"); if (b) showTab(b.getAttribute("data-tab")); });
+    list.addEventListener("click", function (e) {
+      var x = e.target.closest("[data-mk-drop]");
+      if (x) { e.preventDefault(); remove(x.getAttribute("data-mk-drop")); return; }
+      var a = e.target.closest("[data-mk-go]");
+      if (!a) return;
+      e.preventDefault();
+      jumpTo(a.getAttribute("data-mk-go"));
+    });
+  }
+  function lineUnder() {                          // the tab's underline, under the one shown
+    var on = tabs && tabs.querySelector('[aria-selected="true"]'), ln = tabs && tabs.querySelector(".mk-tab-line");
+    if (!on || !ln || !on.offsetWidth) return;
+    ln.style.width = on.offsetWidth + "px";
+    ln.style.transform = "translateX(" + on.offsetLeft + "px)";
+  }
+  function showTab(name) {
+    if (!tabs) return;
+    if (name !== tab) { tabScroll[tab] = menuInner.scrollTop; tab = name; }
+    tabs.querySelectorAll("[data-tab]").forEach(function (b) { b.setAttribute("aria-selected", String(b.getAttribute("data-tab") === name)); });
+    tocList.hidden = name !== "toc";
+    list.hidden = name !== "notes";
+    if (name === "notes" && listStale) renderList();
+    menuInner.scrollTop = tabScroll[name] || 0;
+    menuInner.dispatchEvent(new Event("scroll"));  // (its faded edges, as they now are)
+    lineUnder();
+  }
+  function counted() { var all = store.all(); return Object.keys(all).filter(function (id) { return live(all[id]); }).length; }
+  function listChanged() {
+    listStale = true;
+    var c = tabs && tabs.querySelector(".mk-count"), n = counted();
+    if (c) c.textContent = n ? " · " + n : "";
+    if (tabs && host.menu.classList.contains("open") && tab === "notes") renderList();
+    lineUnder();
+  }
+  function renderList() {
+    if (!list) return;
+    listStale = false;
+    var all = store.all(), ids = Object.keys(placed).filter(function (id) { return live(all[id]); })
+      .sort(function (a, b) { return placed[a].s - placed[b].s; });
+    list.textContent = "";
+    if (!ids.length && !lostIds.length) {
+      list.innerHTML = '<p class="mk-empty">Your marks and notes appear here. Select text in the paper to mark it.</p>';
+      return;
+    }
+    var frag = document.createDocumentFragment(), lastHead = null;
+    function sec(label) { var p = document.createElement("p"); p.className = "mk-sec"; p.textContent = label; frag.appendChild(p); }
+    ids.forEach(function (id) {
+      var m = all[id], h = T.M ? headAt(T.M, placed[id].s) : null;
+      if (h && h !== lastHead) { sec(h.el.textContent.replace(/\s+/g, " ").trim()); lastHead = h; }
+      var a = document.createElement("a");
+      a.className = "mk-item c" + (m.c || 1);
+      a.href = "#mark-" + encodeURIComponent(id);
+      a.setAttribute("data-mk-go", id);
+      var q = document.createElement("span");
+      q.className = "mk-item-q";
+      q.appendChild(wordsOf(id, 220));
+      a.appendChild(q);
+      if (m.note) { var n = document.createElement("span"); n.className = "mk-item-n"; n.textContent = m.note; a.appendChild(n); }
+      frag.appendChild(a);
+    });
+    if (lostIds.length) {
+      sec("Not found in this version");
+      lostIds.forEach(function (id) {
+        var m = all[id], d = document.createElement("div");
+        d.className = "mk-item mk-lost c" + (m.c || 1);
+        d.innerHTML = '<span class="mk-item-q">' + esc(m.quote) + "</span>" + (m.note ? '<span class="mk-item-n">' + esc(m.note) + "</span>" : "") +
+          '<button type="button" class="bar-btn mk-item-x" data-mk-drop="' + esc(id) + '" aria-label="Remove this mark">' + (I.close || "&times;") + "</button>";
+        frag.appendChild(d);
+      });
+    }
+    list.appendChild(frag);
+  }
+  function jumpTo(id) {                           // from the list: to the mark, as a link goes (back returns)
+    var p = placed[id], r = p && rangeOf(T.M, p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
+    if (!box) return;
+    host.closeMenu("jump");
+    host.jump(Math.max(0, window.pageYOffset + box.top - host.barHeight() - Math.round(window.innerHeight * 0.18)), "mark-" + id);
+    pulse(id);
+  }
+  function pulse(id) {
+    flashId = id;
+    relay();
+    setTimeout(function () { if (flashId === id) { flashId = null; relay(); } }, 1600);
+  }
+
   // ---------------------------------------------------------------- taps
-  // A tap on a mark opens its sheet (not on a link or a button: those keep their own). It is caught before the
-  // paper's own taps, so that a footnote's sheet open is closed as this one opens, not by a step back of its own
+  // A tap on a mark opens its sheet (not on a link or a button: those keep their own), and so does one on a note in
+  // the margin. Caught before the paper's own taps, so that a footnote's sheet open is closed as this one opens, not
+  // by a step back of its own
   on(document, "click", function (e) {
     if (dead || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var t = e.target;
-    if (sheet.contains(t) || dock.contains(t)) return;
-    var el = t.nodeType === 1 ? t : t.parentNode;
-    var own = el && el.closest && el.closest("a[href], button, input, textarea, select, summary, label, [role='button'], img, .fig-open, " +
-      ".l2m-bar, .l2m-menu, .l2m-fnsheet, .l2m-peek, .l2m-viewer, .app-toast");
-    var sel = window.getSelection && window.getSelection();
-    var id = !own && !e.defaultPrevented && !(sel && !sel.isCollapsed) ? markAt(e.clientX + window.pageXOffset, e.clientY + window.pageYOffset) : null;
+    var el = e.target.nodeType === 1 ? e.target : e.target.parentNode;
+    if (!el || !el.closest || sheet.contains(el) || dock.contains(el)) return;
+    var aside = el.closest(".l2m-mk-side");
+    if (aside) { e.preventDefault(); e.stopPropagation(); openSheet(aside.getAttribute("data-id")); return; }
+    var own = el.closest("a[href], button, input, textarea, select, summary, label, [role='button'], img, .fig-open");
+    var sel = window.getSelection && window.getSelection(), id = null;
+    if (!own && !e.defaultPrevented && !(sel && !sel.isCollapsed)) {
+      if (P && peekShown && P.root.contains(el)) {
+        var pr = P.root.getBoundingClientRect();
+        id = hit(peekBoxes, e.clientX - pr.left, e.clientY - pr.top);
+      } else if (!el.closest(".l2m-bar, .l2m-menu, .l2m-fnsheet, .l2m-peek, .l2m-viewer, .app-toast")) {
+        id = hit(boxes, e.clientX + window.pageXOffset, e.clientY + window.pageYOffset);
+      }
+    }
     if (id) {
       e.preventDefault();
       e.stopPropagation();
@@ -518,44 +712,64 @@ window.L2M_marks = function (host) {
   function go() {
     var p = wanted && placed[wanted];
     if (!p || dead) return;
-    var id = wanted, r = rangeOf(p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
+    var id = wanted, r = rangeOf(T.M, p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
     wanted = null;
     if (!box) return;
     window.scrollTo(0, Math.max(0, window.pageYOffset + box.top - host.barHeight() - Math.round(window.innerHeight * 0.18)));
-    flashId = id;
-    relay();
-    setTimeout(function () { if (flashId === id) { flashId = null; relay(); } }, 1600);
+    pulse(id);
   }
 
   // ---------------------------------------------------------------- the marks come, and go back
-  function any() { var all = store.all(); return Object.keys(all).some(function (id) { return live(all[id]); }); }
   var started = Promise.resolve(host.ready).then(function () {
     if (dead) return;
+    listChanged();
     // the ones on this device first (the text read in idle moments), then the library's (another device's, since)
-    return (any() ? modelSoon().then(function () { if (!dead) { place(); go(); } }) : Promise.resolve())
+    return (any() ? modelSoon(T).then(function () { if (!dead) { place(); go(); } }) : Promise.resolve())
       .then(function () { return new Promise(function (res) { idle(res); }); })
       .then(function () { return dead ? false : store.pull(); })
-      .then(function (changed) { if (!dead && changed) return modelSoon().then(function () { if (!dead) { place(); go(); } }); });
+      .then(function (changed) { if (!dead && changed) return modelSoon(T).then(function () { if (!dead) { place(); go(); } }); });
   });
   on(window, "online", function () { store.pull(); });       // (what was changed offline: written now)
   on(document, "visibilitychange", function () {
     if (document.visibilityState === "hidden") { saveNote(); store.flush(true); }
-    else store.pull().then(function (changed) { if (!dead && changed) modelSoon().then(function () { if (!dead) place(); }); });
+    else store.pull().then(function (changed) { if (!dead && changed) modelSoon(T).then(function () { if (!dead) place(); }); });
   });
 
   return {
     closeSheet: closeSheet,
     reveal: function (id) { wanted = id; started.then(go); },
+    panelOpened: function () {                     // nav.js: the contents panel open (its tabs as left)
+      if (!tabs) return;
+      tocList.hidden = tab !== "toc";
+      list.hidden = tab !== "notes";
+      if (tab === "notes") { if (listStale) renderList(); menuInner.scrollTop = tabScroll.notes || 0; }
+      requestAnimationFrame(lineUnder);
+    },
+    peekOpened: function (box, gen) {               // nav.js: the peek open, its copy of the paper in box (gen: which copy)
+      if (!P || P.root !== box || P.gen !== gen) { P = textOf(box); P.gen = gen; peekPlaced = {}; }
+      peekShown = true;
+      if (ro) ro.observe(box);
+      if (!any()) return;
+      modelSoon(P).then(function () { if (!dead && peekShown && P && P.root === box) { placePeek(); relay(); } });
+    },
+    peekClosed: function () {
+      peekShown = false;
+      if (P && ro) ro.unobserve(P.root);
+      peekLayer.textContent = "";
+      peekBoxes = [];
+    },
     destroy: function () {
       if (dead) return;
       saveNote();
       dead = true;
       clearTimeout(selT); clearTimeout(tapT); clearTimeout(noteT);
       if (laying) cancelAnimationFrame(laying);
+      if (ro) ro.disconnect();
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       store.flush(true);
-      layer.remove(); dock.remove(); sheet.remove();
+      layer.remove(); peekLayer.remove(); side.remove(); dock.remove(); sheet.remove();
+      if (tabs && menuHead) { tabs.replaceWith(menuHead); list.remove(); tocList.hidden = false; tocList.removeAttribute("role"); }
     }
   };
 };
