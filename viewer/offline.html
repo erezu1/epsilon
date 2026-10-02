@@ -1,16 +1,17 @@
 <!doctype html>
 <!-- Epsilon: what the service worker shows when a page of the app is asked for offline and it has no copy of it
-     (instead of the browser's own error). Self-contained: its look is inline, with the app's colours and the reader's
-     appearance and tone; it opens the page by itself when the network is back. -->
+     (instead of the browser's own error). Its colours are the app's (theme.css, kept with the app), in the reader's
+     appearance and tone; its layout is inline. It opens the page by itself when the network is back. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>Epsilon</title>
-<meta name="theme-color" content="#fafbfc" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121417" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
 <script>
   (function () {
     try {
@@ -19,40 +20,16 @@
       if (p.tone === "paper") r.setAttribute("data-tone", "paper");
     } catch (e) {}
     addEventListener("online", function () { location.reload(); });
+    addEventListener("DOMContentLoaded", function () {       // the browser's bar in the page's colour, as in the app
+      var c = getComputedStyle(r).getPropertyValue("--ground").trim();
+      if (c) Array.prototype.forEach.call(document.querySelectorAll('meta[name="theme-color"]'), function (m) { m.setAttribute("content", c); });
+    });
   })();
 </script>
 <style>
-  :root {
-    color-scheme: light;
-    --ground: #fafbfc; --ink: #16191d; --muted: #5a636e; --link: #1d5b98;
-    --pill: rgba(29, 91, 152, 0.10); --pill-on: rgba(29, 91, 152, 0.14);
-    --serif: "Newsreader", "Georgia", serif;
-    --ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --ground: #121417; --ink: #e3e6ea; --muted: #9ba4af; --link: #8db9ea;
-      --pill: rgba(141, 185, 234, 0.12); --pill-on: rgba(141, 185, 234, 0.18);
-    }
-    :root[data-tone="paper"]:not([data-theme="light"]) {
-      --ground: #1e1a15; --ink: #e9dfcf; --muted: #a99b86; --link: #e0b07a;
-      --pill: rgba(224, 176, 122, 0.10); --pill-on: rgba(224, 176, 122, 0.17);
-    }
-  }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --ground: #121417; --ink: #e3e6ea; --muted: #9ba4af; --link: #8db9ea;
-    --pill: rgba(141, 185, 234, 0.12); --pill-on: rgba(141, 185, 234, 0.18);
-  }
-  :root[data-tone="paper"] {
-    --ground: #f5efe3; --ink: #2b241d; --muted: #6f6353; --link: #8a4f1c;
-    --pill: rgba(138, 79, 28, 0.09); --pill-on: rgba(138, 79, 28, 0.15);
-  }
-  :root[data-tone="paper"][data-theme="dark"] {
-    --ground: #1e1a15; --ink: #e9dfcf; --muted: #a99b86; --link: #e0b07a;
-    --pill: rgba(224, 176, 122, 0.10); --pill-on: rgba(224, 176, 122, 0.17);
-  }
+  /* the colours: theme.css's tokens (linked above), as everywhere in the app */
+  :root { --ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          --pill: color-mix(in srgb, var(--link) 10%, transparent); --pill-on: color-mix(in srgb, var(--link) 15%, transparent); }
   * { -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {

@@ -71,7 +71,18 @@
     load(key);
     root.style.setProperty("--serif", FONTS[key].stack);
   };
-  window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); };
+  // the browser's bar (and a phone's status bar) in the page's own colour (theme.css's --ground), whatever the
+  // appearance and tone; the page's meta tags give it before this runs
+  function barColour() {
+    var c = getComputedStyle(root).getPropertyValue("--ground").trim();
+    if (c) Array.prototype.forEach.call(document.querySelectorAll('meta[name="theme-color"]'), function (m) { m.setAttribute("content", c); });
+  }
+  window.L2M_barColour = barColour;
+  if (window.matchMedia) {
+    var dark = window.matchMedia("(prefers-color-scheme: dark)");
+    if (dark.addEventListener) dark.addEventListener("change", barColour);
+  }
+  window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); barColour(); };
   window.L2M_applySize = function (z) { attr("data-size", z, DEF.size); };
   window.L2M_applyWidth = function (w) { attr("data-width", w, "narrow"); };
   // the page width chosen: at once the bars and panels glide to it while the text fades out; the text keeps its width
@@ -95,7 +106,7 @@
       root.l2mWidthT = setTimeout(function () { root.classList.remove("l2m-widthing"); }, 300);
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
-  window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); };
+  window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
   // a change of colours (theme, tone) cross-fades the page; the fade shows a still picture of the page, so anything
   // that moves meanwhile (a panel closing) cuts it short and moves in sight
   var fadeVT = null;

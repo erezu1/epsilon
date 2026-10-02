@@ -1,11 +1,16 @@
-/* Epsilon page style. Colors are tokens on :root, redefined for dark mode. */
+/* Epsilon page style. Colours are tokens on :root, redefined for dark mode and for the warm tone. */
 /* no tap highlight, and no focus ring for taps and clicks (it stays for keyboard focus) */
 * { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }
 :root {
   color-scheme: light;
   --page-w: 40rem; --chrome-w: calc(var(--page-w) + 6rem);
-  --ground: #fafbfc;
+  /* every colour of the app is one of these tokens, each palette below setting its own (the browser's bar takes
+     --ground, from prefs.js; the offline page uses this file too). The glass of the bars and panels is the page's
+     own colour, see-through: --glass-a of it, or nearly solid */
+  --glass: color-mix(in srgb, var(--ground) var(--glass-a), transparent);
+  --glass-solid: color-mix(in srgb, var(--ground) 97%, transparent);
+  --ground: #ffffff;
   --surface: #eff3f6;
   --ink: #16191d;
   --muted: #5a636e;
@@ -14,8 +19,7 @@
   --error: #b3261e;
   --shadow: rgba(22, 32, 45, 0.22);
   --bar-line: rgba(29, 91, 152, 0.14);
-  --glass: rgba(248, 250, 252, 0.66);
-  --glass-solid: rgba(248, 250, 252, 0.97);
+  --glass-a: 66%;
   --bar-shadow: rgba(22, 32, 45, 0.45);
   --bar-hover: rgba(29, 91, 152, 0.10);
   --bar-current: rgba(29, 91, 152, 0.14);
@@ -27,7 +31,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --ground: #121417;
+    --ground: #000000;
     --surface: #1b2026;
     --ink: #e3e6ea;
     --muted: #9ba4af;
@@ -36,8 +40,7 @@
     --error: #f2b8b5;
     --shadow: rgba(190, 205, 225, 0.28);
     --bar-line: rgba(141, 185, 234, 0.16);
-    --glass: rgba(20, 23, 27, 0.62);
-    --glass-solid: rgba(20, 23, 27, 0.97);
+    --glass-a: 62%;
     --bar-shadow: rgba(0, 0, 0, 0.8);
     --bar-hover: rgba(141, 185, 234, 0.12);
     --bar-current: rgba(141, 185, 234, 0.18);
@@ -51,7 +54,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #121417;
+  --ground: #000000;
   --surface: #1b2026;
   --ink: #e3e6ea;
   --muted: #9ba4af;
@@ -60,8 +63,7 @@
   --error: #f2b8b5;
   --shadow: rgba(190, 205, 225, 0.28);
   --bar-line: rgba(141, 185, 234, 0.16);
-  --glass: rgba(20, 23, 27, 0.62);
-  --glass-solid: rgba(20, 23, 27, 0.97);
+  --glass-a: 62%;
   --bar-shadow: rgba(0, 0, 0, 0.8);
   --bar-hover: rgba(141, 185, 234, 0.12);
   --bar-current: rgba(141, 185, 234, 0.18);
@@ -84,8 +86,7 @@
   --error: #9f2a1b;
   --shadow: rgba(70, 45, 20, 0.22);
   --bar-line: rgba(138, 79, 28, 0.16);
-  --glass: rgba(245, 239, 227, 0.66);
-  --glass-solid: rgba(245, 239, 227, 0.97);
+  --glass-a: 66%;
   --bar-shadow: rgba(70, 45, 20, 0.45);
   --bar-hover: rgba(138, 79, 28, 0.09);
   --bar-current: rgba(138, 79, 28, 0.15);
@@ -103,8 +104,7 @@
     --error: #f2b8a5;
     --shadow: rgba(230, 205, 170, 0.24);
     --bar-line: rgba(224, 176, 122, 0.16);
-    --glass: rgba(30, 26, 21, 0.62);
-    --glass-solid: rgba(30, 26, 21, 0.97);
+    --glass-a: 62%;
     --bar-shadow: rgba(0, 0, 0, 0.8);
     --bar-hover: rgba(224, 176, 122, 0.10);
     --bar-current: rgba(224, 176, 122, 0.17);
@@ -122,8 +122,7 @@
   --error: #f2b8a5;
   --shadow: rgba(230, 205, 170, 0.24);
   --bar-line: rgba(224, 176, 122, 0.16);
-  --glass: rgba(30, 26, 21, 0.62);
-  --glass-solid: rgba(30, 26, 21, 0.97);
+  --glass-a: 62%;
   --bar-shadow: rgba(0, 0, 0, 0.8);
   --bar-hover: rgba(224, 176, 122, 0.10);
   --bar-current: rgba(224, 176, 122, 0.17);
