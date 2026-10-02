@@ -1716,10 +1716,11 @@ window.L2M_nav = function (opts) {
     if (sheet && sheet.classList.contains("open") && !sheet.contains(e.target) && !(peek && peek.contains(e.target))) closeSheet("hand");
   });
   on(document, "keydown", function (e) {
-    if (e.key === "Escape") {
-      if (panel) { closeMenu(); return; }             // one layer at a time: the panel, then the one opened last
+    if (e.key === "Escape") {                        // as the x of what is on top: one layer at a time
+      if (panel) { e.preventDefault(); closeMenu(); return; }   // the panel, then the one opened last, then the search
       var top = overlays[overlays.length - 1];
-      if (top) closeOverlay(top, "hand");
+      if (top) { e.preventDefault(); closeOverlay(top, "hand"); return; }
+      if (finding) { e.preventDefault(); closeFind(); }
     }
   });
   backBtn.addEventListener("click", function () {

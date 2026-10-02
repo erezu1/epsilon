@@ -1612,7 +1612,19 @@
       closePanel();
     }
   }, true);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { if (appSheetOpen) closeAppSheet(); else closePanel(); } });
+  // Esc as the x of what is on top: a sheet, a panel; then (after a paper's own, which go first) the library's search,
+  // then a message
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (appSheetOpen) { e.preventDefault(); closeAppSheet(); }
+    else if (panelOpen) { e.preventDefault(); closePanel(); }
+  });
+  window.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    if (shell && current === "app:library" && shell.querySelector("#app-bar").classList.contains("searching")) { e.preventDefault(); searching(false); return; }
+    var t = document.getElementById("app-toast"), x = t && t.classList.contains("on") && t.querySelector("[data-toast-x]");
+    if (x) { e.preventDefault(); x.click(); }
+  });
   // Ctrl/Cmd+F in the Library: its own search (the field focused, its words selected if it is open already)
   document.addEventListener("keydown", function (e) {
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || (e.key !== "f" && e.key !== "F")) return;
