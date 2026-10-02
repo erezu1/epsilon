@@ -1629,8 +1629,8 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-bar .bar-inner { position: relative; }
 .app-bar .bar-inner > .swap-ind { bottom: 5px; }
 .app-bar.flapping .app-tabswap {
-  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
-  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / calc(1 - var(--flap))) 0, rgb(0 0 0 / calc(1 - var(--flap))) 53px, transparent 53px), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / calc(1 - var(--flap))) 0, rgb(0 0 0 / calc(1 - var(--flap))) 53px, transparent 53px), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
 }
 .app-bar.flapping .app-lead {
   -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 24px, #000 34px, #000 39px, transparent 49px) !important;
@@ -1681,8 +1681,8 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 /* the flip's two soft edges mirror each other about the tabs' text (19-43px in the bar): each 5px, ending at the
    text's top and bottom (the bottom one at the underline) */
 .app-bar.flapping .app-tabswap {
-  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
-  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
+  -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / calc(1 - var(--flap))) 0, rgb(0 0 0 / calc(1 - var(--flap))) 53px, transparent 53px), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / calc(1 - var(--flap))) 0, rgb(0 0 0 / calc(1 - var(--flap))) 53px, transparent 53px), linear-gradient(to bottom, transparent 28px, #000 38px, #000 43px, transparent 53px) !important;
 }
 .app-bar.flapping .app-lead {
   -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 24px, #000 34px, #000 39px, transparent 49px) !important;
@@ -1814,7 +1814,8 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 /* the flip's soft edges: symmetric about the tabs' letters (31-50px in their box) and wholly faded 3px before the
    underline (56px). They reach into where the letters rest, so the fade itself comes and goes: in as the flip
    starts, out as the new tabs settle (--flap: 0 is no fade at all). Two mask layers, added: a plain one at
-   1 - flap over the soft-edged one. */
+   1 - flap over the soft-edged one; for the tabs it too ends where the soft edge does (3px above the underline): as
+   it comes back, tabs still on their way are not shown below the line (they pass behind it) */
 @property --flap { syntax: "<number>"; inherits: false; initial-value: 0; }
 .app-bar.flapping .app-tabswap, .app-bar.flapping .app-lead {
   --flap: 0; transition: --flap 280ms cubic-bezier(0.4, 0, 0.2, 1);
