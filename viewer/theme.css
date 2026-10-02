@@ -5,26 +5,40 @@
 :root {
   color-scheme: light;
   --page-w: 40rem; --chrome-w: calc(var(--page-w) + 6rem);
-  /* every colour of the app is one of these tokens, each palette below setting its own (the browser's bar takes
-     --ground, from prefs.js; the offline page uses this file too). The glass of the bars and panels is the page's
-     own colour, see-through: --glass-a of it, or nearly solid */
+  /* Every colour of the app is one of these tokens (the browser's bar takes --ground, from prefs.js; the offline
+     page uses this file too). A palette sets its few base colours, and how strong the shades made from them are;
+     the rest follows from them here, the same for every palette. */
+  --ground: #ffffff;                 /* the page */
+  --surface: #eff3f6;                /* boxes on it: theorems, code */
+  --ink: #16191d;                    /* text */
+  --muted: #5a636e;                  /* secondary text */
+  --rule: #d3d9e0;                   /* lines */
+  --link: #1d5b98;                   /* links, and the tints of the bars' buttons */
+  --error: #b3261e;                  /* errors, and Remove */
+  --progress: #2b7de9;               /* reading lines, loading bars: a brighter blue */
+  --find: #ffd60a; --find-now: #ffa300;   /* what the search found (yellow), the one it is on (amber) */
+  --shade: #000000;                  /* what the bars' and buttons' shadows are made of */
+  /* how strong: the glass; the link's tints (a button under the pointer; a chosen one, the bar's line, a landing
+     mark; the mark's ring); the ink's shadow; the search's marks */
+  --glass-a: 66%; --tint-faint: 10%; --tint: 14%; --tint-ring: 45%;
+  --shadow-a: 22%; --bar-shadow: color-mix(in srgb, var(--ink) 45%, transparent);
+  --find-a: 42%; --find-now-a: 72%; --find-band-a: 55%; --find-band-now-a: 78%;
+  --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow);   /* the chosen option of a segmented control */
+  /* made from them */
   --glass: color-mix(in srgb, var(--ground) var(--glass-a), transparent);
   --glass-solid: color-mix(in srgb, var(--ground) 97%, transparent);
-  --ground: #ffffff;
-  --surface: #eff3f6;
-  --ink: #16191d;
-  --muted: #5a636e;
-  --rule: #d3d9e0;
-  --link: #1d5b98;
-  --error: #b3261e;
-  --shadow: rgba(22, 32, 45, 0.22);
-  --bar-line: rgba(29, 91, 152, 0.14);
-  --glass-a: 66%;
-  --bar-shadow: rgba(22, 32, 45, 0.45);
-  --bar-hover: rgba(29, 91, 152, 0.10);
-  --bar-current: rgba(29, 91, 152, 0.14);
-  --flash: rgba(29, 91, 152, 0.13);
-  --flash-ring: rgba(29, 91, 152, 0.45);
+  --bar-hover: color-mix(in srgb, var(--link) var(--tint-faint), transparent);
+  --bar-current: color-mix(in srgb, var(--link) var(--tint), transparent);
+  --bar-line: var(--bar-current);
+  --flash: var(--bar-current);
+  --flash-ring: color-mix(in srgb, var(--link) var(--tint-ring), transparent);
+  --sel: color-mix(in srgb, var(--link) 24%, transparent);   /* a selection, and the formulas in it */
+  --shadow: color-mix(in srgb, var(--ink) var(--shadow-a), transparent);
+  --danger: var(--error); --danger-bg: color-mix(in srgb, var(--error) 10%, transparent);
+  --find-mark: color-mix(in srgb, var(--find) var(--find-a), transparent);
+  --find-mark-now: color-mix(in srgb, var(--find-now) var(--find-now-a), transparent);
+  --find-band: color-mix(in srgb, var(--find) var(--find-band-a), transparent);
+  --find-band-now: color-mix(in srgb, var(--find-now) var(--find-band-now-a), transparent);
   --serif: "Newsreader", "Georgia", serif;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
@@ -37,15 +51,13 @@
     --muted: #9ba4af;
     --rule: #30363e;
     --link: #8db9ea;
-    --error: #f2b8b5;
-    --shadow: rgba(190, 205, 225, 0.28);
-    --bar-line: rgba(141, 185, 234, 0.16);
-    --glass-a: 62%;
-    --bar-shadow: rgba(0, 0, 0, 0.8);
-    --bar-hover: rgba(141, 185, 234, 0.12);
-    --bar-current: rgba(141, 185, 234, 0.18);
-    --flash: rgba(141, 185, 234, 0.16);
-    --flash-ring: rgba(141, 185, 234, 0.55);
+    --error: #f28b82;
+    --progress: #6cb4ff;
+    --glass-a: 62%; --tint-faint: 12%; --tint: 17%; --tint-ring: 55%;
+    --shadow-a: 28%; --bar-shadow: color-mix(in srgb, var(--shade) 80%, transparent);
+    --find-a: 30%; --find-now-a: 60%; --find-band-a: 38%; --find-band-now-a: 66%;
+    --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
+    --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
     /* the colours authors give formulas (\color{blue}), made light on the dark page */
     --tex-red: #ff8a80; --tex-green: #6bd88f; --tex-blue: #7f9fff; --tex-magenta: #f08ce8; --tex-gray: #9aa1aa;
     --tex-darkgray: #b9bfc7; --tex-lightgray: #6b727b; --tex-brown: #d6a36f; --tex-orange: #ffab5e;
@@ -60,22 +72,20 @@
   --muted: #9ba4af;
   --rule: #30363e;
   --link: #8db9ea;
-  --error: #f2b8b5;
-  --shadow: rgba(190, 205, 225, 0.28);
-  --bar-line: rgba(141, 185, 234, 0.16);
-  --glass-a: 62%;
-  --bar-shadow: rgba(0, 0, 0, 0.8);
-  --bar-hover: rgba(141, 185, 234, 0.12);
-  --bar-current: rgba(141, 185, 234, 0.18);
-  --flash: rgba(141, 185, 234, 0.16);
-  --flash-ring: rgba(141, 185, 234, 0.55);
+  --error: #f28b82;
+  --progress: #6cb4ff;
+  --glass-a: 62%; --tint-faint: 12%; --tint: 17%; --tint-ring: 55%;
+  --shadow-a: 28%; --bar-shadow: color-mix(in srgb, var(--shade) 80%, transparent);
+  --find-a: 30%; --find-now-a: 60%; --find-band-a: 38%; --find-band-now-a: 66%;
+  --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
+  --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
   /* the colours authors give formulas (\color{blue}), made light on the dark page */
   --tex-red: #ff8a80; --tex-green: #6bd88f; --tex-blue: #7f9fff; --tex-magenta: #f08ce8; --tex-gray: #9aa1aa;
   --tex-darkgray: #b9bfc7; --tex-lightgray: #6b727b; --tex-brown: #d6a36f; --tex-orange: #ffab5e;
   --tex-purple: #ff7fa8; --tex-violet: #d99bd9; --tex-teal: #5ccaca; --tex-olive: #c7c75c; --tex-white: var(--ground);
 }
 
-/* paper tone: a warm palette with its own light and dark versions */
+/* paper tone: a warm palette with its own light and dark versions (the strengths as the neutral ones) */
 :root[data-tone="paper"] {
   --ground: #f5efe3;
   --surface: #ebe2d0;
@@ -84,14 +94,6 @@
   --rule: #d9cdb7;
   --link: #8a4f1c;
   --error: #9f2a1b;
-  --shadow: rgba(70, 45, 20, 0.22);
-  --bar-line: rgba(138, 79, 28, 0.16);
-  --glass-a: 66%;
-  --bar-shadow: rgba(70, 45, 20, 0.45);
-  --bar-hover: rgba(138, 79, 28, 0.09);
-  --bar-current: rgba(138, 79, 28, 0.15);
-  --flash: rgba(138, 79, 28, 0.13);
-  --flash-ring: rgba(138, 79, 28, 0.45);
 }
 @media (prefers-color-scheme: dark) {
   :root[data-tone="paper"]:not([data-theme="light"]) {
@@ -102,14 +104,7 @@
     --rule: #3b3329;
     --link: #e0b07a;
     --error: #f2b8a5;
-    --shadow: rgba(230, 205, 170, 0.24);
-    --bar-line: rgba(224, 176, 122, 0.16);
-    --glass-a: 62%;
-    --bar-shadow: rgba(0, 0, 0, 0.8);
-    --bar-hover: rgba(224, 176, 122, 0.10);
-    --bar-current: rgba(224, 176, 122, 0.17);
-    --flash: rgba(224, 176, 122, 0.16);
-    --flash-ring: rgba(224, 176, 122, 0.55);
+    --shadow-a: 24%;
   }
 }
 :root[data-tone="paper"][data-theme="dark"] {
@@ -120,14 +115,7 @@
   --rule: #3b3329;
   --link: #e0b07a;
   --error: #f2b8a5;
-  --shadow: rgba(230, 205, 170, 0.24);
-  --bar-line: rgba(224, 176, 122, 0.16);
-  --glass-a: 62%;
-  --bar-shadow: rgba(0, 0, 0, 0.8);
-  --bar-hover: rgba(224, 176, 122, 0.10);
-  --bar-current: rgba(224, 176, 122, 0.17);
-  --flash: rgba(224, 176, 122, 0.16);
-  --flash-ring: rgba(224, 176, 122, 0.55);
+  --shadow-a: 24%;
 }
 
 /* text size: small / medium / large */
@@ -1139,7 +1127,7 @@ a.lib-title { color: var(--ink); }
   --rim: linear-gradient(to top, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.17) 18px, rgb(0 0 0 / 0.14) 28px, rgb(0 0 0 / 0.14) 100%);
   --rim-down: linear-gradient(to bottom, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.17) 18px, rgb(0 0 0 / 0.14) 28px, rgb(0 0 0 / 0.14) 100%);
   --rim-sides: linear-gradient(to right, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, transparent 28px,
-    transparent calc(100% - 28px), rgb(0 0 0 / 0.1) calc(100% - 18px), rgb(0 0 0 / 0.22) calc(100% - 10px), rgb(0 0 0 / 0.48) calc(100% - 4px), rgb(0 0 0 / 0.8) 100%);
+    transparent calc(100% - 28px), color-mix(in srgb, var(--shade) 10%, transparent) calc(100% - 18px), color-mix(in srgb, var(--shade) 22%, transparent) calc(100% - 10px), color-mix(in srgb, var(--shade) 48%, transparent) calc(100% - 4px), color-mix(in srgb, var(--shade) 80%, transparent) 100%);
 }
 /* dark glass: the body nearly clear (the film adds light there) */
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
@@ -1247,7 +1235,7 @@ a.lib-title { color: var(--ink); }
 .skel-paper .skel-h1 { height: 1.35em; margin-bottom: 0.45em; background: color-mix(in srgb, var(--ink) 12%, transparent); }
 .skel-paper .skel-small { height: 0.85em; margin-bottom: 0.55em; }
 .skel-paper .skel-gap { height: 0.8em; margin: 0; }
-.skel-paper .skel-h2 { height: 1.2em; margin: 1.7em 0 1em; background: color-mix(in srgb, var(--ink) 11%, transparent); }
+.skel-paper .skel-h2 { height: 1.2em; margin: 1.7em 0 1em; background: color-mix(in srgb, var(--ink) 12%, transparent); }
 .skel-par { margin: 0 0 1.3em; }
 .skel-par .skel { height: 0.88em; margin-bottom: 0.72em; }
 .skel-bar .bar-title { cursor: default; }
@@ -1293,17 +1281,7 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 
 /* the chosen option of a segmented control: a raised white pill on light glass; on dark glass a lighter raised
    pill (the text colour, faintly, with a soft top light), never a hole darker than its track */
-:root { --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
-    --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px rgb(0 0 0 / 0.35);
-  }
-}
-:root[data-theme="dark"] {
-  --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
-  --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px rgb(0 0 0 / 0.35);
-}
+/* (--seg-on, --seg-on-shadow) */
 .seg .sel-ind, .app-seg .seg-btn[aria-checked="true"] { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
 /* a panel open over New with a date pinned: the bar has no shadow or line of its own either (the panel has them) */
 .app-bar.joined.menu-open { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 0s, border-color 0s; }
@@ -1363,9 +1341,6 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 /* between Library's sections: no list gap before the next header */
 .lib-rows:has(+ .lib-head) { margin-bottom: 0; }
 /* removing a paper: two pills side by side, Remove in red */
-:root { --danger: #c62828; --danger-bg: rgba(198, 40, 40, 0.1); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --danger: #f28b82; --danger-bg: rgba(242, 139, 130, 0.14); } }
-:root[data-theme="dark"] { --danger: #f28b82; --danger-bg: rgba(242, 139, 130, 0.14); }
 .app-pill.app-danger { color: var(--danger); background: var(--danger-bg); }
 @media (hover: hover) { .app-pill.app-danger:hover { background: color-mix(in srgb, var(--danger) 18%, transparent); } }
 @media (hover: none) { .app-pill.app-danger:active { background: color-mix(in srgb, var(--danger) 18%, transparent); } }
@@ -1445,17 +1420,14 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 }
 .l2m-bar .bar-progress > i {
   display: block; height: 100%; width: 0; border-radius: inherit; background: var(--link);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--link) 55%, transparent), 0 1.5px 2px rgb(0 0 0 / 0.18);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--link) 55%, transparent), 0 1.5px 2px color-mix(in srgb, var(--shade) 18%, transparent);
 }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 0s; }
 
-/* progress everywhere (reading underline, library reading lines, loading bars): one brighter blue */
-:root { --progress: #2b7de9; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --progress: #6cb4ff; } }
-:root[data-theme="dark"] { --progress: #6cb4ff; }
+/* progress everywhere (reading underline, library reading lines, loading bars): one brighter blue (--progress) */
 .l2m-bar .bar-progress { background: color-mix(in srgb, var(--progress) 16%, transparent); }
 .l2m-bar .bar-progress > i { background: var(--progress);
-  box-shadow: 0 0 7px color-mix(in srgb, var(--progress) 60%, transparent), 0 1.5px 2px rgb(0 0 0 / 0.18); }
+  box-shadow: 0 0 7px color-mix(in srgb, var(--progress) 60%, transparent), 0 1.5px 2px color-mix(in srgb, var(--shade) 18%, transparent); }
 .lib-rows > li[data-read]::after { background: var(--progress); opacity: 0.9; }
 .app-progress span { background: var(--progress); }
 /* the reading underline fades out as a panel opens, and back in as it closes */
@@ -1662,7 +1634,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
    loading bars (the reading underline's glow kept tight, so it reads as thick as the others) */
 :root { --line: 3px; }
 .swap-ind, .app-bar .app-tabs .sel-ind, .set-tabs .sel-ind, .l2m-bar .bar-progress, .app-progress, .lib-rows > li[data-read]::after { height: var(--line); }
-.l2m-bar .bar-progress > i { box-shadow: 0 0 3px color-mix(in srgb, var(--progress) 45%, transparent), 0 1px 1.5px rgb(0 0 0 / 0.14); }
+.l2m-bar .bar-progress > i { box-shadow: 0 0 3px color-mix(in srgb, var(--progress) 45%, transparent), 0 1px 1.5px color-mix(in srgb, var(--shade) 14%, transparent); }
 
 /* into a paper and back: the bar's glass stays (only its height changes); its contents change in turn, the old ones
    fading out as they drift the page's way, then the new ones fading in from the other side */
@@ -1867,15 +1839,13 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 /* what the search found: yellow, as a finder marks (the blue stays for where a link lands); the one it is on,
    amber. Words keep their text (a highlight laid over them); a symbol in a formula gets a soft box behind it; a
    formula found by its TeX, a soft box round it */
-:root { --find: rgb(255 214 10 / 0.42); --find-now: rgb(255 163 0 / 0.72); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --find: rgb(255 208 40 / 0.3); --find-now: rgb(255 170 30 / 0.6); } }
-:root[data-theme="dark"] { --find: rgb(255 208 40 / 0.3); --find-now: rgb(255 170 30 / 0.6); }
-::highlight(l2m-find) { background-color: var(--find); }
-::highlight(l2m-find-now) { background-color: var(--find-now); }
-.l2m-find-g { fill: var(--find); stroke: none; }
-.l2m-find-g.now { fill: var(--find-now); }
-mjx-container.l2m-find-f { background-color: var(--find); border-radius: 4px; box-shadow: 0 0 0 3px var(--find); }
-mjx-container.l2m-find-f.l2m-find-now { background-color: var(--find-now); box-shadow: 0 0 0 3px var(--find-now); }
+/* (--find, --find-now) */
+::highlight(l2m-find) { background-color: var(--find-mark); }
+::highlight(l2m-find-now) { background-color: var(--find-mark-now); }
+.l2m-find-g { fill: var(--find-mark); stroke: none; }
+.l2m-find-g.now { fill: var(--find-mark-now); }
+mjx-container.l2m-find-f { background-color: var(--find-mark); border-radius: 4px; box-shadow: 0 0 0 3px var(--find-mark); }
+mjx-container.l2m-find-f.l2m-find-now { background-color: var(--find-mark-now); box-shadow: 0 0 0 3px var(--find-mark-now); }
 
 /* the search fields sit in a box of their own (their thin underline as before) */
 .find-box { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; }
@@ -1889,9 +1859,7 @@ mjx-container.l2m-find-f.l2m-find-now { background-color: var(--find-now); box-s
 /* the marks as a highlighter leaves them: on words, a band over the letters (lower and shorter than the line,
    as a marker's stroke), where the browser can draw it; on a symbol in a formula, a slightly slanted stroke; round
    a formula, a gently uneven outline */
-:root { --find-band: rgb(255 214 10 / 0.55); --find-band-now: rgb(255 163 0 / 0.78); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --find-band: rgb(255 208 40 / 0.38); --find-band-now: rgb(255 170 30 / 0.66); } }
-:root[data-theme="dark"] { --find-band: rgb(255 208 40 / 0.38); --find-band-now: rgb(255 170 30 / 0.66); }
+/* (--find-band, --find-band-now) */
 html.l2m-marker ::highlight(l2m-find) { background-color: transparent; text-decoration: underline var(--find-band);
   text-decoration-thickness: 0.68em; text-underline-offset: -0.5em; text-decoration-skip-ink: none; }
 html.l2m-marker ::highlight(l2m-find-now) { background-color: transparent; text-decoration: underline var(--find-band-now);
@@ -1940,7 +1908,6 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
 
 /* formulas in a selection: shaded as the selected text round them */
-:root { --sel: color-mix(in srgb, var(--link) 24%, transparent); }
 ::selection { background-color: var(--sel); }
 mjx-container.l2m-selected { background-color: var(--sel); }
 html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#"] { -webkit-user-select: text; user-select: text; }
@@ -1954,7 +1921,7 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
    scrolling paints nothing); its right end is its own, its left end the clip's; the glow follows the visible part */
 .l2m-bar .bar-progress > i { position: absolute; inset: 0; width: auto; min-width: 0; overflow: hidden; border-radius: 999px;
   background: none; box-shadow: none;
-  filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--progress) 45%, transparent)) drop-shadow(0 1px 0.75px rgb(0 0 0 / 0.14)); }
+  filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--progress) 45%, transparent)) drop-shadow(0 1px 0.75px color-mix(in srgb, var(--shade) 14%, transparent)); }
 .l2m-bar .bar-progress > i > b { position: absolute; inset: 0; border-radius: 999px; background: var(--progress);
   transform: translateX(calc(3px - 100%)); will-change: transform; }
 @supports (animation-timeline: scroll()) {

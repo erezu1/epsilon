@@ -27,9 +27,7 @@
   })();
 </script>
 <style>
-  /* the colours: theme.css's tokens (linked above), as everywhere in the app */
-  :root { --ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-          --pill: color-mix(in srgb, var(--link) 10%, transparent); --pill-on: color-mix(in srgb, var(--link) 15%, transparent); }
+  /* the colours and fonts: theme.css's tokens (linked above), as everywhere in the app */
   * { -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
@@ -42,10 +40,10 @@
   h1 { font-family: var(--serif); font-weight: 600; font-size: 28px; line-height: 1.2; margin: 0 0 10px; }
   p { color: var(--muted); font-size: 16px; line-height: 1.5; margin: 0 0 24px; }
   button {
-    border: 0; border-radius: 999px; padding: 9px 20px; background: var(--pill); color: var(--ink);
+    border: 0; border-radius: 999px; padding: 9px 20px; background: var(--bar-hover); color: var(--ink);
     font: 600 15px/1.25 var(--ui); cursor: pointer; transition: background-color 150ms ease;
   }
-  @media (hover: hover) { button:hover { background: var(--pill-on); } }
+  @media (hover: hover) { button:hover { background: var(--bar-current); } }
   button:focus:not(:focus-visible) { outline: none; }
   button:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
 </style>
