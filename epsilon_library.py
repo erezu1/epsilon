@@ -25,6 +25,7 @@ import gzip
 import hashlib
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -637,6 +638,13 @@ def fetch_feed(lib, before=None):
     keep.sort(key=lambda i: i["id"])
     keep.sort(key=lambda i: i["type"] != "new")
     keep.sort(key=lambda i: i["announced"], reverse=True)
+    # a scheduled run with nothing new (GitHub's runs, several a night, most before or after the day's list) leaves
+    # the file as it is; one the app started always writes it, as the app watches for its end
+    sig = lambda its: [(i["id"], i["category"], i["announced"], i["type"]) for i in its]
+    if (not before and os.environ.get("GITHUB_EVENT_NAME") == "schedule" and sig(keep) == sig(old.get("items", []))
+            and old.get("categories") == cfg["categories"] and old.get("crossLists", False) == cfg.get("crossLists", False)):
+        say("feed: nothing new (%d papers)" % len(keep))
+        return
     htmls, cache, css = math_html([tex_text(i["title"]) for i in keep] + [tex_text(i["abstract"]) for i in keep])
     for k, i in enumerate(keep):
         i["titleHtml"], i["abstractHtml"] = htmls[k], htmls[len(keep) + k]
