@@ -697,6 +697,19 @@ window.L2M_marks = function (host) {
     if (e < p.e) frag.appendChild(document.createTextNode("…"));
     return frag;
   }
+  // in the list, the words run on as one passage: paragraphs, list items and displayed formulas each in the line, after
+  // a space (a display's formula drawn as in the text, its number left out), none on lines of its own
+  function runOn(frag) {
+    frag.querySelectorAll(".eqno").forEach(function (x) { x.remove(); });
+    frag.querySelectorAll("mjx-container[display]").forEach(function (x) { x.removeAttribute("display"); });
+    frag.querySelectorAll(host.block + ", div, ol, ul, table, tbody, thead, tr, dl, br").forEach(function (x) {
+      var sp = document.createElement("span");
+      while (x.firstChild) sp.appendChild(x.firstChild);
+      if (x.previousSibling && !/\s$/.test(x.previousSibling.textContent)) x.before(" ");
+      x.replaceWith(sp);
+    });
+    return frag;
+  }
   function fill(m) {
     sheet.querySelectorAll(".mk-dot").forEach(function (b) { b.setAttribute("aria-pressed", String(+b.getAttribute("data-c") === (m.c || 1))); });
     quote.textContent = "";
@@ -974,7 +987,7 @@ window.L2M_marks = function (host) {
       a.setAttribute("data-mk-go", id);
       var q = document.createElement("span");
       q.className = "mk-item-q";
-      q.appendChild(wordsOf(id, 220));
+      q.appendChild(runOn(wordsOf(id, 220)));
       a.appendChild(q);
       if (m.note || m.by) { var n = document.createElement("span"); n.className = "mk-item-n"; n.textContent = m.note ? (m.by ? m.by + ": " : "") + m.note : "Marked by " + m.by; a.appendChild(n); }
       frag.appendChild(a);
