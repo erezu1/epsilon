@@ -20,7 +20,7 @@ window.L2M_marks = function (host) {
   var store = host.store, I = host.icons || {}, main = document.querySelector("main");
   var dead = false, offs = [];
   function on(t, type, fn, o) { t.addEventListener(type, fn, o); offs.push([t, type, fn, o]); }
-  var NAMES = ["Green", "Pink", "Violet"];
+  var NAMES = ["Green", "Pink", "Violet", "Orange"];
   function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   // ---------------------------------------------------------------- the paper's text
@@ -297,24 +297,7 @@ window.L2M_marks = function (host) {
     }
     return out;
   }
-  function lines(rects) {                         // a mark's boxes as one band per line
-    var out = [];
-    rects.filter(function (r) { return r.right - r.left > 0.5 && r.bottom - r.top > 0.5; })
-      .sort(function (x, y) { return x.top - y.top || x.left - y.left; })
-      .forEach(function (r) {
-        var cy = (r.top + r.bottom) / 2;
-        for (var k = out.length - 1; k >= 0 && k >= out.length - 3; k--) {
-          var b = out[k], by = (b.top + b.bottom) / 2;
-          if ((cy >= b.top && cy <= b.bottom) || (by >= r.top && by <= r.bottom)) {
-            b.left = Math.min(b.left, r.left); b.right = Math.max(b.right, r.right);
-            b.top = Math.min(b.top, r.top); b.bottom = Math.max(b.bottom, r.bottom);
-            return;
-          }
-        }
-        out.push({left: r.left, right: r.right, top: r.top, bottom: r.bottom});
-      });
-    return out;
-  }
+  var lines = host.lines;                         // a mark's boxes as one band per line (nav.js: the search's too)
   // the strokes of the marks of a text, at their places (x0, y0: the layer's offset from the window), and their boxes
   function strokes(M, where, x0, y0, frag, nb) {
     var all = store.all(), out = [];
@@ -408,7 +391,7 @@ window.L2M_marks = function (host) {
   side.addEventListener("mouseleave", function () { if (hoverId) { hoverId = null; relay(); } });
 
   // ---------------------------------------------------------------- the bar for what is selected
-  function colourOf() { var p = window.L2M_prefs ? L2M_prefs() : {}; return p.markColour >= 1 && p.markColour <= 3 ? p.markColour : 1; }
+  function colourOf() { var p = window.L2M_prefs ? L2M_prefs() : {}; return p.markColour >= 1 && p.markColour <= NAMES.length ? p.markColour : 1; }
   function keepColour(c) { if (window.L2M_prefs) { var p = L2M_prefs(); p.markColour = c; L2M_savePrefs(p); } }
   function dots(label) {
     return NAMES.map(function (n, i) {

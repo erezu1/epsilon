@@ -3,7 +3,7 @@
 Claude, through epsilon_library.py's notes, text, mark and unmark commands). The app writes them as notes/<key>.json
 in the library: {"paper": key, "marks": {id: mark}}, a mark being
 
-    {"id", "c" (1 green, 2 pink, 3 violet), "quote" (the words it marks), "pre", "post" (some words before and after
+    {"id", "c" (1 green, 2 pink, 3 violet, 4 orange), "quote" (the words it marks), "pre", "post" (some words before and after
      them), "start", "end" (their place in the paper's text), "sec" (its section's heading id), "ver" (the conversion
      it was placed in), "made", "at" (milliseconds), "note" (if any), "by" (who made it, if not the reader),
      "was" (its words before the paper was revised, if they changed)}
@@ -31,8 +31,8 @@ import time
 from pathlib import Path
 
 APP = os.environ.get("L2M_APP", "https://erezu1.github.io/epsilon/")
-COLOURS = {"green": 1, "pink": 2, "violet": 3}
-NAMES = {1: "green", 2: "pink", 3: "violet"}
+COLOURS = {"green": 1, "pink": 2, "violet": 3, "orange": 4}
+NAMES = {1: "green", 2: "pink", 3: "violet", 4: "orange"}
 
 # ---------------------------------------------------------------- the paper's text, as the app reads it
 WS = set(" \n\t\r\f    ")

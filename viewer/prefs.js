@@ -148,14 +148,25 @@
       selMarked.forEach(function (m) { if (now.indexOf(m) < 0) { m.classList.remove("l2m-selected"); m.style.boxShadow = ""; } });
       // (all measured first, then all shaded: one layout, not one per formula)
       var fresh = now.filter(function (m) { return selMarked.indexOf(m) < 0 && !m.closest(".eqbody"); });
-      var gaps = fresh.map(function (m) {           // in a line of text: shaded the line's full height, as the text is
-        var r = m.getBoundingClientRect(), lh = parseFloat(getComputedStyle(m.parentElement).lineHeight) || r.height;
-        return Math.max(0, Math.ceil((lh - r.height) / 2 + 0.5));
+      // in a line of text: shaded exactly as high as the selected text beside it on that line (no seam above or below);
+      // with none beside it, the line's height
+      var band = fresh.length ? Array.prototype.filter.call(sel.getRangeAt(0).getClientRects(), function (q) { return q.width > 0.5; }) : [];
+      var gaps = fresh.map(function (m) {
+        var r = m.getBoundingClientRect(), mid = (r.top + r.bottom) / 2, best = null;
+        band.forEach(function (q) {
+          if (q.top > mid || q.bottom < mid || (q.left >= r.left - 0.5 && q.right <= r.right + 0.5)) return;   // (not itself)
+          if (!best || Math.abs(q.left - r.left) < Math.abs(best.left - r.left)) best = q;
+        });
+        if (best) return [Math.max(0, r.top - best.top), Math.max(0, best.bottom - r.bottom)];
+        var lh = parseFloat(getComputedStyle(m.parentElement).lineHeight) || r.height, t = Math.max(0, (lh - r.height) / 2);
+        return [t, t];
       });
       now.forEach(function (m) { m.classList.add("l2m-selected"); });
       fresh.forEach(function (m, i) {
-        var t = gaps[i];
-        m.style.boxShadow = t ? "0 " + (-t).toFixed(1) + "px 0 0 var(--sel), 0 " + t.toFixed(1) + "px 0 0 var(--sel)" : "";
+        var a = gaps[i][0], b = gaps[i][1], sh = [];
+        if (a > 0.05) sh.push("0 " + (-a).toFixed(2) + "px 0 0 var(--sel)");
+        if (b > 0.05) sh.push("0 " + b.toFixed(2) + "px 0 0 var(--sel)");
+        m.style.boxShadow = sh.join(", ");
       });
       selMarked = now;
       // while something is selected, links take part (otherwise a long press on one opens the peek, not a selection)

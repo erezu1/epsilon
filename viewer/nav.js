@@ -305,6 +305,25 @@ window.L2M_nav = function (opts) {
     var most = Math.atan(0.22 * hp / wp) * 180 / Math.PI;
     return Math.max(-most, Math.min(most, a));
   }
+  // boxes (a range's, a formula's) as one band per line: what a marker's stroke covers, for the search and the marks
+  function lines(rects) {
+    var out = [];
+    rects.filter(function (r) { return r.right - r.left > 0.5 && r.bottom - r.top > 0.5; })
+      .sort(function (x, y) { return x.top - y.top || x.left - y.left; })
+      .forEach(function (r) {
+        var cy = (r.top + r.bottom) / 2;
+        for (var k = out.length - 1; k >= 0 && k >= out.length - 3; k--) {
+          var b = out[k], by = (b.top + b.bottom) / 2;
+          if ((cy >= b.top && cy <= b.bottom) || (by >= r.top && by <= r.bottom)) {
+            b.left = Math.min(b.left, r.left); b.right = Math.max(b.right, r.right);
+            b.top = Math.min(b.top, r.top); b.bottom = Math.max(b.bottom, r.bottom);
+            return;
+          }
+        }
+        out.push({left: r.left, right: r.right, top: r.top, bottom: r.bottom});
+      });
+    return out;
+  }
   // a marker's stroke over the box x, y, w, h (page pixels): its place, size, outline and tilt, as a style; the k-th
   // stroke laid (each a little different)
   function strokeCss(x, y, w, h, k) {
@@ -320,16 +339,15 @@ window.L2M_nav = function (opts) {
     findLayer.textContent = "";
     var x0 = window.pageXOffset, y0 = window.pageYOffset, k = 0, rects = [];
     // every place first (one layout), then every stroke at once (one insertion)
-    hits.forEach(function (h, i) { if (h.range) rects.push([h, i, rectsOf(h)]); });
+    hits.forEach(function (h, i) { if (h.range) rects.push([h, i, lines(Array.prototype.slice.call(rectsOf(h)))]); });
     var frag = document.createDocumentFragment();
     rects.forEach(function (e) {
       var h = e[0], i = e[1];
       h.boxes = [];
       Array.prototype.forEach.call(e[2], function (r) {
-        if (r.width < 1) return;
         var m = document.createElement("span");
         m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
-        m.style.cssText = strokeCss(r.left + x0, r.top + y0, r.width, r.height, k++);
+        m.style.cssText = strokeCss(r.left + x0, r.top + y0, r.right - r.left, r.bottom - r.top, k++);
         frag.appendChild(m);
         h.boxes.push(m);
       });
@@ -527,16 +545,17 @@ window.L2M_nav = function (opts) {
     }
     var found = [];                                     // {at, range} | {at, el, glyph} | {at, el}
     if (what.text) {
-      var low = text.toLowerCase(), q = what.text, i = low.indexOf(q);
+      // any spacing (a space, a line's end, a no-break space before a citation) as any other
+      var low = text.toLowerCase(), q = what.text, re = new RegExp(reEsc(q.trim()).replace(/\s+/g, "\\s+"), "g"), mm = re.exec(low), i = mm ? mm.index : -1, len = mm ? mm[0].length : 0;
       function pos(k) {                                 // the text node and offset of the k-th character
         var lo = 0, hi = starts.length - 1;
         while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= k) lo = mid; else hi = mid - 1; }
         return {node: nodes[lo], off: Math.min(k - starts[lo], nodes[lo].data.length)};
       }
       while (i >= 0 && found.length < 1500) {
-        var a = pos(i), b = pos(i + q.length);
+        var a = pos(i), b = pos(i + len);
         try { var r = document.createRange(); r.setStart(a.node, a.off); r.setEnd(b.node, b.off); found.push({at: i, range: r}); } catch (e) {}
-        i = low.indexOf(q, i + q.length);
+        mm = re.exec(low); i = mm ? mm.index : -1; len = mm ? mm[0].length : 0;
       }
     }
     if (what.glyph || what.tex) {
@@ -586,6 +605,7 @@ window.L2M_nav = function (opts) {
   }
   // a passage of words and formulas (as copied): the paper read with each formula as its TeX, the words in any case
   // and any spacing; a hit is its words and its formulas, each marked as words are
+  function reEsc(x) { return x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
   function findMixed(parts) {
     var main = document.querySelector("main"), text = "", pieces = [], lastBlock = null;
     var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
@@ -608,9 +628,8 @@ window.L2M_nav = function (opts) {
         text += n.data.toLowerCase();
       }
     }
-    function esc(x) { return x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
     var re = new RegExp(parts.map(function (p) {
-      return p.f != null ? "\u0002" + esc(texNorm(p.f)) + "\u0003" : esc(p.t.trim().toLowerCase()).replace(/\s+/g, "\\s+");
+      return p.f != null ? "\u0002" + reEsc(texNorm(p.f)) + "\u0003" : reEsc(p.t.trim().toLowerCase()).replace(/\s+/g, "\\s+");
     }).join("\\s*"), "g");
     function at(k) {                                   // the piece holding the k-th character
       var lo = 0, hi = pieces.length - 1;
@@ -646,19 +665,7 @@ window.L2M_nav = function (opts) {
       if (b.nodeType === 1) { var r = (b.querySelector("svg") || b).getBoundingClientRect(); if (r.width) out.push(r); }
       else Array.prototype.forEach.call(b.getClientRects(), function (r) { if (r.width >= 1) out.push(r); });
     });
-    // one stroke a line, as for words: the boxes on a line (words and formulas, the spaces between) joined
-    var lines = [];
-    out.forEach(function (r) {
-      var l = null;
-      for (var i = 0; i < lines.length && !l; i++) {
-        var o = lines[i], over = Math.min(o.bottom, r.bottom) - Math.max(o.top, r.top);
-        if (over > 0.5 * Math.min(o.bottom - o.top, r.height)) l = o;
-      }
-      if (!l) { lines.push({left: r.left, right: r.right, top: r.top, bottom: r.bottom}); return; }
-      l.left = Math.min(l.left, r.left); l.right = Math.max(l.right, r.right);
-      l.top = Math.min(l.top, r.top); l.bottom = Math.max(l.bottom, r.bottom);
-    });
-    return lines.map(function (l) { return {left: l.left, top: l.top, width: l.right - l.left, height: l.bottom - l.top}; });
+    return out;
   }
   function hitRect(h) {
     var el = h.range || h.mark || h.el;
@@ -1913,7 +1920,7 @@ window.L2M_nav = function (opts) {
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
       find: function (q) { openFind(typeof q === "string" ? q : selectedQuery()); },
       barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },
-      strokeCss: strokeCss
+      strokeCss: strokeCss, lines: lines
     });
   }
   update();

@@ -16,14 +16,14 @@
   --link: #1d5b98;                   /* links, and the tints of the bars' buttons */
   --error: #b3261e;                  /* errors, and Remove */
   --progress: #2b7de9;               /* reading lines, loading bars: a brighter blue */
-  --find: #ffd60a; --find-now: #ffa300;   /* what the search found (yellow), the one it is on (amber) */
-  --mark-1: #4ade80; --mark-2: #f472b6; --mark-3: #a78bfa;   /* the reader's marks: green, pink, violet */
+  --find: var(--progress); --find-now: var(--progress);   /* what the search found, the one it is on: the progress blue, light and deeper */
+  --mark-1: #4ade80; --mark-2: #f472b6; --mark-3: #a78bfa; --mark-4: #ffa300;   /* the reader's marks: green, pink, violet, orange */
   --shade: #000000;                  /* what the bars' and buttons' shadows are made of */
   /* how strong: the glass; the link's tints (a button under the pointer; a chosen one, the bar's line, a landing
      mark; the mark's ring); the ink's shadow; the search's marks */
   --glass-a: 66%; --tint-faint: 10%; --tint: 14%; --tint-ring: 45%;
   --shadow-a: 22%; --bar-shadow: color-mix(in srgb, var(--ink) 45%, transparent);
-  --find-a: 42%; --find-now-a: 72%; --find-band-a: 55%; --find-band-now-a: 78%;
+  --find-a: 26%; --find-now-a: 50%; --find-band-a: 34%; --find-band-now-a: 60%;
   --mark-a: 42%; --mark-on-a: 64%;   /* a mark; the one whose sheet is open, or a link just landed on */
   --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow);   /* the chosen option of a segmented control */
   /* made from them */
@@ -2089,9 +2089,11 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .l2m-mk.c1, .l2m-mk-note.c1 { --mk: var(--mark-1); }
 .l2m-mk.c2, .l2m-mk-note.c2 { --mk: var(--mark-2); }
 .l2m-mk.c3, .l2m-mk-note.c3 { --mk: var(--mark-3); }
+.l2m-mk.c4, .l2m-mk-note.c4 { --mk: var(--mark-4); }
 .mk-dot[data-c="1"] { --mk: var(--mark-1); }
 .mk-dot[data-c="2"] { --mk: var(--mark-2); }
 .mk-dot[data-c="3"] { --mk: var(--mark-3); }
+.mk-dot[data-c="4"] { --mk: var(--mark-4); }
 .l2m-mk-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 1; pointer-events: none; mix-blend-mode: multiply; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .l2m-mk-layer { mix-blend-mode: screen; } }
 :root[data-theme="dark"] .l2m-mk-layer { mix-blend-mode: screen; }
@@ -2107,13 +2109,13 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 /* (as tall as the bars at the top, its buttons as the sheets' (48px), its icons as every bar's (24px)) */
 .l2m-markbar { padding-top: 8px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
 .mb-row { display: flex; align-items: center; justify-content: center; gap: 2px; }
-.mb-sep { flex: 0 0 auto; width: 1px; height: 32px; margin: 0 8px; background: var(--rule); }
+.mb-sep { flex: 0 0 auto; width: 1px; height: 32px; margin: 0 7px; background: var(--rule); }
 .mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  min-width: min(60px, 15vw); height: 48px; box-sizing: border-box;
+  min-width: min(60px, 14vw); height: 48px; box-sizing: border-box;
   border: 0; border-radius: 14px; padding: 3px 8px; background: transparent; color: var(--ink); cursor: pointer;
   font: 500 12.5px/1.2 var(--ui); transition: background-color 150ms ease; }
 .mb-btn svg { display: block; width: 24px; height: 24px; }
-.mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: min(48px, 12.5vw); height: 48px; border: 0; padding: 0;
+.mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: min(48px, 10.5vw); height: 48px; border: 0; padding: 0;
   border-radius: 50%; background: transparent; cursor: pointer; transition: background-color 150ms ease; }
 .mk-dot i { display: block; width: 26px; height: 26px; border-radius: 50%; background: var(--mk);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition: box-shadow 150ms ease; }
@@ -2152,6 +2154,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .l2m-mk-side.c1 { --mk: var(--mark-1); }
 .l2m-mk-side.c2 { --mk: var(--mark-2); }
 .l2m-mk-side.c3 { --mk: var(--mark-3); }
+.l2m-mk-side.c4 { --mk: var(--mark-4); }
 
 /* the contents panel's tabs, Contents and Notes (as its heading was: small capitals, the one shown underlined), above
    its list as the main tabs are above theirs (in line with the list) */
@@ -2183,6 +2186,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-item.c1 { --mk: var(--mark-1); }
 .mk-item.c2 { --mk: var(--mark-2); }
 .mk-item.c3 { --mk: var(--mark-3); }
+.mk-item.c4 { --mk: var(--mark-4); }
 @media (hover: hover) { .l2m-menu a.mk-item:hover { background: var(--bar-hover); } }
 .mk-item-q { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
   font-family: var(--serif); font-size: var(--fs); line-height: 1.4; overflow-wrap: anywhere; }
