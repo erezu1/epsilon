@@ -1062,11 +1062,15 @@ window.L2M_marks = function (host) {
     list.appendChild(frag);
     fit(true);                                     // (the panel with it, if it is shown)
   }
+  function markY(id) {                            // the scroll that shows a mark a little below the bar (null: not placed)
+    var p = placed[id], r = p && T.M && rangeOf(T.M, p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
+    return box ? Math.max(0, window.pageYOffset + box.top - host.barHeight() - Math.round(window.innerHeight * 0.18)) : null;
+  }
   function jumpTo(id) {                           // from the list: to the mark, as a link goes (back returns)
-    var p = placed[id], r = p && rangeOf(T.M, p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
-    if (!box) return;
+    var y = markY(id);
+    if (y == null) return;
     host.closeMenu("jump");
-    host.jump(Math.max(0, window.pageYOffset + box.top - host.barHeight() - Math.round(window.innerHeight * 0.18)), "mark-" + id);
+    host.jump(y, "mark-" + id, function () { return markY(id); });    // (put right once the page there is laid out)
     pulse(id);
   }
   function pulse(id) {
@@ -1118,10 +1122,11 @@ window.L2M_marks = function (host) {
   function go() {
     var p = wanted && placed[wanted];
     if (!p || dead) return;
-    var id = wanted, r = rangeOf(T.M, p.s, p.e), box = r && (r.getClientRects()[0] || r.getBoundingClientRect());
+    var id = wanted, y = markY(id);
     wanted = null;
-    if (!box) return;
-    window.scrollTo(0, Math.max(0, window.pageYOffset + box.top - host.barHeight() - Math.round(window.innerHeight * 0.18)));
+    if (y == null) return;
+    window.scrollTo(0, y);
+    if (host.land) host.land(function () { return markY(id); });
     pulse(id);
   }
 

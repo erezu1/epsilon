@@ -221,16 +221,32 @@
       el.setAttribute("data-lazy", "");
       if (mathApi.onUndraw) mathApi.onUndraw(el);
     }
+    // The block a formula is in that the browser may skip while far from the view (theme.css: content-visibility):
+    // one of the page's own blocks, or an entry of its notes or references. Asking where a formula inside a skipped
+    // block is would have the block laid out; where the block is, is known without
+    function blockOf(el, box) {
+      var b = el, li = null;
+      while (b.parentNode && b.parentNode !== box) {
+        if (b.tagName === "LI" && b.parentNode.parentNode && b.parentNode.parentNode.parentNode === box) li = b;
+        b = b.parentNode;
+      }
+      return li || b;
+    }
     function watch(box, scroller) {       // the pictures in box drawn in within three screens, let go past eight
-      var all = [], tops = [], pos = new Map(), dirty = true, tick = 0;
-      function measure() {
+      var all = [], tops = [], bots = [], reach = [], pos = new Map(), dirty = true, tick = 0, later2 = 0;
+      function measure() {                // (each by its block: its top and bottom)
         all = Array.prototype.filter.call(box.querySelectorAll("mjx-container[data-n]"), function (el) {
           return inner[+el.getAttribute("data-n")] != null && !el.closest(EAGER);
         });
-        var base = scroller ? scroller.getBoundingClientRect().top - scroller.scrollTop : -window.pageYOffset;
-        tops = all.map(function (el) { return el.getBoundingClientRect().top - base; });
-        pos = new Map();
-        all.forEach(function (el, i) { pos.set(el, tops[i]); });
+        var base = scroller ? scroller.getBoundingClientRect().top - scroller.scrollTop : -window.pageYOffset, seen = new Map();
+        tops = []; bots = []; reach = []; pos = new Map();
+        all.forEach(function (el, i) {
+          var b = blockOf(el, box), r = seen.get(b);
+          if (!r) { r = b.getBoundingClientRect(); seen.set(b, r); }
+          tops.push(r.top - base); bots.push(r.bottom - base);
+          reach.push(Math.max(i ? reach[i - 1] : -Infinity, r.bottom - base));   // (in page order, never less)
+          pos.set(el, i);
+        });
         dirty = false;
       }
       function look() {
@@ -239,32 +255,53 @@
         if (dirty) measure();
         if (!all.length) return;
         var y = scroller ? scroller.scrollTop : window.pageYOffset, h = scroller ? scroller.clientHeight : window.innerHeight;
-        var from = y - 3 * h, to = y + 4 * h, lo = 0, hi = tops.length;
-        while (lo < hi) { var mid = (lo + hi) >> 1; if (tops[mid] < from) lo = mid + 1; else hi = mid; }
+        var from = y - 3 * h, to = y + 4 * h, lo = 0, hi = reach.length;
+        while (lo < hi) { var mid = (lo + hi) >> 1; if (reach[mid] < from) lo = mid + 1; else hi = mid; }
         for (var i = lo; i < all.length && tops[i] <= to; i++) {
-          var el = all[i], t = tops[i];
+          var el = all[i];
           if (!el.hasAttribute("data-lazy")) continue;
-          if (t > y - 200 && t < y + h + 200) drawIn(el); else if (queue.indexOf(el) < 0) queue.push(el);
+          if (bots[i] > y - 200 && tops[i] < y + h + 200) drawIn(el); else if (queue.indexOf(el) < 0) queue.push(el);
         }
-        // far away (past eight screens), unless marked by a search: let go
+        // far away (its block wholly past eight screens), unless marked by a search: let go
         drawnSet.forEach(function (el) {
-          var t = pos.get(el);
-          if (t != null && (t < y - 8 * h || t > y + 9 * h) && !el.querySelector(".l2m-find-g")) undraw(el);
+          var k = pos.get(el);
+          if (k != null && (bots[k] < y - 8 * h || tops[k] > y + 9 * h) && !el.querySelector(".l2m-find-g")) undraw(el);
         });
         if (queue.length) later();
       }
       function soon() { if (!tick) tick = requestAnimationFrame(look); }
       var target = scroller || window;
-      function resized() { dirty = true; soon(); }
+      // (measured again a moment after the page's layout changes: blocks the browser lays out as they come near, or
+      // as the page settles, change it often at first)
+      function resized() { dirty = true; if (!later2) later2 = setTimeout(function () { later2 = 0; soon(); }, 150); }
       target.addEventListener("scroll", soon, {passive: true});
       window.addEventListener("resize", resized);
       var ro = window.ResizeObserver ? new ResizeObserver(resized) : null;
       if (ro) ro.observe(box);
+      unclip(box, scroller);
       ios.push({disconnect: function () {
         target.removeEventListener("scroll", soon); window.removeEventListener("resize", resized);
-        if (ro) ro.disconnect(); if (tick) cancelAnimationFrame(tick);
+        if (ro) ro.disconnect(); if (tick) cancelAnimationFrame(tick); clearTimeout(later2);
       }});
       soon();
+    }
+    // A long paper is laid out and drawn only near the view: the browser skips each of its blocks while far from it
+    // (theme.css: content-visibility), and skipping one clips what reaches outside it. So each block is looked at
+    // once, as it first comes in sight: one whose contents reach outside it is left whole (.l2m-cv-off)
+    function unclip(box, scroller) {
+      if (!window.IntersectionObserver) return;
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          var b = e.target;
+          io.unobserve(b);
+          if (b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1) b.classList.add("l2m-cv-off");
+        });
+      }, {root: scroller || null});
+      Array.prototype.forEach.call(box.querySelectorAll(":scope > *, :scope > section > ol > li"), function (b) {
+        if (!b.classList.contains("l2m-cv-off")) io.observe(b);
+      });
+      ios.push(io);
     }
     // for the reading view's own use (its second view, its search): draw one, look into one before drawing it
     var mathApi = {draw: drawIn, undraw: undraw, watch: watch, codes: codesOf, onDraw: null, onUndraw: null,
@@ -391,6 +428,7 @@
 
     var view = {
       ready: ready,
+      land: function (where) { if (nav && nav.land) nav.land(where); },   // (a place the host scrolls to, held as it lands)
       close: function (save) {           // save === false: the history entry has already moved on
         if (closed) return;
         closed = true;

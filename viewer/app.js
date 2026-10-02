@@ -621,8 +621,9 @@
   function isOffline(key) { return !!offlineSet()[key]; }
   var PAPER_CACHE = "l2m-papers-v1", KEEP_PAPERS = 30;
   var IMAGE_TYPES = {svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp"};
-  function paperFile(key, entry, name, onBytes) {      // (onBytes: told the bytes of what comes from the network)
+  function paperFile(key, entry, name, onBytes) {      // (onBytes: told the bytes as they come; a saved copy's at once)
     var base = entry.path || "papers/" + key, path = base + "/" + name, ver = entry.converted || "";
+    function counted(b) { if (onBytes) onBytes(b.size); return b; }
     if (isOffline(key)) {
       // the copy on this device, unless the paper has been converted again since it was saved: then the new one (and the
       // copy is saved afresh); with no network, the copy as it is
@@ -631,13 +632,13 @@
         return src.blob(path, onBytes).then(function (b) { refreshOffline(entry); return b; },
                                     function () { return fromCache(path).then(function (r) { return r.blob(); }); });
       }
-      return fromCache(path).then(function (r) { return r.blob(); }, function () { return src.blob(path, onBytes); });
+      return fromCache(path).then(function (r) { return r.blob(); }).then(counted, function () { return src.blob(path, onBytes); });
     }
     if (!window.caches || !ver || src.kind === "site") return src.blob(path, onBytes);
     var ck = new URL("__papers/" + path + "?v=" + encodeURIComponent(ver), location.href).href;
     return caches.open(PAPER_CACHE).then(function (c) {
       return c.match(ck).then(function (hit) {
-        if (hit) return hit.blob();
+        if (hit) return hit.blob().then(counted);
         return src.blob(path, onBytes).then(function (b) {
           c.put(ck, new Response(b)).then(function () { notePaper(c, key, base, ver); }, function () {});
           return b;
@@ -916,7 +917,10 @@
   function restorePlace(p) {
     var list = anchors();
     if (!p || !(p.n >= 0) || p.of || !list[p.n]) return;     // (a place kept by the earlier count, "of", is not this one)
-    window.scrollTo(0, window.pageYOffset + list[p.n].getBoundingClientRect().top + span(list, p.n) * (p.frac || 0) - barBottom() - 4);
+    function want() { return window.pageYOffset + list[p.n].getBoundingClientRect().top + span(list, p.n) * (p.frac || 0) - barBottom() - 4; }
+    window.scrollTo(0, want());
+    // held there while the page around it is laid out (its blocks' heights were estimates till then: nav.js)
+    if (view && view.land) view.land(function () { return list[p.n].isConnected ? want() : null; });
   }
   // A place is written to the library (a commit there) only when it moved, and only when the paper is left, the app
   // is put away, or every ten minutes while reading: a device that hides and shows the app over and over, or a
@@ -2394,6 +2398,18 @@
     document.getElementById("open-settings").addEventListener("click", function (e) { e.stopPropagation(); openPanel("settings"); });
   }
 
+  // The faces a paper is set in, loaded before it is laid out (at most two seconds): each that came after would have the
+  // whole paper restyled and laid out again (its letters are sized by the font's x-height, its formulas in ex), a
+  // second at a time on a phone for a long paper. Those its own letters need: the reading font, upright and italic
+  function paperFonts(doc) {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var fam = getComputedStyle(root).getPropertyValue("--serif").trim() || "serif", body = String(doc.body || ""), seen = {}, chars = "";
+    for (var i = 0; i < body.length; i++) { var c = body.charAt(i); if (!seen[c] && c > " ") { seen[c] = 1; chars += c; } }
+    var load = Promise.all(["16px ", "italic 16px "].map(function (s) {
+      return document.fonts.load(s + fam, chars).catch(function () {});
+    }));
+    return Promise.race([load, new Promise(function (r) { setTimeout(r, 2000); })]);
+  }
   var openVer = null, offeredVer = {};
   function showPaper(key) {
     dropShell();
@@ -2429,8 +2445,11 @@
                                               //  would have the whole page restyled at every change in it)
     var docP = paperFile(key, entry, "paper.json", size && came).then(function (b) { return b.text(); }).then(JSON.parse);
     var mathP = paperFile(key, entry, "math.json", size && came).then(function (b) { return b.text(); }).then(JSON.parse).catch(function () { return null; });
+    // both in (from the network or a saved copy, whatever the list said of their size): the line full
+    if (size) Promise.all([docP, mathP]).then(function () { got = size; came(0); }, function () {});
     docP.then(function (doc) {
-      return mathP.then(function (cache) {
+      var fontsP = paperFonts(doc);
+      return mathP.then(function (cache) { return fontsP.then(function () { return cache; }); }).then(function (cache) {
         if (current !== key) return;
         doc.kicker = null;                  // no label above the title in the app
         var actions = [];
@@ -2853,6 +2872,22 @@
     pane("app:new").innerHTML = skelRows(5, 11);
     place(k, false);
   }
+  // The app's fonts are loaded before anything is shown (the loading screen stays the moment they take, at most two
+  // seconds): a face that came later would have the whole page restyled and laid out again (a paper's letters are
+  // sized by the font's x-height, its formulas in ex), for a long paper a second or more on a phone. The reading font
+  // upright and italic and the app's own, for Latin, its accents and Greek, and the font list's previews (a kilobyte or
+  // two each); a paper's rarer letters come with the paper, before it is laid out (paperFonts)
+  var fontsIn = Promise.resolve();
+  function appFonts() {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    var cs = getComputedStyle(root), serif = cs.getPropertyValue("--serif").trim() || "serif", ui = cs.getPropertyValue("--ui").trim() || "sans-serif";
+    var text = "AaQqZz019 \u00c0\u00e0\u00c9\u00e9\u00d6\u00f6\u00c7\u00e7 \u0100\u0101\u0118\u0119\u0141\u0142\u0160\u0161\u017d\u017e \u0391\u03b1\u0392\u03b2\u0393\u03b3\u03a9\u03c9";
+    var asks = ["16px " + serif, "italic 16px " + serif, "16px " + ui].map(function (f) {
+      return document.fonts.load(f, text).catch(function () {});
+    });
+    document.fonts.forEach(function (f) { if (/^["']?l2m-pv-/.test(f.family)) asks.push(f.load().catch(function () {})); });
+    return Promise.race([Promise.all(asks), new Promise(function (r) { setTimeout(r, 2000); })]);
+  }
   // this release's files are asked for by name and release, so the app's offline copy can answer at once
   var REL = (function () {
     try { var v = new URL(document.currentScript.src).searchParams.get("v"); return v && v !== "__RELEASE__" ? v : ""; } catch (e) { return ""; }
@@ -2864,6 +2899,7 @@
   Promise.all([themeP, siteP]).then(function (r) {
     theme = r[0];
     if (window.L2M_initPrefs) L2M_initPrefs(theme);
+    fontsIn = appFonts();                     // (the reading font now known)
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
     if (r[1]) store("site", location.pathname);
     // offline, a site is still a site: its lists and saved papers come from this device
@@ -2876,7 +2912,7 @@
       if (isPage(k0)) standIns(k0);
       return freshLists().then(useLists);
     });
-  }).then(function () {
+  }).then(function () { return fontsIn; }).then(function () {
     var k = wanted();
     try {
       if (k === "app:library" && libView !== "all" && !(history.state || {}).l2mFolderStep) {

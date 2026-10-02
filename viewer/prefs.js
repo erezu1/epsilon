@@ -59,8 +59,14 @@
   };
   window.L2M_previewReady = function () { return previews === 2 || own(); };
   window.L2M_previewStack = function (key) { return FONTS[key] ? '"l2m-pv-' + key + '", ' + FONTS[key].stack : ""; };
+  // (fetched once the app is idle and no paper is open: fonts added have the whole page restyled and laid out again,
+  // for a long paper a second or more on a phone; a paper open, they wait till it is left, or the font list opens)
   window.addEventListener("load", function () {
-    setTimeout(function () { (window.requestIdleCallback || setTimeout)(function () { window.L2M_previewFonts(); }); }, 3000);
+    (function soon() {
+      setTimeout(function () {
+        (window.requestIdleCallback || setTimeout)(function () { if (window.L2M_current) soon(); else window.L2M_previewFonts(); });
+      }, 3000);
+    })();
   });
   function attr(name, value, def) {
     if (value && value !== def) root.setAttribute(name, value); else root.removeAttribute(name);

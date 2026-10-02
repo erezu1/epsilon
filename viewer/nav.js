@@ -69,6 +69,50 @@ window.L2M_nav = function (opts) {
   function offset() { return barHeight() + 14; }
   function yOf(el) { return Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - offset()); }
   function scrollToY(y) { window.scrollTo(0, y); }
+  // A place kept in the history (where Back returns) by the page's block there and how far into it, as well as by its
+  // height on the page: blocks far from the view are laid out by the browser only as they come near (theme.css), so
+  // heights above a place can change between leaving it and coming back; the block is still the block
+  function placeAt(y) {
+    var kids = document.querySelector("main").children, lo = 0, hi = kids.length - 1, base = window.pageYOffset;
+    if (!kids.length) return null;
+    while (lo < hi) {                                   // (the last one whose top is at or above y: by halving)
+      var mid = (lo + hi + 1) >> 1;
+      if (kids[mid].getBoundingClientRect().top + base <= y) lo = mid; else hi = mid - 1;
+    }
+    return {n: lo, d: Math.round(y - (kids[lo].getBoundingClientRect().top + base))};
+  }
+  function yAt(st) {                                    // a kept place's height now (its block's, else as it was kept)
+    var b = st && st.l2mB, el = b && document.querySelector("main").children[b.n];
+    return el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset + b.d) : st.l2mY;
+  }
+  function kept(y) { return {l2mY: y, l2mB: placeAt(y)}; }
+  // Where a jump lands is held there while the page around it is laid out: the blocks near it may be laid out only now
+  // (theme.css: far from the view they are skipped, at an estimate of their height), a frame or two after the jump, and
+  // their true heights would move the target. For a moment after (till the reader touches or scrolls the page), each
+  // time the page's height changes, the target is put back where it landed: in the browser's step after laying out and
+  // before drawing (a ResizeObserver), so nothing is seen to move
+  var touched = 0;
+  function moving() { touched = Date.now(); }
+  on(window, "wheel", moving, {passive: true});
+  on(window, "touchstart", moving, {passive: true});
+  on(document, "keydown", moving);
+  function landOn(where, box) {         // where(): the scroll the target wants now (null: none); box: its scroller
+    var t0 = Date.now(), done = false, frames = 0, ro = null;
+    function end() { done = true; if (ro) ro.disconnect(); }
+    function hold() {
+      if (done) return;
+      if (dead || touched > t0 || Date.now() - t0 > 1500) { end(); return; }
+      var y = where(), now = box ? box.scrollTop : window.pageYOffset;
+      if (y == null || !isFinite(y)) { end(); return; }
+      if (Math.abs(y - now) >= 1) { if (box) box.scrollTo(0, y); else scrollToY(y); }
+      placeFlash();                       // (the highlight on what it lit, as it moves)
+    }
+    if (window.ResizeObserver) {
+      ro = new ResizeObserver(hold);
+      ro.observe(box ? (box.firstElementChild || box) : document.querySelector("main"));
+    }
+    (function frame() { requestAnimationFrame(function () { hold(); if (!done && ++frames < 40) frame(); else end(); }); })();
+  }
   // what an address's #… names: an id (a \label's, made URL-safe: eq:shock → eq-shock; a section's), or a number as
   // the paper prints it: #eq-2.18 (equation (2.18)), #section-2.3, #figure-3, #table-1
   function linked(hash) {
@@ -90,27 +134,34 @@ window.L2M_nav = function (opts) {
 
   // where a link lands: a soft mark laid over the block for a moment, tinting what is under it (so an
   // equation's own grounds and fades cannot hide it), in the progress bar's blue
+  var flashing = null;                     // the highlight a jump left, and what it lights: {m, t, box}
   function flash(el) {
     var t = el.closest(".display, .thm, .defn, .remark, figure, li, h2, h3, h4, h5, p") || el;
     var box = t.closest(".peek-main") || document.body;
     var old = box.querySelector(":scope > .l2m-mark");
     if (old) old.remove();
-    var r = t.getBoundingClientRect(), b = box.getBoundingClientRect(), page = box === document.body;
-    var x0 = page ? window.pageXOffset : -b.left, y0 = page ? window.pageYOffset : -b.top;
     var m = document.createElement("div");
     m.className = "l2m-mark";
     m.setAttribute("aria-hidden", "true");
-    m.style.left = (r.left + x0 - 8) + "px";
-    m.style.top = (r.top + y0 - 5) + "px";
-    m.style.width = (r.width + 16) + "px";
-    m.style.height = (r.height + 10) + "px";
-    m.addEventListener("animationend", function () { m.remove(); });
+    flashing = {m: m, t: t, box: box};
+    placeFlash();
+    m.addEventListener("animationend", function () { m.remove(); if (flashing && flashing.m === m) flashing = null; });
     box.appendChild(m);
+  }
+  function placeFlash() {                   // (and again while the page around it settles: landOn)
+    var f = flashing;
+    if (!f) return;
+    var r = f.t.getBoundingClientRect(), b = f.box.getBoundingClientRect(), page = f.box === document.body;
+    var x0 = page ? window.pageXOffset : -b.left, y0 = page ? window.pageYOffset : -b.top;
+    f.m.style.left = (r.left + x0 - 8) + "px";
+    f.m.style.top = (r.top + y0 - 5) + "px";
+    f.m.style.width = (r.width + 16) + "px";
+    f.m.style.height = (r.height + 10) + "px";
   }
 
   function saveHere() {
     if (!useHistory) return;
-    try { history.replaceState(assign(state(), {l2mIdx: idx, l2mY: window.pageYOffset, l2mPaper: KEY}), ""); } catch (e) {}
+    try { history.replaceState(assign(state(), assign({l2mIdx: idx, l2mPaper: KEY}, kept(window.pageYOffset))), ""); } catch (e) {}
   }
 
   // a step in the history to the place y, the address naming it (#name): back returns to where the reader was
@@ -119,8 +170,8 @@ window.L2M_nav = function (opts) {
     var from = window.pageYOffset;
     if (useHistory) {
       try {
-        history.replaceState(assign(state(), {l2mIdx: idx, l2mY: from, l2mPaper: KEY}), "");
-        var next = {l2mIdx: idx + 1, l2mY: y, l2mId: name, l2mPaper: KEY};
+        history.replaceState(assign(state(), assign({l2mIdx: idx, l2mPaper: KEY}, kept(from))), "");
+        var next = assign({l2mIdx: idx + 1, l2mId: name, l2mPaper: KEY}, kept(y));
         try { history.pushState(next, "", "#" + name); } catch (e1) { history.pushState(next, ""); }
         idx += 1;
       } catch (e2) { useHistory = false; mem.push(from); }
@@ -135,7 +186,7 @@ window.L2M_nav = function (opts) {
     if (!el) return false;
     if (finding) closeFind("jump");
     jumpTo(id === "l2m-top" ? 0 : yOf(el), id);
-    if (id !== "l2m-top") flash(el);
+    if (id !== "l2m-top") { flash(el); landOn(function () { return yOf(el); }); }
     return true;
   }
 
@@ -181,13 +232,13 @@ window.L2M_nav = function (opts) {
     if (st && typeof st.l2mIdx === "number") {
       idx = st.l2mIdx;
       var el = st.l2mId ? document.getElementById(st.l2mId) : null;
-      if (typeof st.l2mY === "number") scrollToY(st.l2mY);
-      else if (el) scrollToY(yOf(el));
+      if (typeof st.l2mY === "number") { scrollToY(yAt(st)); landOn(function () { return yAt(st); }); }
+      else if (el) { scrollToY(yOf(el)); landOn(function () { return yOf(el); }); }
     } else if (marks && /^#mark-/.test(location.hash)) {
       marks.reveal(decodeURIComponent(location.hash.slice(6)));
     } else if (location.hash.length > 1) {
       var t = linked(location.hash);
-      if (t) scrollToY(yOf(t));
+      if (t) { scrollToY(yOf(t)); landOn(function () { return yOf(t); }); }
     }
     closeMenu();
     closeSheet("pop");
@@ -685,7 +736,13 @@ window.L2M_nav = function (opts) {
       else if (h.mark) h.mark.classList.add("now");
       // in sight: below the bar, above the peek, a third of the way down if it has to move
       var r = hitRect(h), top = barHeight() + 12, bottom = window.innerHeight - Math.max(peekOpen ? peekH : 0, keyboardH()) - 24;
-      if (r.top < top || r.bottom > bottom) window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - top - (bottom - top) * 0.3));
+      if (r.top < top || r.bottom > bottom) {
+        window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - top - (bottom - top) * 0.3));
+        landOn(function () {                          // (still out of sight, the page around it laid out: again)
+          var r2 = hitRect(h);
+          return r2.top < top || r2.bottom > bottom ? Math.max(0, window.pageYOffset + r2.top - top - (bottom - top) * 0.3) : null;
+        });
+      }
       var at = (h.glyphs && h.mark) || (h.range && h.range.startContainer.parentElement), eq = at && at.closest && at.closest(".eqbody");
       if (eq) {                                           // a wide formula scrolled sideways to it
         var er = eq.getBoundingClientRect(), gr = hitRect(h);
@@ -1401,7 +1458,9 @@ window.L2M_nav = function (opts) {
     }
   }
   function peekFinish() {
-    if (window.L2M_math) L2M_math.watch(peekMain, peekScroll);        // (its formulas drawn in as they come in sight)
+    // (its formulas drawn in as they come in sight: watched once it is shown, not while set aside, where finding
+    // their places would have the browser lay the whole copy out)
+    if (window.L2M_math && peekScroll.style.contentVisibility !== "hidden") peekWatch();
     peekHeads = Array.prototype.filter.call(peekMain.querySelectorAll("h2[data-pid], h3[data-pid]"), function (h) {
       return !h.closest(".titleblock");
     });
@@ -1415,11 +1474,13 @@ window.L2M_nav = function (opts) {
     prepCopy(peekMain);
     peekFinish();
   }
-  // In the background it is made a little at a time, in the page's idle moments: a few blocks of the paper copied
-  // and laid out (they alone: the rest is not there yet), then the next few. So no moment is long, however long the
-  // paper (all at once it held a phone ~0.4s). Opened meanwhile, the rest comes at once.
+  // In the background it is made a little at a time, in the page's idle moments: a few blocks of the paper copied, then
+  // the next few, while it is set aside (content-visibility: hidden), so the browser neither styles nor lays them out
+  // (a long paper's copy laid out as it came held a phone for seconds); opened, it is laid out near what it shows
+  // only (theme.css). So no moment is long, however long the paper. Opened meanwhile, the rest comes at once.
   function peekFillSlices(idle, done) {
     var kids = Array.prototype.slice.call(document.querySelector("main").children), i = 0;
+    peekAside(true);                                  // (made while set aside: copied only, not styled or laid out yet)
     peekMain.innerHTML = "";
     peekMain.l2mFilled = false;
     peekMain.l2mGen = (peekMain.l2mGen || 0) + 1;
@@ -1436,7 +1497,6 @@ window.L2M_nav = function (opts) {
       while (i < kids.length && performance.now() - t0 < 1) f.appendChild(kids[i++].cloneNode(true));
       prepCopy(f);
       peekMain.appendChild(f);
-      void peekScroll.scrollHeight;                   // (laid out now, while it is little)
       if (i < kids.length) idle(slice, {timeout: 3000});
       else { peekFinish(); if (done) done(); }
     }
@@ -1516,18 +1576,28 @@ window.L2M_nav = function (opts) {
     var el = peekFind(id);
     if (!el) return false;
     if (push) { peekStack.push(peekScroll.scrollTop); peekBack.hidden = false; }
-    var y = el.getBoundingClientRect().top - peekScroll.getBoundingClientRect().top + peekScroll.scrollTop - peekHead.offsetHeight - 12;
-    peekScroll.scrollTo(0, Math.max(0, y));
+    function want() { return Math.max(0, el.getBoundingClientRect().top - peekScroll.getBoundingClientRect().top + peekScroll.scrollTop - peekHead.offsetHeight - 12); }
+    peekScroll.scrollTo(0, want());
+    landOn(want, peekScroll);
     flash(el);
     var label = peekLabel(el);
     if (label) { peekTitleSet(label); peekTitle.l2mFixed = true; peekTitle.l2mFixedAt = peekScroll.scrollTop; }
     else { peekTitle.l2mFixed = false; peekTitleNow(); }
     return true;
   }
-  // The peek closed keeps its copy laid out but out of the way (content-visibility: hidden): not drawn, not reached by
-  // Tab, and shown again at once. (Its text sets its own visibility, so showing the peek restyles only its frame, not
-  // the thousands of elements of the copy under it.)
-  function peekAside(on) { if (peekScroll) peekScroll.style.contentVisibility = on ? "hidden" : ""; }
+  // The peek closed keeps its copy out of the way (content-visibility: hidden): not styled, laid out or drawn, not
+  // reached by Tab; shown again, it is laid out near what it shows only (theme.css). (Its text sets its own
+  // visibility, so showing the peek restyles only its frame, not the thousands of elements of the copy under it.)
+  function peekAside(on) {
+    if (!peekScroll) return;
+    peekScroll.style.contentVisibility = on ? "hidden" : "";
+    if (!on && peekMain && peekMain.l2mFilled) peekWatch();
+  }
+  function peekWatch() {                    // the copy's formulas drawn in as they come in sight (once a copy)
+    if (!window.L2M_math || !peekMain || peekMain.l2mWatched === peekMain.l2mGen) return;
+    peekMain.l2mWatched = peekMain.l2mGen;
+    L2M_math.watch(peekMain, peekScroll);
+  }
   function openPeek(id, from) {
     peekBuild();
     peekAside(false);
@@ -1604,12 +1674,13 @@ window.L2M_nav = function (opts) {
         var y = Math.max(0, b.getBoundingClientRect().top + window.pageYOffset - barHeight() - off);
         if (useHistory) {
           try {
-            history.replaceState(assign(state(), {l2mIdx: idx, l2mY: from, l2mPaper: KEY}), "");
-            history.pushState({l2mIdx: idx + 1, l2mY: y, l2mPaper: KEY}, "");
+            history.replaceState(assign(state(), assign({l2mIdx: idx, l2mPaper: KEY}, kept(from))), "");
+            history.pushState(assign({l2mIdx: idx + 1, l2mPaper: KEY}, kept(y)), "");
             idx += 1;
           } catch (e) { mem.push(from); }
         } else mem.push(from);
         scrollToY(y);
+        landOn(function () { return Math.max(0, b.getBoundingClientRect().top + window.pageYOffset - barHeight() - off); });
       }
       update();
       void main.offsetWidth;
@@ -1890,12 +1961,13 @@ window.L2M_nav = function (opts) {
     placeProgress();
     var st = state();
     if (typeof st.l2mY === "number" && st.l2mPaper === KEY) {
-      scrollToY(st.l2mY);
+      scrollToY(yAt(st));
+      landOn(function () { return yAt(st); });
     } else if (marks && /^#mark-/.test(location.hash)) {
       marks.reveal(decodeURIComponent(location.hash.slice(6)));      // (once the marks are in)
     } else if (location.hash.length > 1) {
       var el = linked(location.hash);
-      if (el) { scrollToY(yOf(el)); flash(el); }
+      if (el) { scrollToY(yOf(el)); flash(el); landOn(function () { return yOf(el); }); }
     }
     update();
   }
@@ -1911,8 +1983,7 @@ window.L2M_nav = function (opts) {
       if (dead || (peekMain && (peekMain.l2mFilled || peekMain.l2mBuilding))) return;
       if (Date.now() - lastScroll < 800) { setTimeout(tryBuild, 900); return; }
       peekBuild();
-      // laid out at the height it opens at, a little at a time, then set aside with its layout kept: opening only
-      // shows it
+      // at the height it opens at, copied a little at a time while set aside
       peek.style.height = Math.min(peekMax(), Math.round((window.innerHeight - barHeight()) * (peekUserH || 0.48))) + "px";
       peekFillSlices(function (f, o) {                  // (an idle moment, and not while the reader scrolls)
         idle(function (d) { if (Date.now() - lastScroll < 300) setTimeout(function () { f(d); }, 400); else f(d); }, o);
@@ -1924,7 +1995,9 @@ window.L2M_nav = function (opts) {
   if (opts.marks && window.L2M_marks) {
     marks = window.L2M_marks({
       store: opts.marks, icons: theme.icons || {}, block: BLOCK, ready: opts.textReady || opts.ready,   // (the text and formulas in)
-      menu: menu, closeMenu: closeMenu, jump: jumpTo,
+      menu: menu, closeMenu: closeMenu,
+      jump: function (y, name, where) { jumpTo(y, name); if (where) landOn(where); },   // (where(): the place again)
+      land: landOn,
       tex: opts.tex || function () { return ""; },
       overlayIn: overlayIn, overlayOut: overlayOut,
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
@@ -1937,6 +2010,7 @@ window.L2M_nav = function (opts) {
   update();
 
   return {
+    land: landOn,                         // (the host's own jumps, its reading place: held as they land)
     destroy: function (save) {
       if (dead) return;
       if (save !== false) saveHere();
