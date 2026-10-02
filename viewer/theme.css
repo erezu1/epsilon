@@ -2104,16 +2104,18 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 /* the bar for what is selected (the three colours, Note, Find), and a mark's sheet: glass sheets from the bottom,
    as a footnote's; nothing in them selects (a press keeps the paper's selection), but the note's text */
 .l2m-markbar, .l2m-marksheet { z-index: 43; font-family: var(--ui); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.l2m-markbar { padding-top: 6px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
+/* (as tall as the bars at the top, its buttons as the sheets' (48px), its icons as every bar's (24px)) */
+.l2m-markbar { padding-top: 8px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
 .mb-row { display: flex; align-items: center; justify-content: center; gap: 2px; }
-.mb-sep { flex: 0 0 auto; width: 1px; height: 26px; margin: 0 10px; background: var(--rule); }
-.mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px;
-  border: 0; border-radius: 12px; padding: 5px 8px 4px; background: transparent; color: var(--ink); cursor: pointer;
-  font: 500 11px/1.2 var(--ui); transition: background-color 150ms ease; }
-.mb-btn svg { display: block; width: 20px; height: 20px; }
-.mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: 42px; height: 42px; border: 0; padding: 0;
+.mb-sep { flex: 0 0 auto; width: 1px; height: 32px; margin: 0 8px; background: var(--rule); }
+.mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: min(60px, 15vw); height: 48px; box-sizing: border-box;
+  border: 0; border-radius: 14px; padding: 3px 8px; background: transparent; color: var(--ink); cursor: pointer;
+  font: 500 12.5px/1.2 var(--ui); transition: background-color 150ms ease; }
+.mb-btn svg { display: block; width: 24px; height: 24px; }
+.mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: min(48px, 12.5vw); height: 48px; border: 0; padding: 0;
   border-radius: 50%; background: transparent; cursor: pointer; transition: background-color 150ms ease; }
-.mk-dot i { display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--mk);
+.mk-dot i { display: block; width: 26px; height: 26px; border-radius: 50%; background: var(--mk);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition: box-shadow 150ms ease; }
 .mk-dot.last i, .mk-dot[aria-pressed="true"] i { box-shadow: 0 0 0 2px var(--ground), 0 0 0 3.5px var(--muted); }
 @media (hover: hover) { .mb-btn:hover, .mk-dot:hover { background: var(--bar-hover); } }
