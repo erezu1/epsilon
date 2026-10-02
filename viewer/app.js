@@ -40,11 +40,11 @@
       localStorage.setItem(PREFS, JSON.stringify(all));
     } catch (e) { return undefined; }
   }
-  function toast(html, ms) {
+  function toast(html, ms, snack) {        // snack: a small floating card (a message with one thing to do), not a sheet
     var t = document.getElementById("app-toast");
     if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     t.innerHTML = html;
-    t.classList.remove("snack");
+    if (t.classList.contains("snack") !== !!snack) { t.classList.toggle("snack", !!snack); void t.offsetWidth; }   // (comes in as what it is)
     t.classList.add("on");
     if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
     clearTimeout(t.l2mTimer);
@@ -72,11 +72,10 @@
     toast('<span class="app-ask app-act-row"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
           '<button type="button" class="app-pill app-ask-yes" data-act-go>' + label + "</button>" +
           '<button type="button" class="bar-btn app-toast-x" data-toast-x aria-label="Close">' + ((theme && theme.icons && theme.icons.close) || "&times;") +
-          "</button></span></span>", ms || 5000);
+          '</button></span></span><span class="app-toast-time" aria-hidden="true"><i></i></span>', ms || 5000, true);
     var t = document.getElementById("app-toast");
-    // a small card floating over the foot of the page, its line running out as its time does
+    // a small card floating over the foot of the page; under it a line, as the bar's reading line, fills as its time goes
     t.style.setProperty("--toast-ms", (ms || 5000) + "ms");
-    t.classList.remove("snack"); void t.offsetWidth; t.classList.add("snack");
     t.onclick = function (e) {
       var go = e.target.closest("[data-act-go]");
       if (!go && !e.target.closest("[data-toast-x]")) return;

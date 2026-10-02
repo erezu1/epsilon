@@ -1915,10 +1915,10 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-act-row .app-confirm-acts { margin: 0 -6px 0 auto; align-items: center; gap: 4px; flex: 0 0 auto; }
 .app-toast-x { color: var(--muted); }
 /* a message with one thing to do, as a small card floating over the foot of the page (not a sheet): the message,
-   the thing to do in the link's colour, its x; a thin line under it runs out with its time */
+   the thing to do in the link's colour, its x; along its foot a line as the bar's reading line, filling as its time goes */
 .app-toast.snack {
   left: 50%; right: auto; width: min(460px, calc(100% - 24px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
-  padding: 6px 6px 6px 18px; border: 1px solid var(--bar-line); border-radius: 18px; overflow: hidden;
+  padding: 6px 6px 12px 18px; border: 1px solid var(--bar-line); border-radius: 18px; overflow: hidden;
   box-shadow: 0 12px 32px -14px var(--bar-shadow), 0 2px 6px -3px var(--bar-shadow);
   transform: translate(-50%, calc(100% + 30px)); font-size: 15px;
 }
@@ -1928,11 +1928,13 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 @media (hover: hover) { .app-toast.snack .app-pill:hover { background: var(--bar-hover); } }
 @media (hover: none) { .app-toast.snack .app-pill:active { background: var(--bar-current); } }
 .app-toast.snack .app-confirm-acts { margin: 0; gap: 0; }
-.app-toast.snack::after { content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 2px; border-radius: 2px;
-  background: color-mix(in srgb, var(--progress) 70%, transparent); transform-origin: left center; transform: scaleX(0); }
-.app-toast.snack.on::after { animation: l2m-toast-time var(--toast-ms, 5000ms) linear both; }
-@keyframes l2m-toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-@media (prefers-reduced-motion: reduce) { .app-toast.snack.on::after { animation: none; transform: scaleX(0); } }
+.app-toast-time { position: absolute; left: 18px; right: 18px; bottom: 5px; height: 3px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--progress) 16%, transparent); }
+.app-toast-time > i { position: absolute; inset: 0; border-radius: 999px; background: var(--progress);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--progress) 55%, transparent); transform: translateX(-100%); }
+.app-toast.snack.on .app-toast-time > i { animation: l2m-toast-time var(--toast-ms, 5000ms) linear forwards; }
+@keyframes l2m-toast-time { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .app-toast-time { display: none; } }
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
 
 /* formulas in a selection: shaded as the selected text round them */

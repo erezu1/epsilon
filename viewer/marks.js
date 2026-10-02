@@ -733,7 +733,7 @@ window.L2M_marks = function (host) {
     note.value = m.note || "";
     grow();
   }
-  function grow() { note.style.height = "auto"; note.style.height = Math.min(note.scrollHeight + 2, Math.round(window.innerHeight * 0.4)) + "px"; }
+  function grow() { note.style.height = "auto"; note.style.height = Math.min(note.scrollHeight + 2, Math.round(window.innerHeight * 0.4)) + "px"; keepInSight(); }
   function saveNote() {
     clearTimeout(noteT);
     var m = openId && store.all()[openId];
@@ -760,6 +760,7 @@ window.L2M_marks = function (host) {
       if (window.L2M_pinFilm) L2M_pinFilm(sheet, 360);
       fitKeyboard();
     }
+    keepInSight();
     hideDock();
     relay();
     if (write) note.focus();                       // (Note: straight to writing; in the tap itself, so the keyboard comes)
@@ -783,8 +784,31 @@ window.L2M_marks = function (host) {
     if (!sheetOpen || !vv) return;
     var under = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     sheet.style.bottom = under > 40 ? under + "px" : "";
+    keepInSight();
+  }
+  // the words a note is on kept in sight while it is written: if the sheet (or the keyboard under it) covers them, the
+  // page moves so they stand in the room left between the bar and the sheet (a little above its middle)
+  var sightT = 0;
+  function keepInSight() {
+    if (sightT) return;
+    sightT = requestAnimationFrame(function () {
+      sightT = 0;
+      var p = sheetOpen && !peekShown && openId && placed[openId];
+      if (!p || !T.M) return;
+      var ls = lines(rectsOf(T.M, p.s, p.e));
+      if (!ls.length) return;
+      var top = ls[0].top, bottom = ls[ls.length - 1].bottom;
+      var vv = window.visualViewport, vTop = vv ? vv.offsetTop : 0, vBottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+      var sheetTop = window.innerHeight - (parseFloat(getComputedStyle(sheet).bottom) || 0) - sheet.offsetHeight;   // (where it comes to)
+      var a = Math.max(host.barHeight(), vTop) + 12, b = Math.min(sheetTop, vBottom) - 16;
+      if (b - a < 40 || (top >= a && bottom <= b)) return;
+      var want = bottom - top <= b - a ? a + (b - a - (bottom - top)) * 0.4 : a;
+      window.scrollBy(0, Math.round(top - want));
+    });
   }
   if (window.visualViewport) { on(window.visualViewport, "resize", fitKeyboard); on(window.visualViewport, "scroll", fitKeyboard); }
+  // (and once the keyboard is up, whether or not the window said so: a phone's keyboard comes in some 300ms)
+  note.addEventListener("focus", function () { setTimeout(keepInSight, 400); });
   note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); });
   // with a keyboard (a mouse or trackpad beside it): Enter is done with the note, Shift+Enter a new line in it. Without
   // one (a phone's keys), Enter is a new line, as it is anywhere
