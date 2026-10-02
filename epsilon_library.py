@@ -8,6 +8,10 @@
     python3 epsilon_library.py feed                              # refresh feed.json (new papers in your categories)
     python3 epsilon_library.py remove 2609.28331 bf_any_N         # take papers out (their files and sources)
     python3 epsilon_library.py list
+    python3 epsilon_library.py notes [KEY]                       # the reader's marks and notes (epsilon_notes.py)
+    python3 epsilon_library.py text KEY [--section 2.3]          # a paper's text as the app reads it
+    python3 epsilon_library.py mark KEY "words" --note "..."     # a mark from here (by Claude), written at once
+    python3 epsilon_library.py unmark KEY ID
 
 Options: --library DIR (default: the current folder), --push (commit and push the changes with git).
 
@@ -744,11 +748,36 @@ def main():
     r.add_argument("keys", nargs="+")
     sub.add_parser("list", help="list the papers")
     sub.add_parser("redraw", help="redraw the list's titles and abstracts (after updating this tool)")
+    # the reader's marks and notes (epsilon_notes.py): read, and added to (written to the library at once, by its API)
+    nt = sub.add_parser("notes", help="the papers with marks; with a key, a paper's marks and notes, in order, with links")
+    nt.add_argument("key", nargs="?")
+    tx = sub.add_parser("text", help="a paper's text as the app reads it (to quote words for a mark from)")
+    tx.add_argument("key")
+    tx.add_argument("--section", help="only this section (its number, e.g. 2.3, its title, or its heading id)")
+    mk = sub.add_parser("mark", help="mark words in a paper, with a note if given (written to the library at once)")
+    mk.add_argument("key")
+    mk.add_argument("words", help="the words to mark, as the paper has them (see text)")
+    mk.add_argument("--note")
+    mk.add_argument("--colour", choices=["green", "pink", "violet"], default="violet")
+    um = sub.add_parser("unmark", help="take a mark off a paper (its id, from notes)")
+    um.add_argument("key")
+    um.add_argument("id")
     argv = sys.argv[1:]
     push_too = "--push" in argv                    # accepted anywhere on the line
     a = ap.parse_args([x for x in argv if x != "--push"])
     a.push = a.push or push_too
     lib = Library(a.library)
+    if a.cmd in ("notes", "text", "mark", "unmark"):
+        import epsilon_notes as N
+        if a.cmd == "notes":
+            N.cmd_notes(lib.root, a.key)
+        elif a.cmd == "text":
+            N.cmd_text(lib.root, a.key, a.section)
+        elif a.cmd == "mark":
+            N.cmd_mark(lib.root, a.key, a.words, a.note, a.colour)
+        else:
+            N.cmd_unmark(lib.root, a.key, a.id)
+        return
     if a.cmd == "convert":
         ids = " ".join(a.ids).replace(",", " ").split()
         if ids == ["outdated"]:

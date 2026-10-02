@@ -89,6 +89,32 @@ https://erezu1.github.io/epsilon/?p=<key>#<place>
 - It opens only papers in the library: for another arXiv paper, offer to add it first.
 - A one-file page takes the same `#<place>` (`paper.html#eq-2.18`).
 
+## 4. The user's marks and notes
+
+In the app the user marks passages of a paper (green, pink, violet) and writes notes on them. They are kept in the
+library as `notes/<key>.json`. On this Mac, the library tool reads them and adds to them (it reads the paper's text
+exactly as the app does):
+
+```bash
+L="$E/library"
+python3 "$E/epsilon_library.py" --library "$L" notes                   # the papers with marks, and how many
+python3 "$E/epsilon_library.py" --library "$L" notes 2607.14042        # a paper's marks and notes, in order, under their sections, with links
+python3 "$E/epsilon_library.py" --library "$L" text 2607.14042 --section 2.3   # its text as the app reads it (to quote from)
+python3 "$E/epsilon_library.py" --library "$L" mark 2607.14042 "the exact words" --note "A short note."   # a mark of yours (violet; --colour green|pink)
+python3 "$E/epsilon_library.py" --library "$L" unmark 2607.14042 <id>  # take one of yours off
+```
+
+- When the user asks about a paper they have read, or what they made of it, look at their notes first: what they
+  marked shows what they found important or puzzling, and a note may be a question to answer.
+- To annotate a paper for them (explain an equation where it stands, answer a question they left), mark the exact
+  words with a short note. Take the words from `text`, where formulas appear as their TeX between `$` signs. The mark
+  is written to the library at once and shows in the app in the margin and under Notes, as "Marked by Claude". The
+  tool prints its link.
+- The tool refuses words that appear several times (give a few more of them) or that it cannot find (check `text`).
+  Quotes, dashes and capitals may differ.
+- Leave the user's own marks alone unless they ask; `unmark` is for your own.
+- Link to a mark with the link the tool prints (`#mark-<id>`), as to an equation (section 3).
+
 ## Writing LaTeX for Epsilon
 
 Ordinary LaTeX works: sections, `equation`/`align` with `\label` and `\eqref`, theorem environments, `\cite` with

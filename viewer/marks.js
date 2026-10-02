@@ -353,7 +353,7 @@ window.L2M_marks = function (host) {
           var n = document.createElement("div");
           n.className = "l2m-mk-side" + c + (d.id === openId || d.id === hoverId ? " on" : "");
           n.setAttribute("data-id", d.id);
-          n.textContent = d.m.note;
+          n.textContent = (d.m.by ? d.m.by + ": " : "") + d.m.note;
           n.style.left = (right + x0 + 28) + "px";
           n.style.width = wide + "px";
           n.style.top = (d.first.top + y0 - 2) + "px";
@@ -598,6 +598,28 @@ window.L2M_marks = function (host) {
   }
   if (window.visualViewport) { on(window.visualViewport, "resize", fitKeyboard); on(window.visualViewport, "scroll", fitKeyboard); }
   note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); });
+  // with a keyboard (a mouse or trackpad beside it): Enter is done with the note, Shift+Enter a new line in it. Without
+  // one (a phone's keys), Enter is a new line, as it is anywhere
+  function keyboard() { return !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches); }
+  note.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && keyboard()) { e.preventDefault(); closeSheet("hand"); }
+  });
+  // and something selected, then typing, is a note being written: the selection marked, its note begun with the key
+  on(document, "keydown", function (e) {
+    if (dead || sheetOpen || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.key.length !== 1 || e.key === " ") return;
+    var t = e.target;
+    if (t && t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+    var r = selected();
+    if (!r) return;
+    e.preventDefault();
+    lastRange = r.cloneRange();
+    var id = make(colourOf());
+    if (!id) return;
+    openSheet(id, true);
+    note.value = e.key;
+    note.setSelectionRange(1, 1);
+    grow();
+  });
   note.addEventListener("blur", saveNote);
   function remove(id) {                            // a mark taken off (Undo puts it back)
     var m = store.all()[id];
@@ -715,7 +737,7 @@ window.L2M_marks = function (host) {
       q.className = "mk-item-q";
       q.appendChild(wordsOf(id, 220));
       a.appendChild(q);
-      if (m.note) { var n = document.createElement("span"); n.className = "mk-item-n"; n.textContent = m.note; a.appendChild(n); }
+      if (m.note || m.by) { var n = document.createElement("span"); n.className = "mk-item-n"; n.textContent = m.note ? (m.by ? m.by + ": " : "") + m.note : "Marked by " + m.by; a.appendChild(n); }
       frag.appendChild(a);
     });
     if (lostIds.length) {
