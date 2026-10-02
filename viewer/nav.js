@@ -644,9 +644,21 @@ window.L2M_nav = function (opts) {
     var out = [];
     h.bits.forEach(function (b) {
       if (b.nodeType === 1) { var r = (b.querySelector("svg") || b).getBoundingClientRect(); if (r.width) out.push(r); }
-      else Array.prototype.push.apply(out, b.getClientRects());
+      else Array.prototype.forEach.call(b.getClientRects(), function (r) { if (r.width >= 1) out.push(r); });
     });
-    return out;
+    // one stroke a line, as for words: the boxes on a line (words and formulas, the spaces between) joined
+    var lines = [];
+    out.forEach(function (r) {
+      var l = null;
+      for (var i = 0; i < lines.length && !l; i++) {
+        var o = lines[i], over = Math.min(o.bottom, r.bottom) - Math.max(o.top, r.top);
+        if (over > 0.5 * Math.min(o.bottom - o.top, r.height)) l = o;
+      }
+      if (!l) { lines.push({left: r.left, right: r.right, top: r.top, bottom: r.bottom}); return; }
+      l.left = Math.min(l.left, r.left); l.right = Math.max(l.right, r.right);
+      l.top = Math.min(l.top, r.top); l.bottom = Math.max(l.bottom, r.bottom);
+    });
+    return lines.map(function (l) { return {left: l.left, top: l.top, width: l.right - l.left, height: l.bottom - l.top}; });
   }
   function hitRect(h) {
     var el = h.range || h.mark || h.el;
