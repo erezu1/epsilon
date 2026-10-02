@@ -26,7 +26,7 @@ from epsilon_convert import DOC_FORMAT, DOC_VERSION, draw_math, load_math  # noq
 from epsilon_render import ascii_html, inline_json  # noqa: E402
 
 VIEWER = HERE / "viewer"
-FILES = ["index.html", "offline.html", "theme.json", "theme.css", "prefs.js", "nav.js", "viewer.js", "app.js", "sw.js",
+FILES = ["index.html", "offline.html", "theme.json", "theme.css", "prefs.js", "marks.js", "nav.js", "viewer.js", "app.js", "sw.js",
          "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.png", "film.webp", "icon-maskable-512.png"]
 
 
@@ -46,9 +46,9 @@ def artifact_page(name, viewer):
             '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
             "<style>\n%s</style>\n<script>window.L2M_THEME = %s;</script>\n<script>\n%s</script>\n"
             '<main><p class="l2m-note">Loading&hellip;</p></main>\n'
-            "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n") % (
+            "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n") % (
         ascii_html(name), read("theme.css"), inline_json(theme), read("prefs.js"),
-        read("nav.js"), read("viewer.js"), read("app.js"))
+        read("marks.js"), read("nav.js"), read("viewer.js"), read("app.js"))
 
 
 def build(a):

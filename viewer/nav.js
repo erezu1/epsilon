@@ -4,7 +4,8 @@
 //
 // L2M_nav(opts) starts it on the page viewer.js has drawn and returns {destroy}, so one page can open
 // and close many papers. opts: key (which paper; history entries are tagged with it), theme,
-// ready (a promise: the saved place is restored once formulas and images are in), onLibrary.
+// ready (a promise: the saved place is restored once formulas and images are in), onLibrary; marks (where the host
+// keeps the reader's marks: marks.js draws them), textReady (a promise: the text and formulas in, for the marks).
 // A piece of glass that moves (a sheet rising, the peek dragged) keeps its film where it is on the screen: the film's
 // colours belong to where one looks from (the angle), not to the glass, so the glass moves through them. For ms
 // milliseconds (a transition's length; 0: once, now) the film is set against the glass's place on the screen.
@@ -145,6 +146,7 @@ window.L2M_nav = function (opts) {
   // closes the one opened last, and only it (a note closed leaves the peek open, and the other way round). Closed by
   // hand, its step goes too (back, when it is the last one; else its mark is taken off the entry).
   var overlays = [];
+  var marks = null;          // the marks in the paper (marks.js), where the host keeps them
   function overlayIn(flag) {
     if (!useHistory) return;
     try { var o = {}; o[flag] = true; history.pushState(assign(state(), o), ""); overlays.push(flag); } catch (e) {}
@@ -160,7 +162,8 @@ window.L2M_nav = function (opts) {
     } catch (e) {}
   }
   function closeOverlay(flag, how) {
-    if (flag === "l2mPeek") closePeek(how); else if (flag === "l2mSheet") closeSheet(how); else closeViewer(how);
+    if (flag === "l2mPeek") closePeek(how); else if (flag === "l2mSheet") closeSheet(how);
+    else if (flag === "l2mMark") { if (marks) marks.closeSheet(how); } else closeViewer(how);
   }
   on(window, "popstate", function (e) {
     if (opts.leaving && opts.leaving()) return;    // the host is taking the reader out of the paper
@@ -176,6 +179,8 @@ window.L2M_nav = function (opts) {
       var el = st.l2mId ? document.getElementById(st.l2mId) : null;
       if (typeof st.l2mY === "number") scrollToY(st.l2mY);
       else if (el) scrollToY(yOf(el));
+    } else if (marks && /^#mark-/.test(location.hash)) {
+      marks.reveal(decodeURIComponent(location.hash.slice(6)));
     } else if (location.hash.length > 1) {
       var t = linked(location.hash);
       if (t) scrollToY(yOf(t));
@@ -295,6 +300,15 @@ window.L2M_nav = function (opts) {
     var most = Math.atan(0.22 * hp / wp) * 180 / Math.PI;
     return Math.max(-most, Math.min(most, a));
   }
+  // a marker's stroke over the box x, y, w, h (page pixels): its place, size, outline and tilt, as a style; the k-th
+  // stroke laid (each a little different)
+  function strokeCss(x, y, w, h, k) {
+    var t = tilt(k), wp = w + 4, hp = h + 2;
+    return "left:" + (x - 2) + "px;top:" + (y - 1 + t.dy) + "px;width:" + wp + "px;height:" + hp + "px;" +
+      "clip-path:path('" + markD(wp, hp).replace(/(-?[\d.]+) (-?[\d.]+)/g, function (all, a, b) {
+        return (a * wp).toFixed(1) + " " + (b * hp).toFixed(1);
+      }) + "');transform:rotate(" + markTilt(t.a, wp, hp, hp).toFixed(2) + "deg)";
+  }
   function strokes() {
     if (!findLayer) { findLayer = document.createElement("div"); findLayer.className = "l2m-find-layer"; findLayer.setAttribute("aria-hidden", "true"); }
     if (!findLayer.parentNode) document.body.appendChild(findLayer);
@@ -308,12 +322,9 @@ window.L2M_nav = function (opts) {
       h.boxes = [];
       Array.prototype.forEach.call(e[2], function (r) {
         if (r.width < 1) return;
-        var t = tilt(k++), m = document.createElement("span"), wp = r.width + 4, hp = r.height + 2;
+        var m = document.createElement("span");
         m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
-        m.style.cssText = "left:" + (r.left + x0 - 2) + "px;top:" + (r.top + y0 - 1 + t.dy) + "px;width:" + wp + "px;height:" + hp + "px;" +
-          "clip-path:path('" + markD(wp, hp).replace(/(-?[\d.]+) (-?[\d.]+)/g, function (x, a, b) {
-            return (a * wp).toFixed(1) + " " + (b * hp).toFixed(1);
-          }) + "');transform:rotate(" + markTilt(t.a, wp, hp, hp).toFixed(2) + "deg)";
+        m.style.cssText = strokeCss(r.left + x0, r.top + y0, r.width, r.height, k++);
         frag.appendChild(m);
         h.boxes.push(m);
       });
@@ -1763,6 +1774,8 @@ window.L2M_nav = function (opts) {
     var st = state();
     if (typeof st.l2mY === "number" && st.l2mPaper === KEY) {
       scrollToY(st.l2mY);
+    } else if (marks && /^#mark-/.test(location.hash)) {
+      marks.reveal(decodeURIComponent(location.hash.slice(6)));      // (once the marks are in)
     } else if (location.hash.length > 1) {
       var el = linked(location.hash);
       if (el) { scrollToY(yOf(el)); flash(el); }
@@ -1790,6 +1803,18 @@ window.L2M_nav = function (opts) {
     }
     setTimeout(tryBuild, 2500);
   });
+  // ---------------------------------------------------------------- marks (marks.js), where the host keeps them
+  if (opts.marks && window.L2M_marks) {
+    marks = window.L2M_marks({
+      store: opts.marks, icons: theme.icons || {}, block: BLOCK, ready: opts.textReady || opts.ready,   // (the text and formulas in)
+      tex: opts.tex || function () { return ""; },
+      overlayIn: overlayIn, overlayOut: overlayOut,
+      closeOthers: function () { closeMenu("jump"); closeSheet(); },
+      find: function () { openFind(selectedQuery()); },
+      barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },
+      strokeCss: strokeCss
+    });
+  }
   update();
 
   return {
@@ -1799,6 +1824,7 @@ window.L2M_nav = function (opts) {
       dead = true;
       closeViewer("pop");
       closeSheet("pop");
+      if (marks) { marks.destroy(); marks = null; }
       offs.forEach(function (o) { o[0].removeEventListener(o[1], o[2], o[3]); });
       offs = [];
       clearTimeout(fadeTimer);

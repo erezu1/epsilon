@@ -385,7 +385,7 @@
     });
     nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving,
                           tex: function (n) { var it = m.items[+n]; return it ? it.tex : ""; }, macros: m.macros || {},
-                          ready: Promise.all([ready, imagesIn])});
+                          ready: Promise.all([ready, imagesIn]), textReady: ready, marks: o.marks});
     if (svg) done();
     else drawMath(m, o.mathjax || theme.mathjax, main, add, done, function () { return closed; });
 

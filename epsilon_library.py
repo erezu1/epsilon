@@ -16,6 +16,7 @@ The folder:
     library.json     the papers, for the app's list (titles and abstracts with their math drawn, each paper's size)
     feed.json        new arXiv papers in the categories, the last few announcements
     papers/<key>/    each paper's document (paper.json, images/, math.json)
+    notes/<key>.json the reader's marks and notes on it (the app writes them; kept when the paper is removed)
     sources/arxiv/<key>/src.bin, sources/drafts/<name>/   what they were made from, to reconvert later
 """
 

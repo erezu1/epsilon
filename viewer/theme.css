@@ -17,12 +17,14 @@
   --error: #b3261e;                  /* errors, and Remove */
   --progress: #2b7de9;               /* reading lines, loading bars: a brighter blue */
   --find: #ffd60a; --find-now: #ffa300;   /* what the search found (yellow), the one it is on (amber) */
+  --mark-1: #4ade80; --mark-2: #f472b6; --mark-3: #a78bfa;   /* the reader's marks: green, pink, violet */
   --shade: #000000;                  /* what the bars' and buttons' shadows are made of */
   /* how strong: the glass; the link's tints (a button under the pointer; a chosen one, the bar's line, a landing
      mark; the mark's ring); the ink's shadow; the search's marks */
   --glass-a: 66%; --tint-faint: 10%; --tint: 14%; --tint-ring: 45%;
   --shadow-a: 22%; --bar-shadow: color-mix(in srgb, var(--ink) 45%, transparent);
   --find-a: 42%; --find-now-a: 72%; --find-band-a: 55%; --find-band-now-a: 78%;
+  --mark-a: 42%; --mark-on-a: 64%;   /* a mark; the one whose sheet is open, or a link just landed on */
   --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow);   /* the chosen option of a segmented control */
   /* made from them */
   --glass: color-mix(in srgb, var(--ground) var(--glass-a), transparent);
@@ -56,6 +58,7 @@
     --glass-a: 62%; --tint-faint: 12%; --tint: 17%; --tint-ring: 55%;
     --shadow-a: 28%; --bar-shadow: color-mix(in srgb, var(--shade) 80%, transparent);
     --find-a: 30%; --find-now-a: 60%; --find-band-a: 38%; --find-band-now-a: 66%;
+    --mark-a: 34%; --mark-on-a: 54%;
     --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
     --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
     /* the colours authors give formulas (\color{blue}), made light on the dark page */
@@ -77,6 +80,7 @@
   --glass-a: 62%; --tint-faint: 12%; --tint: 17%; --tint-ring: 55%;
   --shadow-a: 28%; --bar-shadow: color-mix(in srgb, var(--shade) 80%, transparent);
   --find-a: 30%; --find-now-a: 60%; --find-band-a: 38%; --find-band-now-a: 66%;
+  --mark-a: 34%; --mark-on-a: 54%;
   --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
   --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
   /* the colours authors give formulas (\color{blue}), made light on the dark page */
@@ -2072,3 +2076,57 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
    dragged nothing on the page is */
 .peek-head { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .lib-folder-gap { flex: 0 0 auto; display: inline-block; pointer-events: none; }   /* (a dragged chip's place in the row) */
+
+/* ------------------------------------------------------------ the reader's marks (marks.js)
+   A marker's stroke over each line of a mark, as the search's (laid over the page, multiplied into it on light
+   grounds and screened on dark ones, so the letters stay as they are), in the mark's colour; a note's sign in the
+   margin by its first line. --mk: the mark's colour, for the stroke, the sign and the colour buttons. */
+.l2m-mk.c1, .l2m-mk-note.c1 { --mk: var(--mark-1); }
+.l2m-mk.c2, .l2m-mk-note.c2 { --mk: var(--mark-2); }
+.l2m-mk.c3, .l2m-mk-note.c3 { --mk: var(--mark-3); }
+.mk-dot[data-c="1"] { --mk: var(--mark-1); }
+.mk-dot[data-c="2"] { --mk: var(--mark-2); }
+.mk-dot[data-c="3"] { --mk: var(--mark-3); }
+.l2m-mk-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 1; pointer-events: none; mix-blend-mode: multiply; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .l2m-mk-layer { mix-blend-mode: screen; } }
+:root[data-theme="dark"] .l2m-mk-layer { mix-blend-mode: screen; }
+.l2m-mk { position: absolute; display: block; transform-origin: 50% 50%;
+  background-color: color-mix(in srgb, var(--mk) var(--mark-a), transparent); transition: background-color 220ms ease; }
+.l2m-mk.on { background-color: color-mix(in srgb, var(--mk) var(--mark-on-a), transparent); }
+.l2m-mk-note { position: absolute; width: 12px; height: 12px; color: color-mix(in srgb, var(--mk) 70%, var(--ink)); }
+.l2m-mk-note svg { display: block; width: 12px; height: 12px; }
+
+/* the bar for what is selected (the three colours, Note, Find), and a mark's sheet: glass sheets from the bottom,
+   as a footnote's; nothing in them selects (a press keeps the paper's selection), but the note's text */
+.l2m-markbar, .l2m-marksheet { z-index: 43; font-family: var(--ui); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.l2m-markbar { padding-top: 6px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); }
+.mb-row { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.mb-sep { flex: 0 0 auto; width: 1px; height: 26px; margin: 0 10px; background: var(--rule); }
+.mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px;
+  border: 0; border-radius: 12px; padding: 5px 8px 4px; background: transparent; color: var(--ink); cursor: pointer;
+  font: 500 11px/1.2 var(--ui); transition: background-color 150ms ease; }
+.mb-btn svg { display: block; width: 20px; height: 20px; }
+.mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: 42px; height: 42px; border: 0; padding: 0;
+  border-radius: 50%; background: transparent; cursor: pointer; transition: background-color 150ms ease; }
+.mk-dot i { display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--mk);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition: box-shadow 150ms ease; }
+.mk-dot.last i, .mk-dot[aria-pressed="true"] i { box-shadow: 0 0 0 2px var(--ground), 0 0 0 3.5px var(--muted); }
+@media (hover: hover) { .mb-btn:hover, .mk-dot:hover { background: var(--bar-hover); } }
+@media (hover: none) { .mb-btn:active, .mk-dot:active { background: var(--bar-current); } }
+.mb-btn:focus-visible, .mk-dot:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+.l2m-marksheet .sheet-head { gap: 4px; padding: 2px 0 6px; }
+.mk-colors, .mk-acts { display: flex; align-items: center; gap: 2px; }
+.mk-acts { margin-left: auto; }
+.mk-acts .bar-btn { color: var(--muted); }
+/* the marked words as they stand in the paper (four lines at most, fading out if longer); the note under them */
+.mk-quote { margin: 0 6px 10px; max-height: 6em; overflow: hidden; font-family: var(--serif); font-size: 0.95em; line-height: 1.5;
+  color: var(--muted); overflow-wrap: anywhere; }
+.mk-quote > * { display: inline; margin: 0; padding: 0; }
+.mk-quote.long { -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent); mask-image: linear-gradient(to bottom, #000 62%, transparent); }
+.mk-quote a { color: inherit; pointer-events: none; }
+.mk-note { display: block; box-sizing: border-box; width: 100%; min-height: 2.9em; max-height: 40vh; margin: 0 0 2px; resize: none;
+  border: 1px solid var(--rule); border-radius: 12px; padding: 8px 12px; background: color-mix(in srgb, var(--ground) 72%, transparent);
+  color: var(--ink); font: 400 16px/1.45 var(--ui); -webkit-user-select: text; user-select: text; transition: border-color 150ms ease; }
+.mk-note::placeholder { color: var(--muted); }
+.mk-note:focus { outline: none; border-color: var(--link); }
+@media (prefers-reduced-motion: reduce) { .l2m-mk, .mk-dot, .mk-dot i, .mb-btn { transition-duration: 0.01s; } }

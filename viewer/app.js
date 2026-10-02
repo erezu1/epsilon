@@ -920,6 +920,85 @@
       }, 20000);
     });
   }
+  // ---------------------------------------------------------------- a paper's marks (marks.js draws them)
+  // Kept on this device first (at once, and offline: localStorage "l2m-marks:<key>"), and in the library as
+  // notes/<key>.json, merged mark by mark: each has its own id and the time it last changed, and a removed one stays
+  // as a mark of its removal, so two devices never lose each other's. Written a few seconds after a change, and when
+  // the paper is left or the app put away; a change not written yet (offline, or the app closed first) is written the
+  // next time the app starts.
+  function marksFor(key, entry) {
+    var LS = "l2m-marks:" + key, path = "notes/" + key + ".json";
+    var st = (function () { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { return null; } })() || {};
+    var marks = st.marks || {}, sha = st.sha || null, dirty = !!st.dirty, timer = null, sending = false, again = false;
+    function keep() {                             // (nothing kept for a paper without marks)
+      try {
+        if (!dirty && !Object.keys(marks).length) localStorage.removeItem(LS);
+        else localStorage.setItem(LS, JSON.stringify({marks: marks, sha: sha, dirty: dirty}));
+      } catch (e) {}
+    }
+    function merge(remote) {                      // theirs taken in where newer; whether anything here changed
+      var changed = false;
+      Object.keys(remote || {}).forEach(function (id) {
+        var r = remote[id], l = marks[id];
+        if (r && r.id === id && (!l || (r.at || 0) > (l.at || 0))) { marks[id] = r; changed = true; }
+      });
+      return changed;
+    }
+    function ahead(remote) {                      // ours has what theirs has not
+      return Object.keys(marks).some(function (id) { var r = (remote || {})[id]; return !r || (marks[id].at || 0) > (r.at || 0); });
+    }
+    function pull() {
+      if (!src || !src.readWithSha) return Promise.resolve(false);
+      return src.readWithSha(path).catch(function (e) {
+        if (/not found/.test(e.message)) return {data: null, sha: null};    // (no marks on this paper yet)
+        throw e;
+      }).then(function (r) {
+        var remote = (r.data && r.data.marks) || {}, changed = merge(remote);
+        sha = r.sha;
+        dirty = ahead(remote);                    // (what is left to write: only what theirs has not)
+        if (dirty) soon(0);
+        keep();
+        return changed;
+      }, function () { return false; });
+    }
+    function send(keepalive) {
+      if (!dirty || !src || !src.putJSON) return;
+      if (sending) { again = true; return; }
+      sending = true;
+      dirty = false;
+      keep();
+      src.putJSON(path, {paper: key, marks: marks}, sha, "Notes on " + key, keepalive).then(function (s2) {
+        sha = s2 || sha;
+        keep();
+      }, function () {
+        // another device wrote meanwhile (or no network): theirs taken in, then ours written again, after a while
+        dirty = true;
+        keep();
+        setTimeout(function () { if (document.visibilityState !== "hidden") pull(); }, 15000);
+      }).then(function () { sending = false; if (again) { again = false; send(); } });
+    }
+    function soon(ms) { clearTimeout(timer); timer = setTimeout(function () { send(false); }, ms == null ? 4000 : ms); }
+    return {
+      version: (entry && entry.converted) || "",
+      all: function () { return marks; },
+      put: function (m) { m.at = Date.now(); marks[m.id] = m; dirty = true; keep(); soon(); },
+      place: function (m) { marks[m.id] = m; keep(); },       // found anew in another conversion: nothing to write
+      pull: pull,
+      flush: function (keepalive) { clearTimeout(timer); send(keepalive); },
+      link: function (id) { return location.origin + location.pathname + "?p=" + encodeURIComponent(key) + "#mark-" + encodeURIComponent(id); },
+      toast: toast, toastAct: toastAct
+    };
+  }
+  function sendPendingMarks() {                   // marks changed while the app could not write them (not the open paper's)
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!/^l2m-marks:/.test(k) || k === "l2m-marks:" + current) continue;
+        var v = JSON.parse(localStorage.getItem(k) || "null");
+        if (v && v.dirty) marksFor(k.slice(10), null).pull();
+      }
+    } catch (e) {}
+  }
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") savePlace(current, true);
     else if (src) refreshNow();                  // back in the app: the lists (and reading places) afresh
@@ -2105,7 +2184,7 @@
   // offline), and the reader is asked, in the lists (never while reading a paper; if one is open, when the lists come
   // back), whether to take it on now. "Not now": not asked again for that release (the next start brings it anyway).
   var appNext = null, appChecked = 0, appFetching = false, appAsked = null;
-  var APP_FILES = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "nav.js", "viewer.js", "app.js"];
+  var APP_FILES = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "marks.js", "nav.js", "viewer.js", "app.js"];
   function checkApp() {
     if (!REL || appNext || appFetching || Date.now() - appChecked < 60000 || navigator.onLine === false) return;
     appChecked = Date.now();
@@ -2304,7 +2383,7 @@
             });
           },
           mathjax: (lib && lib.mathjax) || theme.mathjaxApp, onLibrary: backToLists, libraryHref: "./", actions: actions,
-          leaving: function () { return leavingPaper === key; }});
+          leaving: function () { return leavingPaper === key; }, marks: marksFor(key, entry)});
         var v = view;
         main.classList.remove("l2m-arrive"); void main.offsetWidth; main.classList.add("l2m-arrive");
         // opened afresh (not by back or forward): the place it was left, on this device or another
@@ -2747,6 +2826,7 @@
     show(k);
     watch();
     if (!src) return;
+    setTimeout(sendPendingMarks, 4000);
     // then, quietly: the fresh lists and the reading places from the other devices
     var before = listText.join("\u0000"), order = listState();
     freshLists().then(function (t) {
