@@ -44,6 +44,7 @@
     var t = document.getElementById("app-toast");
     if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     t.innerHTML = html;
+    t.classList.remove("snack");
     t.classList.add("on");
     if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
     clearTimeout(t.l2mTimer);
@@ -73,6 +74,9 @@
           '<button type="button" class="bar-btn app-toast-x" data-toast-x aria-label="Close">' + ((theme && theme.icons && theme.icons.close) || "&times;") +
           "</button></span></span>", ms || 5000);
     var t = document.getElementById("app-toast");
+    // a small card floating over the foot of the page, its line running out as its time does
+    t.style.setProperty("--toast-ms", (ms || 5000) + "ms");
+    t.classList.remove("snack"); void t.offsetWidth; t.classList.add("snack");
     t.onclick = function (e) {
       var go = e.target.closest("[data-act-go]");
       if (!go && !e.target.closest("[data-toast-x]")) return;

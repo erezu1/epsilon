@@ -1914,6 +1914,25 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-act-row .app-ask-q { flex: 1 1 auto; min-width: 0; }
 .app-act-row .app-confirm-acts { margin: 0 -6px 0 auto; align-items: center; gap: 4px; flex: 0 0 auto; }
 .app-toast-x { color: var(--muted); }
+/* a message with one thing to do, as a small card floating over the foot of the page (not a sheet): the message,
+   the thing to do in the link's colour, its x; a thin line under it runs out with its time */
+.app-toast.snack {
+  left: 50%; right: auto; width: min(460px, calc(100% - 24px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  padding: 6px 6px 6px 18px; border: 1px solid var(--bar-line); border-radius: 18px; overflow: hidden;
+  box-shadow: 0 12px 32px -14px var(--bar-shadow), 0 2px 6px -3px var(--bar-shadow);
+  transform: translate(-50%, calc(100% + 30px)); font-size: 15px;
+}
+.app-toast.snack.on { transform: translate(-50%, 0); }
+.app-toast.snack .app-ask-q { font-weight: 500; }
+.app-toast.snack .app-pill { background: none; box-shadow: none; padding: 9px 14px; font-weight: 600; color: var(--link); }
+@media (hover: hover) { .app-toast.snack .app-pill:hover { background: var(--bar-hover); } }
+@media (hover: none) { .app-toast.snack .app-pill:active { background: var(--bar-current); } }
+.app-toast.snack .app-confirm-acts { margin: 0; gap: 0; }
+.app-toast.snack::after { content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 2px; border-radius: 2px;
+  background: color-mix(in srgb, var(--progress) 70%, transparent); transform-origin: left center; transform: scaleX(0); }
+.app-toast.snack.on::after { animation: l2m-toast-time var(--toast-ms, 5000ms) linear both; }
+@keyframes l2m-toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .app-toast.snack.on::after { animation: none; transform: scaleX(0); } }
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
 
 /* formulas in a selection: shaded as the selected text round them */

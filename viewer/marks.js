@@ -508,6 +508,7 @@ window.L2M_marks = function (host) {
   // hold on a word selects it (a formula, all of it), its two handles stretch it, the bar does the rest
   var OWN = document.documentElement.classList.contains("l2m-own-select");
   var cur = null;                                  // {t (its text), s, e}: what is selected
+  var ownEnds = null;
   var selLayer = document.createElement("div");
   selLayer.className = "l2m-own-sel-layer";
   selLayer.setAttribute("aria-hidden", "true");
@@ -533,6 +534,7 @@ window.L2M_marks = function (host) {
     if (selLayer.parentNode !== box) box.appendChild(selLayer);
     if (!ls.length) { gs.remove(); ge.remove(); return; }
     var f = ls[0], l = ls[ls.length - 1];
+    ownEnds = {s: [f.left, (f.top + f.bottom) / 2], e: [l.right, (l.top + l.bottom) / 2]};   // (where each handle points)
     gs.style.left = (f.left + x0) + "px"; gs.style.top = (f.bottom + y0) + "px";
     ge.style.left = (l.right + x0) + "px"; ge.style.top = (l.bottom + y0) + "px";
     if (gs.parentNode !== box) box.appendChild(gs);
@@ -568,18 +570,38 @@ window.L2M_marks = function (host) {
     return sg.a + given(sg, lo);
   }
   if (OWN) {
-    var press = null, held = false, eatUntil = 0, dragging = null;
+    var press = null, held = false, eatUntil = 0, dragging = null, sweep = null, grabAt = null;
+    // as Android's own selection: words at a time, whichever way it goes (a place within a word takes it all)
+    function wordStart(C, k) { return wordy.test(C[k] || "") ? whole(C, k, k + 1)[0] : k; }
+    function wordEnd(C, k) { return wordy.test(C[k - 1] || "") ? whole(C, k - 1, k)[1] : k; }
     on(document, "touchstart", function (e) {
       if (e.touches.length !== 1 || dragging) { press = null; return; }
       var el = e.target.nodeType === 1 ? e.target : e.target.parentNode, t = el && textAt(el);
       if (!t || el.closest("a[href], button, input, textarea, select, .mk-grip")) { press = null; return; }
       var p = e.touches[0];
-      press = {x: p.clientX, y: p.clientY, t: t, timer: setTimeout(function () { pressed(); }, 450)};
+      press = {x: p.clientX, y: p.clientY, t: t, timer: setTimeout(function () { pressed(); }, 400)};
     }, {passive: true});
     on(document, "touchmove", function (e) {
       if (press && Math.abs(e.touches[0].clientX - press.x) + Math.abs(e.touches[0].clientY - press.y) > 10) { clearTimeout(press.timer); press = null; }
     }, {passive: true});
+    // held, then moved without letting go: the selection stretches from that word to the one under the finger (the
+    // page not scrolled meanwhile: a listener that may stop it, from the start of every touch)
+    on(document, "touchmove", function (e) {
+      if (!sweep || !cur || e.touches.length !== 1) return;
+      e.preventDefault();
+      var p = e.touches[0], C = cur.t.M.C, k = offsetAt(cur.t, p.clientX, p.clientY);
+      if (cur.t === T) {
+        var top = host.barHeight() + 40, foot = window.innerHeight - host.peekHeight() - 90;
+        if (p.clientY < top) window.scrollBy(0, -14); else if (p.clientY > foot) window.scrollBy(0, 14);
+      }
+      if (k < 0) return;
+      if (k >= sweep[1]) { cur.s = sweep[0]; cur.e = Math.max(sweep[1], wordEnd(C, k + 1)); }
+      else if (k < sweep[0]) { cur.s = wordStart(C, k); cur.e = sweep[1]; }
+      else { cur.s = sweep[0]; cur.e = sweep[1]; }
+      drawOwn();
+    }, {passive: false});
     on(document, "touchend", function () {
+      sweep = null;
       if (press) { clearTimeout(press.timer); press = null; }
       if (held) { held = false; eatUntil = Date.now() + 400; }      // (the tap the hold ends in opens nothing)
     }, {passive: true});
@@ -600,6 +622,7 @@ window.L2M_marks = function (host) {
       }
       if (window.getSelection) window.getSelection().removeAllRanges();
       cur = {t: t, s: s, e: e};
+      sweep = [s, e];
       held = true;
       if (navigator.vibrate) try { navigator.vibrate(8); } catch (x) {}
       drawOwn();
@@ -612,6 +635,9 @@ window.L2M_marks = function (host) {
         e.preventDefault();
         e.stopPropagation();
         dragging = which;
+        drawOwn();                                 // (the finger keeps its distance from the place the handle points to)
+        var p = e.touches[0], at = ownEnds && ownEnds[which];
+        grabAt = at ? [at[0] - p.clientX, at[1] - p.clientY] : [0, -28];
         document.addEventListener("touchmove", drag, {passive: false});
         document.addEventListener("touchend", drop);
         document.addEventListener("touchcancel", drop);
@@ -620,14 +646,15 @@ window.L2M_marks = function (host) {
     function drag(e) {
       if (!dragging || !cur) return;
       e.preventDefault();
-      var p = e.touches[0], k = offsetAt(cur.t, p.clientX, p.clientY - 28);
+      var p = e.touches[0], k = offsetAt(cur.t, p.clientX + grabAt[0], p.clientY + grabAt[1]), C = cur.t.M.C;
       if (cur.t === T) {                            // near the top or the foot: the page moves on under the finger
         var top = host.barHeight() + 40, foot = window.innerHeight - host.peekHeight() - 90;
         if (p.clientY < top) window.scrollBy(0, -14); else if (p.clientY > foot) window.scrollBy(0, 14);
       }
       if (k < 0) return;
-      if (dragging === "s") { if (k >= cur.e) { cur.s = cur.e; cur.e = k; dragging = "e"; } else cur.s = k; }
-      else { if (k <= cur.s) { cur.e = cur.s; cur.s = k; dragging = "s"; } else cur.e = k; }
+      if (dragging === "s") { if (k >= cur.e) { cur.s = cur.e; cur.e = wordEnd(C, k); dragging = "e"; } else cur.s = wordStart(C, k); }
+      else { if (k <= cur.s) { cur.e = cur.s; cur.s = wordStart(C, k); dragging = "s"; } else cur.e = wordEnd(C, k); }
+      if (cur.e <= cur.s) cur.e = Math.min(C.length, cur.s + 1);
       drawOwn();
     }
     function drop() {
