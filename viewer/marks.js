@@ -20,7 +20,8 @@ window.L2M_marks = function (host) {
   var store = host.store, I = host.icons || {}, main = document.querySelector("main");
   var dead = false, offs = [];
   function on(t, type, fn, o) { t.addEventListener(type, fn, o); offs.push([t, type, fn, o]); }
-  var NAMES = ["Green", "Pink", "Violet", "Orange"];
+  var NAMES = ["Green", "Pink", "Violet", "Orange"];   // (by number, as marks keep them: 1 green ... 4 orange)
+  var ORDER = [4, 1, 2, 3];                         // as the dots stand, left to right: orange first, and the default
   function esc(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
   // ---------------------------------------------------------------- the paper's text
@@ -391,11 +392,13 @@ window.L2M_marks = function (host) {
   side.addEventListener("mouseleave", function () { if (hoverId) { hoverId = null; relay(); } });
 
   // ---------------------------------------------------------------- the bar for what is selected
-  function colourOf() { var p = window.L2M_prefs ? L2M_prefs() : {}; return p.markColour >= 1 && p.markColour <= NAMES.length ? p.markColour : 1; }
-  function keepColour(c) { if (window.L2M_prefs) { var p = L2M_prefs(); p.markColour = c; L2M_savePrefs(p); } }
+  // the colour the last mark was made in (kept as markHue: a colour kept before orange came first is not)
+  function colourOf() { var p = window.L2M_prefs ? L2M_prefs() : {}; return p.markHue >= 1 && p.markHue <= NAMES.length ? p.markHue : ORDER[0]; }
+  function keepColour(c) { if (window.L2M_prefs) { var p = L2M_prefs(); p.markHue = c; delete p.markColour; L2M_savePrefs(p); } }
   function dots(label) {
-    return NAMES.map(function (n, i) {
-      return '<button type="button" class="mk-dot" data-c="' + (i + 1) + '" aria-label="' + (label ? label + n.toLowerCase() : n) + '"><i></i></button>';
+    return ORDER.map(function (c) {
+      var n = NAMES[c - 1];
+      return '<button type="button" class="mk-dot" data-c="' + c + '" aria-label="' + (label ? label + n.toLowerCase() : n) + '"><i></i></button>';
     }).join("");
   }
   var dock = document.createElement("div");
@@ -423,6 +426,7 @@ window.L2M_marks = function (host) {
     return r;
   }
   function showDock() {
+    if (store.toastAway) store.toastAway();         // (a new selection: the Undo of the last removal goes, the bar comes)
     var lift = host.peekHeight();                  // (above the peek, if it is open)
     dock.style.bottom = lift ? lift + "px" : "";
     dock.querySelectorAll(".mk-dot").forEach(function (b) { b.classList.toggle("last", +b.getAttribute("data-c") === colourOf()); });

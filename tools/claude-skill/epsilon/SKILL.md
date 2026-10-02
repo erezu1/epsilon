@@ -91,7 +91,7 @@ https://erezu1.github.io/epsilon/?p=<key>#<place>
 
 ## 4. The user's marks and notes
 
-In the app the user marks passages of a paper (green, pink, violet, orange) and writes notes on them. They are kept in the
+In the app the user marks passages of a paper (orange, green, pink, violet) and writes notes on them. They are kept in the
 library as `notes/<key>.json`. On this Mac, the library tool reads them and adds to them (it reads the paper's text
 exactly as the app does):
 
@@ -100,7 +100,7 @@ L="$E/library"
 python3 "$E/epsilon_library.py" --library "$L" notes                   # the papers with marks, and how many
 python3 "$E/epsilon_library.py" --library "$L" notes 2607.14042        # a paper's marks and notes, in order, under their sections, with links
 python3 "$E/epsilon_library.py" --library "$L" text 2607.14042 --section 2.3   # its text as the app reads it (to quote from)
-python3 "$E/epsilon_library.py" --library "$L" mark 2607.14042 "the exact words" --note "A short note."   # a mark of yours (violet; --colour green|pink|orange)
+python3 "$E/epsilon_library.py" --library "$L" mark 2607.14042 "the exact words" --note "A short note."   # a mark of yours (violet; --colour orange|green|pink)
 python3 "$E/epsilon_library.py" --library "$L" unmark 2607.14042 <id>  # take one of yours off
 ```
 

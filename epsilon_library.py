@@ -758,7 +758,7 @@ def main():
     mk.add_argument("key")
     mk.add_argument("words", help="the words to mark, as the paper has them (see text)")
     mk.add_argument("--note")
-    mk.add_argument("--colour", choices=["green", "pink", "violet", "orange"], default="violet")
+    mk.add_argument("--colour", choices=["orange", "green", "pink", "violet"], default="violet")
     um = sub.add_parser("unmark", help="take a mark off a paper (its id, from notes)")
     um.add_argument("key")
     um.add_argument("id")

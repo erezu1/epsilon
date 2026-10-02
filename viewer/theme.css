@@ -23,7 +23,7 @@
      mark; the mark's ring); the ink's shadow; the search's marks */
   --glass-a: 66%; --tint-faint: 10%; --tint: 14%; --tint-ring: 45%;
   --shadow-a: 22%; --bar-shadow: color-mix(in srgb, var(--ink) 45%, transparent);
-  --find-a: 26%; --find-now-a: 50%; --find-band-a: 34%; --find-band-now-a: 60%;
+  --find-a: 18%; --find-now-a: 32%; --find-band-a: 20%; --find-band-now-a: 34%;
   --mark-a: 42%; --mark-on-a: 64%;   /* a mark; the one whose sheet is open, or a link just landed on */
   --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow);   /* the chosen option of a segmented control */
   /* made from them */
@@ -57,7 +57,7 @@
     --progress: #6cb4ff;
     --glass-a: 62%; --tint-faint: 12%; --tint: 17%; --tint-ring: 55%;
     --shadow-a: 28%; --bar-shadow: color-mix(in srgb, var(--shade) 80%, transparent);
-    --find-a: 30%; --find-now-a: 60%; --find-band-a: 38%; --find-band-now-a: 66%;
+    --find-a: 30%; --find-now-a: 56%; --find-band-a: 32%; --find-band-now-a: 60%;
     --mark-a: 34%; --mark-on-a: 54%;
     --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
     --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
@@ -79,7 +79,7 @@
   --progress: #6cb4ff;
   --glass-a: 62%; --tint-faint: 12%; --tint: 17%; --tint-ring: 55%;
   --shadow-a: 28%; --bar-shadow: color-mix(in srgb, var(--shade) 80%, transparent);
-  --find-a: 30%; --find-now-a: 60%; --find-band-a: 38%; --find-band-now-a: 66%;
+  --find-a: 30%; --find-now-a: 56%; --find-band-a: 32%; --find-band-now-a: 60%;
   --mark-a: 34%; --mark-on-a: 54%;
   --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
   --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);

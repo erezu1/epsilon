@@ -44,6 +44,7 @@
     var t = document.getElementById("app-toast");
     if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     t.innerHTML = html;
+    t.onclick = null; t.l2mAway = null;            // (what the message before had to do goes with it)
     if (t.classList.contains("snack") !== !!snack) { t.classList.toggle("snack", !!snack); void t.offsetWidth; }   // (comes in as what it is)
     t.classList.add("on");
     if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
@@ -76,15 +77,22 @@
     var t = document.getElementById("app-toast");
     // a small card floating over the foot of the page; under it a line, as the bar's reading line, fills as its time goes
     t.style.setProperty("--toast-ms", (ms || 5000) + "ms");
-    t.onclick = function (e) {
-      var go = e.target.closest("[data-act-go]");
-      if (!go && !e.target.closest("[data-toast-x]")) return;
-      t.onclick = null;
+    function away(go) {
+      t.onclick = null; t.l2mAway = null;
       clearTimeout(t.l2mTimer);
       t.classList.remove("on");
       if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
       if (go) fn();
+    }
+    t.l2mAway = function () { away(false); };
+    t.onclick = function (e) {
+      var go = e.target.closest("[data-act-go]");
+      if (go || e.target.closest("[data-toast-x]")) away(!!go);
     };
+  }
+  function toastAway() {                  // a message with a thing to do, gone as its x would take it (nothing done)
+    var t = document.getElementById("app-toast");
+    if (t && t.classList.contains("on") && t.l2mAway) t.l2mAway();
   }
   function eatClick() {                    // the click a gesture ends in: not also a tap
     var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
@@ -1016,7 +1024,7 @@
       pull: pull,
       flush: function (keepalive) { clearTimeout(timer); send(keepalive); },
       link: function (id) { return location.origin + location.pathname + "?p=" + encodeURIComponent(key) + "#mark-" + encodeURIComponent(id); },
-      toast: toast, toastAct: toastAct
+      toast: toast, toastAct: toastAct, toastAway: toastAway
     };
   }
   function sendPendingMarks() {                   // marks changed while the app could not write them (not the open paper's)
@@ -1625,8 +1633,8 @@
   window.addEventListener("keydown", function (e) {
     if (e.key !== "Escape" || e.defaultPrevented) return;
     if (shell && current === "app:library" && shell.querySelector("#app-bar").classList.contains("searching")) { e.preventDefault(); searching(false); return; }
-    var t = document.getElementById("app-toast"), x = t && t.classList.contains("on") && t.querySelector("[data-toast-x]");
-    if (x) { e.preventDefault(); x.click(); }
+    var t = document.getElementById("app-toast");
+    if (t && t.classList.contains("on") && t.l2mAway) { e.preventDefault(); toastAway(); }
   });
   // Ctrl/Cmd+F in the Library: its own search (the field focused, its words selected if it is open already)
   document.addEventListener("keydown", function (e) {
