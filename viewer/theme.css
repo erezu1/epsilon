@@ -2,34 +2,6 @@
 /* no tap highlight, and no focus ring for taps and clicks (it stays for keyboard focus) */
 * { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }
-/* The colours the bar and the panels are made of, registered as colours: in a change of colours they move from the
-   old to the new (prefs.js), where a colour not registered could only jump */
-@property --ground { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --surface { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --ink { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --muted { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --rule { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --link { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --error { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --progress { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --shade { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --bar-shadow { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --glass { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --glass-solid { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --seg-on { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --bar-hover { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --bar-current { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --bar-line { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --flash { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --flash-ring { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --sel { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --shadow { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --danger { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --danger-bg { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --mark-1 { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --mark-2 { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --mark-3 { syntax: "<color>"; inherits: true; initial-value: transparent; }
-@property --mark-4 { syntax: "<color>"; inherits: true; initial-value: transparent; }
 :root {
   color-scheme: light;
   --page-w: 40rem; --chrome-w: calc(var(--page-w) + 6rem);
@@ -542,9 +514,9 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
 /* a change of colours (prefs.js): the page's words fade into its ground (a veil over the page, under the bar and the
    panels), then the new colours come in together, the words with them */
-.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 170ms ease-in-out; }
+.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 130ms ease-in-out; }
 .l2m-veil.on { opacity: 1; }
-.l2m-veil.out { transition-duration: 260ms; }
+.l2m-veil.out { transition-duration: 200ms; }
 .l2m-veil.cut { transition: none; }
 
 /* footnote sheet, slides up from the bottom */

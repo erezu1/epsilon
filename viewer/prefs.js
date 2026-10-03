@@ -115,18 +115,39 @@
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
   // A change of colours (theme, tone): the page's words fade out into its ground (a veil over the page, under the bar
-  // and the panels, whose glass stays in sight), then the new colours come in together: the veil fades out over the
-  // page in its new colours as the bar's and the panels' colours move from the old to the new. The page is restyled
-  // once, the moment the veil has closed over it (before, the change would show through it), and all that comes after
-  // waits for it. (A view transition cross-faded two pictures of the page, but had the page restyled
-  // whole as it began and again as it ended: three restyles for one change, the screen still until the second was done)
-  var veil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, FADE = 170;
+  // and the panels, whose glass stays in sight), then the new colours come in all together, the words with them. The
+  // page is restyled once, the moment the veil has closed over it (before, the change would show through it), and the
+  // second step waits till the page is drawn anew under it. The glass changes by a cross-fade: a copy of what is in
+  // sight, its old colours held in it, laid over it as the colours change, fades out as the glass, in its new ones,
+  // fades in. Every move is a fade, which the compositor plays at full pace however busy the page is (a colour moved by
+  // the page itself, at every frame, had a frame only as often as the page could draw one: a few, on a phone).
+  // (A view transition cross-faded two pictures of the page, but had the page restyled whole as it began and again as
+  // it ended: three restyles for one change, the screen still until the second was done)
+  var veil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, OUT = 130, IN = 200;   // (theme.css's .l2m-veil)
   var GLASS = ".l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast";    // (what stays above the veil)
-  var COLOURS = ["--ground", "--surface", "--ink", "--muted", "--rule", "--link", "--error", "--progress", "--shade", "--bar-shadow",
-                 "--glass", "--glass-solid", "--seg-on", "--bar-hover", "--bar-current", "--bar-line", "--flash", "--flash-ring",
-                 "--sel", "--shadow", "--danger", "--danger-bg", "--mark-1", "--mark-2", "--mark-3", "--mark-4"];   // (theme.css registers them)
-  function colours() { var cs = getComputedStyle(root), o = {}; COLOURS.forEach(function (k) { o[k] = cs.getPropertyValue(k).trim(); }); return o; }
+  var ghosts = [];                                           // [the glass, its copy, the glass's hold out of sight]
   function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
+  function shown(el) { return !el.checkVisibility || el.checkVisibility({visibilityProperty: true, opacityProperty: true}); }
+  function ghostsOver() {                                    // the glass in sight copied as it is, its colours held
+    var cs = getComputedStyle(root), held = [];
+    for (var i = 0; i < cs.length; i++) if (cs[i].lastIndexOf("--", 0) === 0) held.push([cs[i], cs.getPropertyValue(cs[i])]);
+    ghosts = Array.prototype.filter.call(document.querySelectorAll(GLASS), shown).map(function (el) {
+      var g = el.cloneNode(true), from = el.querySelectorAll("*"), to = g.querySelectorAll("*"), own = getComputedStyle(el);
+      // (the ones it has from the page; not its own, as a panel's unrolling: held, the copy would be rolled up)
+      held.forEach(function (h) { if (own.getPropertyValue(h[0]) === h[1]) g.style.setProperty(h[0], h[1]); });
+      g.style.colorScheme = cs.colorScheme;
+      g.style.pointerEvents = "none";
+      g.setAttribute("aria-hidden", "true");
+      g.inert = true;
+      el.after(g);
+      for (var k = 0; k < from.length; k++) {                // (where its lists are scrolled to, what its fields hold)
+        if (from[k].scrollTop || from[k].scrollLeft) { to[k].scrollTop = from[k].scrollTop; to[k].scrollLeft = from[k].scrollLeft; }
+        if ("value" in from[k] && from[k].value !== to[k].value) try { to[k].value = from[k].value; } catch (e) {}
+      }
+      return [el, g, el.animate ? el.animate([{opacity: 0}], {fill: "forwards"}) : null];
+    });
+  }
+  function ghostsGone() { ghosts.forEach(function (x) { if (x[2]) x[2].cancel(); x[1].remove(); }); ghosts = []; }
   window.L2M_fade = function (apply) {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
     window.L2M_endFade();
@@ -140,19 +161,28 @@
     veilApply = apply;
     barHeld = true;
     veilT = setTimeout(function () {
-      var from = colours(), f = veilApply;
+      var f = veilApply;
       veilApply = null;
+      if (Element.prototype.animate) ghostsOver();
       f();                                                   // (the restyle)
-      var to = colours();
-      if (Element.prototype.animate) Array.prototype.forEach.call(document.querySelectorAll(GLASS), function (el) {
-        // (the ones in sight: one hidden, a closed panel, takes its new colours as they are, not restyled at each frame)
-        if (el.checkVisibility && !el.checkVisibility({visibilityProperty: true, opacityProperty: true})) return;
-        try { el.animate([from, to], {duration: 260, easing: "ease-in-out"}); } catch (e) {}
+      getComputedStyle(root).color;
+      requestAnimationFrame(function () {                    // (and once the page is drawn anew, out of sight)
+        veilT = setTimeout(function () {
+          ghosts.forEach(function (x) {                      // the glass's cross-fade: the new in under the old first, the
+            if (x[2]) x[2].cancel();                         // old out over it after (two half-shown panes of glass would
+            x[2] = null;                                     // show the page through them)
+            x[0].animate([{opacity: 0}, {opacity: 1}], {duration: IN / 2, easing: "ease-out"});
+            x[1].animate([{opacity: 1}, {opacity: 0}], {duration: IN, easing: "ease-in", fill: "forwards"});
+          });
+          veil.classList.add("out");
+          veil.classList.remove("on");                       // the new colours in, words and all
+          veilT = setTimeout(function () {
+            releaseBar();                                    // (the browser's bar, midway)
+            veilT = setTimeout(ghostsGone, IN / 2 + 40);
+          }, IN / 2);
+        }, 0);
       });
-      veil.classList.add("out");
-      veil.classList.remove("on");                           // the new colours in, words and all
-      veilT = setTimeout(releaseBar, 130);                   // (the browser's bar, midway)
-    }, FADE + 10);
+    }, OUT + 10);
     return true;
   };
   // reading in full screen (on a touch screen whose browser allows it; not an iPhone): on unless turned off
@@ -161,10 +191,11 @@
     return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
   };
   window.L2M_fullOn = function () { return window.L2M_prefs().full === "on"; };
-  window.L2M_endFade = function () {           // (at once: the change applied, the veil gone)
+  window.L2M_endFade = function () {           // (at once: the change applied, the veil and the copies gone)
     clearTimeout(veilT);
     if (veilApply) { var f = veilApply; veilApply = null; f(); }
     if (veil) { veil.classList.add("cut"); veil.classList.remove("on", "out"); }
+    ghostsGone();
     releaseBar();
   };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
