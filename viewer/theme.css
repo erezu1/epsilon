@@ -248,7 +248,9 @@ li .item-label { font-weight: 700; margin-right: 0.3em; }
 mjx-container[jax="SVG"][display="true"] { margin: 0 !important; }
 mjx-container[jax="SVG"][display="true"]:not([width="full"]) { display: inline-block !important; }
 mjx-container[jax="SVG"]:not([display]) > svg { max-width: 100%; height: auto; }
-td mjx-container[jax="SVG"] > svg, th mjx-container[jax="SVG"] > svg { max-width: none; }
+/* (in a table, a formula keeps its size: the table scrolls. The rules that keep it so name all the rule above does,
+   and more, to outrank it) */
+:is(td, th) mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
 @media (max-width: 520px) {
   .eqbody mjx-container[jax="SVG"][display="true"] { font-size: 90%; }
 }
@@ -404,7 +406,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .bar-title-inner { flex: 1 1 auto; min-width: 0; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 140ms ease; }
 .bar-title-inner.fading { opacity: 0; }
 .bar-title-inner .secnum { font-weight: 600; }
-.bar-title-inner mjx-container > svg { max-width: none; }
+.bar-title-inner mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
 
 /* contents panel, glued under the bar */
 .l2m-menu {
@@ -1762,7 +1764,7 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 .peek-title mjx-container { font-size: 130%; }
 .peek-title { transition: opacity 140ms ease; }
 .peek-title.fading { opacity: 0; }          /* formulas in a title: the height of its capitals */
-.peek-title mjx-container > svg { max-width: none; }
+.peek-title mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
 /* a long press on an internal link is the peek's: not the browser's link menu, nor a selection */
 main a[href^="#"], .l2m-menu a[href^="#"], .l2m-fnsheet a[href^="#"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 @media (min-width: 800px) { .l2m-peek { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); } }
