@@ -708,19 +708,30 @@ window.L2M_marks = function (host) {
       place();
     });
   }
+  function recolour(m, c) {
+    m.c = c;
+    keepColour(m.c);
+    store.put(m);
+    fill(m);
+    relay();
+    listChanged();
+  }
+  // with a keyboard, Left and Right give the open mark the next colour at once (as a dot would), while its note is
+  // empty or not being written in; in a note with words they move in them, as anywhere
+  on(document, "keydown", function (e) {
+    if (dead || !sheetOpen || (e.key !== "ArrowLeft" && e.key !== "ArrowRight") || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || !keyboard()) return;
+    var t = e.target, m = openId && store.all()[openId];
+    if (!live(m)) return;
+    if (t === note ? note.value !== "" : t && t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+    var i = ORDER.indexOf(m.c || 1), n = ORDER.length;
+    e.preventDefault();
+    recolour(m, ORDER[(Math.max(0, i) + (e.key === "ArrowRight" ? 1 : n - 1)) % n]);
+  });
   sheet.addEventListener("click", function (e) {
     var b = e.target.closest("button");
     var m = openId && store.all()[openId];
     if (!b || !live(m)) return;
-    if (b.hasAttribute("data-c")) {
-      m.c = +b.getAttribute("data-c");
-      keepColour(m.c);
-      store.put(m);
-      fill(m);
-      relay();
-      listChanged();
-      return;
-    }
+    if (b.hasAttribute("data-c")) { recolour(m, +b.getAttribute("data-c")); return; }
     var what = b.getAttribute("data-mk");
     if (what === "close") closeSheet("hand");
     else if (what === "link") {
