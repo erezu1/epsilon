@@ -420,7 +420,9 @@ window.L2M_marks = function (host) {
     var sel = window.getSelection && window.getSelection();
     if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
     var r = sel.getRangeAt(0);
-    if (!textAt(r.commonAncestorContainer) || !String(sel).trim()) return null;
+    if (!textAt(r.commonAncestorContainer)) return null;
+    // words, or a formula (a drawing: no words of its own)
+    if (!String(sel).trim() && !r.cloneContents().querySelector(FORMULA)) return null;
     return r;
   }
   function showDock() {
@@ -433,13 +435,15 @@ window.L2M_marks = function (host) {
     dock.classList.add("open");
     dock.setAttribute("aria-hidden", "false");
     if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
+    if (host.selIn) host.selIn();                  // (a step in the history: back lets the selection go)
   }
-  function hideDock() {
+  function hideDock(keep) {                        // keep: its step, for what opens next (or gone already)
     if (!dockOpen) return;
     dockOpen = false;
     dock.classList.remove("open");
     dock.setAttribute("aria-hidden", "true");
     if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
+    if (!keep && host.selOut) host.selOut("hand");
   }
   function checkSel() {
     if (dead) return;
@@ -459,21 +463,21 @@ window.L2M_marks = function (host) {
     if (!b) return;
     if (b.hasAttribute("data-c")) { make(+b.getAttribute("data-c")); return; }
     var what = b.getAttribute("data-mb");
-    if (what === "note") { var id = make(colourOf()); if (id) openSheet(id, true); }
+    if (what === "note") { var id = make(colourOf(), true); if (id) openSheet(id, true); }    // (the sheet takes its step)
     else if (what === "find") {
       var sel = window.getSelection();             // (the selection, as it was when the bar came)
       if (lastRange && (!sel.rangeCount || sel.isCollapsed)) { sel.removeAllRanges(); sel.addRange(lastRange); }
-      hideDock();
+      hideDock(true);                              // (the search takes its step)
       host.find();
     }
   });
-  function clearSel() {
+  function clearSel(keep) {
     var sel = window.getSelection && window.getSelection();
     if (sel) sel.removeAllRanges();
     lastRange = null;
-    hideDock();
+    hideDock(keep);
   }
-  function make(c) {                              // the selection marked: a new mark (its id)
+  function make(c, keep) {                        // the selection marked: a new mark (its id); keep: as hideDock's
     var r = lastRange, t = r && textAt(r.commonAncestorContainer);
     if (!t) return null;
     var M = model(t), s = placeOf(t, r.startContainer, r.startOffset, false), e = placeOf(t, r.endContainer, r.endOffset, true), C = M.C;
@@ -486,7 +490,8 @@ window.L2M_marks = function (host) {
              start: s, end: e, sec: head ? head.id : "", ver: store.version, made: now};
     store.put(m);
     keepColour(c);
-    clearSel();
+    if (host.marked) host.marked();                // (a place the search found, marked: its stroke stays away)
+    clearSel(keep);
     place();                                       // (in the page's text and the peek's, wherever it was made)
     return id;
   }
@@ -521,6 +526,7 @@ window.L2M_marks = function (host) {
     }
     var frag = r ? r.cloneContents() : document.createDocumentFragment();
     frag.querySelectorAll("[id]").forEach(function (x) { x.removeAttribute("id"); });
+    frag.querySelectorAll(".l2m-find-g").forEach(function (x) { x.remove(); });     // (not the search's marks in them)
     if (e < p.e) frag.appendChild(document.createTextNode("…"));
     return frag;
   }
@@ -580,7 +586,7 @@ window.L2M_marks = function (host) {
     keyboardOver(true);                            // (before the note takes the keyboard)
     // a note to write on a phone: its keyboard comes, and the page moves once, after it (else once the sheet is up)
     keepInSight(write && window.matchMedia && matchMedia("(pointer: coarse)").matches ? 700 : 300);
-    hideDock();
+    hideDock(true);                                // (its step, if it was up, taken by the sheet's)
     relay();
     if (write) note.focus();                       // (Note: straight to writing; in the tap itself, so the keyboard comes)
   }
@@ -953,6 +959,11 @@ window.L2M_marks = function (host) {
 
   return {
     closeSheet: closeSheet,
+    dropSel: function () {                         // nav.js: the selection let go (back; what opened over it took its step)
+      if (selected()) window.getSelection().removeAllRanges();
+      lastRange = null;
+      hideDock(true);
+    },
     reveal: function (id) { wanted = id; started.then(go); },
     panelOpened: function () {                     // nav.js: the contents panel open (its tabs as left)
       if (!tabs) return;

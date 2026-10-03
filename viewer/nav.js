@@ -95,7 +95,10 @@ window.L2M_nav = function (opts) {
   function moving() { touched = Date.now(); }
   on(window, "wheel", moving, {passive: true});
   on(window, "touchstart", moving, {passive: true});
-  on(document, "keydown", moving);
+  on(document, "keydown", function (e) {            // (a key that scrolls the page; not one typed in a field: the
+    var t = e.target;                               // search's Enter, that made the jump)
+    if (/^(Arrow(Up|Down)|Page(Up|Down)|Home|End| )$/.test(e.key) && !(t && t.closest && t.closest("input, textarea, select, [contenteditable]"))) moving();
+  });
   function landOn(where, box) {         // where(): the scroll the target wants now (null: none); box: its scroller
     var t0 = Date.now(), done = false, frames = 0, ro = null;
     function end() { done = true; if (ro) ro.disconnect(); }
@@ -199,12 +202,23 @@ window.L2M_nav = function (opts) {
   var skipPop = false;       // the history step of a panel being closed by hand: already handled
   // The peek, a note's sheet and the figure viewer each take a step in the history, in the order they open: back
   // closes the one opened last, and only it (a note closed leaves the peek open, and the other way round). Closed by
-  // hand, its step goes too (back, when it is the last one; else its mark is taken off the entry).
+  // hand, its step goes too (back, when it is the last one; else its mark is taken off the entry). So does a selection
+  // (with the bar to mark it): back lets it go first, as it closes a sheet. What opens over a selection (a note's
+  // sheet, the search, a panel, the peek) takes its step for its own, and the selection goes
   var overlays = [];
   var marks = null;          // the marks in the paper (marks.js), where the host keeps them
+  function stepIn(o) {       // the step of what opens (o: its mark on the entry): the selection's, if that is the last
+    var st = state();
+    if (!o.l2mSel && overlays[overlays.length - 1] === "l2mSel" && st.l2mSel) {
+      overlays.pop();
+      if (marks) marks.dropSel();
+      st = assign(st, o); delete st.l2mSel;
+      history.replaceState(st, "");
+    } else history.pushState(assign(st, o), "");
+  }
   function overlayIn(flag) {
     if (!useHistory) return;
-    try { var o = {}; o[flag] = true; history.pushState(assign(state(), o), ""); overlays.push(flag); } catch (e) {}
+    try { var o = {}; o[flag] = true; stepIn(o); overlays.push(flag); } catch (e) {}
   }
   function overlayOut(flag, how) {           // how: "pop" (back did it), "hand" (the reader), else something follows
     var i = overlays.lastIndexOf(flag);
@@ -218,7 +232,9 @@ window.L2M_nav = function (opts) {
   }
   function closeOverlay(flag, how) {
     if (flag === "l2mPeek") closePeek(how); else if (flag === "l2mSheet") closeSheet(how);
-    else if (flag === "l2mMark") { if (marks) marks.closeSheet(how); } else closeViewer(how);
+    else if (flag === "l2mMark") { if (marks) marks.closeSheet(how); }
+    else if (flag === "l2mSel") { overlayOut(flag, how); if (marks) marks.dropSel(); }
+    else closeViewer(how);
   }
   on(window, "popstate", function (e) {
     if (opts.leaving && opts.leaving()) return;    // the host is taking the reader out of the paper
@@ -265,7 +281,7 @@ window.L2M_nav = function (opts) {
     closeSheet();
     if (panel) hidePanel(panel);
     else if (useHistory) {
-      try { if (!state().l2mPanel) history.pushState(assign(state(), {l2mPanel: true}), ""); } catch (e) {}
+      try { if (!state().l2mPanel) stepIn({l2mPanel: true}); } catch (e) {}
     }
     panel = name;
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
@@ -394,13 +410,14 @@ window.L2M_nav = function (opts) {
     var frag = document.createDocumentFragment();
     rects.forEach(function (e) {
       var h = e[0], i = e[1];
-      h.boxes = [];
+      h.boxes = []; h.rr = [];                       // (rr: its lines on the page, where a tap finds it)
       Array.prototype.forEach.call(e[2], function (r) {
         var m = document.createElement("span");
-        m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
+        m.className = "l2m-find-m" + (i === hitAt ? " now" : "") + (h.picked || h.marked ? " gone" : "");
         m.style.cssText = strokeCss(r.left + x0, r.top + y0, r.right - r.left, r.bottom - r.top, k++);
         frag.appendChild(m);
         h.boxes.push(m);
+        h.rr.push({left: r.left + x0, top: r.top + y0, right: r.right + x0, bottom: r.bottom + y0});
       });
     });
     findLayer.appendChild(frag);
@@ -418,7 +435,7 @@ window.L2M_nav = function (opts) {
     Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-f, main .l2m-find-now"), function (e) {
       e.classList.remove("l2m-find-f", "l2m-find-now");
     });
-    hits = []; hitAt = -1;
+    hits = []; hitAt = -1; picked = null; pickRange = null;
   }
   // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn)
   // operators drawn as upright words (\log, \sin, ...): their letters, as drawn
@@ -545,7 +562,11 @@ window.L2M_nav = function (opts) {
       if (h.span && !h.glyphs) h.glyphs = Array.prototype.slice.call(h.el.querySelectorAll("[data-c]"), h.span[0], h.span[1]);
     });
     var geoms = todo.map(function (h) { return markGeom(h.el, h.glyphs, hits.indexOf(h)); });
-    todo.forEach(function (h, i) { h.mark = markPlace(geoms[i]); if (h.mark && hits[hitAt] === h) h.mark.classList.add("now"); });
+    todo.forEach(function (h, i) {
+      h.mark = markPlace(geoms[i]);
+      if (h.mark && hits[hitAt] === h) h.mark.classList.add("now");
+      if (h.mark && (h.picked || h.marked)) h.mark.classList.add("gone");
+    });
   }
   if (window.L2M_math) {
     L2M_math.onDraw = function (el) {
@@ -734,14 +755,13 @@ window.L2M_nav = function (opts) {
       if (!h.range && h.el.hasAttribute("data-lazy") && window.L2M_math) L2M_math.draw(h.el);
       if (h.range) (h.boxes || []).forEach(function (b) { b.classList.add("now"); });
       else if (h.mark) h.mark.classList.add("now");
-      // in sight: below the bar, above the peek, a third of the way down if it has to move
+      // in sight: below the bar, above the peek, a third of the way down if it has to move, and held there while the
+      // page round it is laid out (as every jump is: else it drifts as the paper above it takes its true size)
       var r = hitRect(h), top = barHeight() + 12, bottom = window.innerHeight - Math.max(peekOpen ? peekH : 0, keyboardH()) - 24;
       if (r.top < top || r.bottom > bottom) {
-        window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - top - (bottom - top) * 0.3));
-        landOn(function () {                          // (still out of sight, the page around it laid out: again)
-          var r2 = hitRect(h);
-          return r2.top < top || r2.bottom > bottom ? Math.max(0, window.pageYOffset + r2.top - top - (bottom - top) * 0.3) : null;
-        });
+        var spot = top + (bottom - top) * 0.3;
+        window.scrollTo(0, Math.max(0, window.pageYOffset + r.top - spot));
+        landOn(function () { return Math.max(0, window.pageYOffset + hitRect(h).top - spot); });
       }
       var at = (h.glyphs && h.mark) || (h.range && h.range.startContainer.parentElement), eq = at && at.closest && at.closest(".eqbody");
       if (eq) {                                           // a wide formula scrolled sideways to it
@@ -770,6 +790,66 @@ window.L2M_nav = function (opts) {
     setTimeout(function () { if (finding && hitAt >= 0 && hits[hitAt]) findGo(hitAt, true); }, 250);
   });
   function findStep(d) { if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
+  // A found place tapped is selected, as if by hand: the bar comes to mark it, or to write a note on it. Its stroke
+  // gives way, so the selection's shade shows there; marked, it stays away, and the mark's colour shows. A tap on a
+  // link keeps its own; a selection drawn with the mouse (or a double click's), its own; a place marked, its mark's
+  var picked = null, pickRange = null, tapBy = "", downX = 0, downY = 0;
+  function shade(h) {                              // its stroke away (picked or marked) or back
+    var off = !!(h.picked || h.marked);
+    (h.boxes || []).forEach(function (b) { b.classList.toggle("gone", off); });
+    if (h.mark) h.mark.classList.toggle("gone", off);
+  }
+  function unpick() {
+    if (!picked) return;
+    picked.picked = false;
+    shade(picked);
+    picked = null; pickRange = null;
+  }
+  function hitUnder(e, el) {                       // the found place a tap is on (the smallest, where they overlap)
+    var x = e.clientX + window.pageXOffset, y = e.clientY + window.pageYOffset, best = -1, least = Infinity;
+    hits.forEach(function (h, k) {
+      if (h.marked) return;
+      var boxes = h.rr || [];
+      if (!h.range) {
+        if (!h.el.contains(el)) return;
+        var b = (h.mark || h.el).getBoundingClientRect();
+        boxes = [{left: b.left + window.pageXOffset, top: b.top + window.pageYOffset, right: b.right + window.pageXOffset, bottom: b.bottom + window.pageYOffset}];
+      }
+      boxes.forEach(function (r) {
+        var a = (r.right - r.left) * (r.bottom - r.top);
+        if (x >= r.left - 3 && x <= r.right + 3 && y >= r.top - 3 && y <= r.bottom + 3 && a < least) { least = a; best = k; }
+      });
+    });
+    return best;
+  }
+  on(window, "pointerdown", function (e) { tapBy = e.pointerType; downX = e.clientX; downY = e.clientY; }, true);
+  on(window, "click", function (e) {                // (before the paper's taps, and the marks')
+    if (!finding || !hits.length || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var el = e.target.nodeType === 1 ? e.target : e.target.parentNode, sel = window.getSelection();
+    if (!el || !el.closest || !document.querySelector("main").contains(el) ||
+        el.closest("a[href], button, input, textarea, select, summary, label, [role='button']")) return;
+    if (e.detail > 1 || (tapBy === "mouse" && Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 4)) return;
+    var k = hitUnder(e, el);
+    if (k < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeMenu(); closeSheet("hand");                 // (as a tap elsewhere would)
+    if (marks) marks.closeSheet("hand");
+    var h = hits[k], r = document.createRange();
+    if (h.range) r = h.range.cloneRange(); else r.selectNode(h.el);    // (a formula: whole, as one is selected)
+    unpick();
+    picked = h; h.picked = true; pickRange = r;
+    shade(h);
+    findGo(k, true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }, true);
+  on(document, "selectionchange", function () {     // the selection gone (or moved off it): its stroke back
+    if (!picked || picked.marked) return;
+    var sel = window.getSelection(), r = sel && sel.rangeCount && !sel.isCollapsed ? sel.getRangeAt(0) : null;
+    try { if (r && r.compareBoundaryPoints(Range.END_TO_START, pickRange) < 0 && r.compareBoundaryPoints(Range.START_TO_END, pickRange) > 0) return; } catch (e) {}
+    unpick();
+  });
   // what is selected, as a search: a formula (or a part of one) as its TeX, text as it reads; nothing when too long
   function selectedQuery() {
     var sel = window.getSelection && window.getSelection();
@@ -785,7 +865,7 @@ window.L2M_nav = function (opts) {
     if (!findBar || finding) return;
     closeMenu("jump"); closeSheet();
     finding = true;
-    if (useHistory) { try { if (!state().l2mFind) history.pushState(assign(state(), {l2mFind: true}), ""); } catch (e) {} }
+    if (useHistory) { try { if (!state().l2mFind) stepIn({l2mFind: true}); } catch (e) {} }
     bar.classList.remove("find-in", "find-out"); void bar.offsetWidth;
     bar.classList.add("finding", "find-in");
     update();
@@ -2001,6 +2081,9 @@ window.L2M_nav = function (opts) {
       land: landOn,
       tex: opts.tex || function () { return ""; },
       overlayIn: overlayIn, overlayOut: overlayOut,
+      selIn: function () { if (overlays.indexOf("l2mSel") < 0) overlayIn("l2mSel"); },   // (the bar up: a step)
+      selOut: function (how) { overlayOut("l2mSel", how); },
+      marked: function () { if (picked) { picked.marked = true; shade(picked); } },        // (a found place marked)
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
       find: function (q) { openFind(typeof q === "string" ? q : selectedQuery()); },
       barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },
