@@ -2167,6 +2167,8 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .l2m-markbar, .l2m-marksheet { z-index: 43; font-family: var(--ui); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* (as tall as the bars at the top, its buttons as the sheets' (48px), its icons as every bar's (24px)) */
 .l2m-markbar { padding-top: 8px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
+/* the bar is at the foot of the screen over an open peek's foot (marks.js): the peek has as much more room at its end */
+.l2m-docked .peek-scroll { padding-bottom: var(--l2m-dock-h, 0px); }
 .mb-row { display: flex; align-items: center; justify-content: center; gap: 2px; }
 .mb-sep { flex: 0 0 auto; width: 1px; height: 32px; margin: 0 7px; background: var(--rule); }
 .mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;

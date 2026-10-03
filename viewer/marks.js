@@ -427,13 +427,15 @@ window.L2M_marks = function (host) {
   }
   function showDock() {
     if (store.toastAway) store.toastAway();         // (a new selection: the Undo of the last removal goes, the bar comes)
-    var lift = host.peekHeight();                  // (above the peek, if it is open)
-    dock.style.bottom = lift ? lift + "px" : "";
+    // (at the foot of the screen, as every bar and message is, over an open peek's foot: the peek has as much more
+    // room at its end meanwhile, so that none of it is out of reach under the bar)
+    document.documentElement.classList.add("l2m-docked");
     if (!dockOpen) picked = colourOf();            // (the colour last marked in, ringed: what Enter or a note takes)
     ring();
     if (dockOpen) return;
     dockOpen = true;
     dock.classList.add("open");
+    document.documentElement.style.setProperty("--l2m-dock-h", dock.offsetHeight + "px");
     dock.setAttribute("aria-hidden", "false");
     if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
     if (host.selIn) host.selIn();                  // (a step in the history: back lets the selection go)
@@ -444,6 +446,7 @@ window.L2M_marks = function (host) {
     if (!dockOpen) return;
     dockOpen = false;
     dock.classList.remove("open");
+    document.documentElement.classList.remove("l2m-docked");
     dock.setAttribute("aria-hidden", "true");
     if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
     if (!keep && host.selOut) host.selOut("hand");
