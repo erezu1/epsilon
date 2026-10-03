@@ -413,7 +413,7 @@ window.L2M_nav = function (opts) {
       h.boxes = []; h.rr = [];                       // (rr: its lines on the page, where a tap finds it)
       Array.prototype.forEach.call(e[2], function (r) {
         var m = document.createElement("span");
-        m.className = "l2m-find-m" + (i === hitAt ? " now" : "") + (h.picked || h.marked ? " gone" : "");
+        m.className = "l2m-find-m" + (i === hitAt ? " now" : "");
         m.style.cssText = strokeCss(r.left + x0, r.top + y0, r.right - r.left, r.bottom - r.top, k++);
         frag.appendChild(m);
         h.boxes.push(m);
@@ -435,7 +435,7 @@ window.L2M_nav = function (opts) {
     Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-f, main .l2m-find-now"), function (e) {
       e.classList.remove("l2m-find-f", "l2m-find-now");
     });
-    hits = []; hitAt = -1; picked = null; pickRange = null;
+    hits = []; hitAt = -1;
   }
   // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn)
   // operators drawn as upright words (\log, \sin, ...): their letters, as drawn
@@ -562,11 +562,7 @@ window.L2M_nav = function (opts) {
       if (h.span && !h.glyphs) h.glyphs = Array.prototype.slice.call(h.el.querySelectorAll("[data-c]"), h.span[0], h.span[1]);
     });
     var geoms = todo.map(function (h) { return markGeom(h.el, h.glyphs, hits.indexOf(h)); });
-    todo.forEach(function (h, i) {
-      h.mark = markPlace(geoms[i]);
-      if (h.mark && hits[hitAt] === h) h.mark.classList.add("now");
-      if (h.mark && (h.picked || h.marked)) h.mark.classList.add("gone");
-    });
+    todo.forEach(function (h, i) { h.mark = markPlace(geoms[i]); if (h.mark && hits[hitAt] === h) h.mark.classList.add("now"); });
   }
   if (window.L2M_math) {
     L2M_math.onDraw = function (el) {
@@ -785,30 +781,30 @@ window.L2M_nav = function (opts) {
     if (vk && vk.overlaysContent && vk.boundingRect) return vk.boundingRect.height;
     return vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
   }
-  // the keyboard up while searching: the place it is on, if it went under it, back in sight above it
-  if (navigator.virtualKeyboard) on(navigator.virtualKeyboard, "geometrychange", function () {
-    setTimeout(function () { if (finding && hitAt >= 0 && hits[hitAt]) findGo(hitAt, true); }, 250);
-  });
+  // The keyboard up while searching (it comes as the search opens): the place it is on, if it went under it, is
+  // brought back in sight above it once the keyboard is up, in one smooth move, as a note's words are as it is written
+  var sightT = 0;
+  function findSight(after) {
+    clearTimeout(sightT);
+    sightT = setTimeout(function () {
+      sightT = 0;
+      if (!finding || hitAt < 0 || !hits[hitAt]) return;
+      var r = hitRect(hits[hitAt]), top = barHeight() + 12, bottom = window.innerHeight - Math.max(peekOpen ? peekH : 0, keyboardH()) - 24;
+      if (bottom - top < 40 || (r.top >= top && r.bottom <= bottom)) return;
+      var still = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollBy({top: Math.round(r.top - top - (bottom - top) * 0.3), behavior: still ? "auto" : "smooth"});
+    }, after);
+  }
+  if (navigator.virtualKeyboard) on(navigator.virtualKeyboard, "geometrychange", function () { findSight(250); });
   function findStep(d) { if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
-  // A found place tapped is selected, as if by hand: the bar comes to mark it, or to write a note on it. Its stroke
-  // gives way, so the selection's shade shows there; marked, it stays away, and the mark's colour shows. A tap on a
-  // link keeps its own; a selection drawn with the mouse (or a double click's), its own; a place marked, its mark's
-  var picked = null, pickRange = null, tapBy = "", downX = 0, downY = 0;
-  function shade(h) {                              // its stroke away (picked or marked) or back
-    var off = !!(h.picked || h.marked);
-    (h.boxes || []).forEach(function (b) { b.classList.toggle("gone", off); });
-    if (h.mark) h.mark.classList.toggle("gone", off);
-  }
-  function unpick() {
-    if (!picked) return;
-    picked.picked = false;
-    shade(picked);
-    picked = null; pickRange = null;
-  }
+  // A found place tapped is selected, as one selects by hand. With a finger, the selection is laid on it as the finger
+  // lifts, and the browser's own tap, on a selection, makes it the browser's: its handles and its menu, as after a long
+  // press. With a mouse, once the click is done (a press would have let it go). The bar to mark it comes, as for any
+  // selection. (Not a link's tap, nor a long press, a drag or a double click: those are the browser's)
+  var downX = 0, downY = 0, downT = 0, downBy = "";
   function hitUnder(e, el) {                       // the found place a tap is on (the smallest, where they overlap)
-    var x = e.clientX + window.pageXOffset, y = e.clientY + window.pageYOffset, best = -1, least = Infinity;
-    hits.forEach(function (h, k) {
-      if (h.marked) return;
+    var x = e.clientX + window.pageXOffset, y = e.clientY + window.pageYOffset, best = null, least = Infinity;
+    hits.forEach(function (h) {
       var boxes = h.rr || [];
       if (!h.range) {
         if (!h.el.contains(el)) return;
@@ -817,39 +813,36 @@ window.L2M_nav = function (opts) {
       }
       boxes.forEach(function (r) {
         var a = (r.right - r.left) * (r.bottom - r.top);
-        if (x >= r.left - 3 && x <= r.right + 3 && y >= r.top - 3 && y <= r.bottom + 3 && a < least) { least = a; best = k; }
+        if (x >= r.left - 3 && x <= r.right + 3 && y >= r.top - 3 && y <= r.bottom + 3 && a < least) { least = a; best = h; }
       });
     });
     return best;
   }
-  on(window, "pointerdown", function (e) { tapBy = e.pointerType; downX = e.clientX; downY = e.clientY; }, true);
-  on(window, "click", function (e) {                // (before the paper's taps, and the marks')
-    if (!finding || !hits.length || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var el = e.target.nodeType === 1 ? e.target : e.target.parentNode, sel = window.getSelection();
+  function foundAt(e) {
+    if (!finding || !hits.length || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
+    if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 8) return null;
+    var el = e.target.nodeType === 1 ? e.target : e.target.parentNode;
     if (!el || !el.closest || !document.querySelector("main").contains(el) ||
-        el.closest("a[href], button, input, textarea, select, summary, label, [role='button']")) return;
-    if (e.detail > 1 || (tapBy === "mouse" && Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 4)) return;
-    var k = hitUnder(e, el);
-    if (k < 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    closeMenu(); closeSheet("hand");                 // (as a tap elsewhere would)
-    if (marks) marks.closeSheet("hand");
-    var h = hits[k], r = document.createRange();
+        el.closest("a[href], button, input, textarea, select, summary, label, [role='button']")) return null;
+    return hitUnder(e, el);
+  }
+  function selectFound(h) {
+    var r = document.createRange(), sel = window.getSelection();
     if (h.range) r = h.range.cloneRange(); else r.selectNode(h.el);    // (a formula: whole, as one is selected)
-    unpick();
-    picked = h; h.picked = true; pickRange = r;
-    shade(h);
-    findGo(k, true);
     sel.removeAllRanges();
     sel.addRange(r);
+  }
+  on(window, "pointerdown", function (e) { downX = e.clientX; downY = e.clientY; downT = Date.now(); downBy = e.pointerType; }, true);
+  on(window, "pointerup", function (e) {
+    if (e.pointerType === "mouse" || Date.now() - downT > 450) return;
+    var h = foundAt(e);
+    if (h) selectFound(h);
   }, true);
-  on(document, "selectionchange", function () {     // the selection gone (or moved off it): its stroke back
-    if (!picked || picked.marked) return;
-    var sel = window.getSelection(), r = sel && sel.rangeCount && !sel.isCollapsed ? sel.getRangeAt(0) : null;
-    try { if (r && r.compareBoundaryPoints(Range.END_TO_START, pickRange) < 0 && r.compareBoundaryPoints(Range.START_TO_END, pickRange) > 0) return; } catch (e) {}
-    unpick();
-  });
+  on(window, "click", function (e) {
+    if (downBy !== "mouse" || e.detail > 1) return;
+    var h = foundAt(e);
+    if (h) selectFound(h);
+  }, true);
   // what is selected, as a search: a formula (or a part of one) as its TeX, text as it reads; nothing when too long
   function selectedQuery() {
     var sel = window.getSelection && window.getSelection();
@@ -871,6 +864,8 @@ window.L2M_nav = function (opts) {
     update();
     setTimeout(function () { findField.focus(); findField.select(); }, 40);
     if (findField.value.trim()) findRun();
+    // (and once a phone's keyboard is up, whether or not the window said so: it comes in some 300ms)
+    if (window.matchMedia && matchMedia("(pointer: coarse)").matches) findSight(700);
     setTimeout(function () { bar.classList.remove("find-in"); }, 320);
   }
   function closeFind(how) {            // how: "pop" (by back), "jump" (something else follows)
@@ -2083,7 +2078,6 @@ window.L2M_nav = function (opts) {
       overlayIn: overlayIn, overlayOut: overlayOut,
       selIn: function () { if (overlays.indexOf("l2mSel") < 0) overlayIn("l2mSel"); },   // (the bar up: a step)
       selOut: function (how) { overlayOut("l2mSel", how); },
-      marked: function () { if (picked) { picked.marked = true; shade(picked); } },        // (a found place marked)
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
       find: function (q) { openFind(typeof q === "string" ? q : selectedQuery()); },
       barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },

@@ -490,7 +490,6 @@ window.L2M_marks = function (host) {
              start: s, end: e, sec: head ? head.id : "", ver: store.version, made: now};
     store.put(m);
     keepColour(c);
-    if (host.marked) host.marked();                // (a place the search found, marked: its stroke stays away)
     clearSel(keep);
     place();                                       // (in the page's text and the peek's, wherever it was made)
     return id;
