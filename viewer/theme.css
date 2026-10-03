@@ -2,15 +2,41 @@
 /* no tap highlight, and no focus ring for taps and clicks (it stays for keyboard focus) */
 * { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }
+/* The colours the bar and the panels are made of, registered as colours: in a change of colours they move from the
+   old to the new (prefs.js), where a colour not registered could only jump */
+@property --ground { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --surface { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --ink { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --muted { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --rule { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --link { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --error { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --progress { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --shade { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --bar-shadow { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --glass { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --glass-solid { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --seg-on { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --bar-hover { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --bar-current { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --bar-line { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --flash { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --flash-ring { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --sel { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --shadow { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --danger { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --danger-bg { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mark-1 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mark-2 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mark-3 { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --mark-4 { syntax: "<color>"; inherits: true; initial-value: transparent; }
 :root {
   color-scheme: light;
   --page-w: 40rem; --chrome-w: calc(var(--page-w) + 6rem);
   /* Every colour of the app is one of these tokens (the browser's bar takes --ground, from prefs.js; the offline
      page uses this file too). A palette sets its few base colours, and how strong the shades made from them are;
      the rest follows from them here, the same for every palette. */
-  /* the four grounds, by name: a change of colours fades from one to the next (prefs.js) before the page is in it */
-  --ground-light: #ffffff; --ground-dark: #000000; --ground-paper: #f5efe3; --ground-paper-dark: #1e1a15;
-  --ground: var(--ground-light);     /* the page */
+  --ground: #ffffff;                 /* the page */
   --surface: #eff3f6;                /* boxes on it: theorems, code */
   --ink: #16191d;                    /* text */
   --muted: #5a636e;                  /* secondary text */
@@ -49,7 +75,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --ground: var(--ground-dark);
+    --ground: #000000;
     --surface: #1b2026;
     --ink: #e3e6ea;
     --muted: #9ba4af;
@@ -71,7 +97,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: var(--ground-dark);
+  --ground: #000000;
   --surface: #1b2026;
   --ink: #e3e6ea;
   --muted: #9ba4af;
@@ -93,7 +119,7 @@
 
 /* paper tone: a warm palette with its own light and dark versions (the strengths as the neutral ones) */
 :root[data-tone="paper"] {
-  --ground: var(--ground-paper);
+  --ground: #f5efe3;
   --surface: #ebe2d0;
   --ink: #2b241d;
   --muted: #6f6353;
@@ -103,7 +129,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root[data-tone="paper"]:not([data-theme="light"]) {
-    --ground: var(--ground-paper-dark);
+    --ground: #1e1a15;
     --surface: #28221b;
     --ink: #e9dfcf;
     --muted: #a99b86;
@@ -114,7 +140,7 @@
   }
 }
 :root[data-tone="paper"][data-theme="dark"] {
-  --ground: var(--ground-paper-dark);
+  --ground: #1e1a15;
   --surface: #28221b;
   --ink: #e9dfcf;
   --muted: #a99b86;
@@ -514,11 +540,11 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .titleblock > .kicker, .titleblock > h1:first-of-type { padding-right: 36px; }
 /* theme changes crossfade the whole page (View Transitions), or pass under a quick veil */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
-/* a change of colours (prefs.js): the page fades into its ground, the ground into the new one (the page restyled under
-   it meanwhile), and the page back in its new colours; over everything, the bar and the panels too */
-.l2m-veil { position: fixed; inset: 0; z-index: 2147483000; opacity: 0; pointer-events: none; transition: opacity 170ms ease-in-out; }
+/* a change of colours (prefs.js): the page's words fade into its ground (a veil over the page, under the bar and the
+   panels), then the new colours come in together, the words with them */
+.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 170ms ease-in-out; }
 .l2m-veil.on { opacity: 1; }
-.l2m-veil.out { transition-duration: 240ms; }
+.l2m-veil.out { transition-duration: 260ms; }
 .l2m-veil.cut { transition: none; }
 
 /* footnote sheet, slides up from the bottom */
