@@ -205,8 +205,14 @@ window.L2M_nav = function (opts) {
   // hand, its step goes too (back, when it is the last one; else its mark is taken off the entry). So does a selection
   // (with the bar to mark it): back lets it go first, as it closes a sheet. What opens over a selection (a note's
   // sheet, the search, a panel, the peek) takes its step for its own, and the selection goes
-  var overlays = [];
+  var overlays = [], stepAt = {};   // stepAt: where in the history each one's step is (to go back to it exactly)
   var marks = null;          // the marks in the paper (marks.js), where the host keeps them
+  function here() { try { return window.navigation && navigation.currentEntry ? navigation.currentEntry.index : -1; } catch (e) { return -1; } }
+  function backTo(at) {      // back to before the step at "at", past any left above it (a sheet closed as a link was
+    var now = here();        // followed); else one step
+    skipPop = true;
+    history.go(at >= 0 && now >= at ? at - now - 1 : -1);
+  }
   function stepIn(o) {       // the step of what opens (o: its mark on the entry): the selection's, if that is the last
     var st = state();
     if (!o.l2mSel && overlays[overlays.length - 1] === "l2mSel" && st.l2mSel) {
@@ -218,7 +224,7 @@ window.L2M_nav = function (opts) {
   }
   function overlayIn(flag) {
     if (!useHistory) return;
-    try { var o = {}; o[flag] = true; stepIn(o); overlays.push(flag); } catch (e) {}
+    try { var o = {}; o[flag] = true; stepIn(o); overlays.push(flag); stepAt[flag] = here(); } catch (e) {}
   }
   function overlayOut(flag, how) {           // how: "pop" (back did it), "hand" (the reader), else something follows
     var i = overlays.lastIndexOf(flag);
@@ -226,7 +232,7 @@ window.L2M_nav = function (opts) {
     overlays.splice(i, 1);
     if (how === "pop" || !useHistory) return;
     try {
-      if (how === "hand" && i === overlays.length && state()[flag]) { skipPop = true; history.back(); }
+      if (how === "hand" && i === overlays.length && state()[flag]) backTo(stepAt[flag]);
       else if (state()[flag]) { var st = assign(state(), {}); delete st[flag]; history.replaceState(st, ""); }
     } catch (e) {}
   }
@@ -234,6 +240,11 @@ window.L2M_nav = function (opts) {
     if (flag === "l2mPeek") closePeek(how); else if (flag === "l2mSheet") closeSheet(how);
     else if (flag === "l2mMark") { if (marks) marks.closeSheet(how); }
     else if (flag === "l2mSel") { overlayOut(flag, how); if (marks) marks.dropSel(); }
+    else if (flag === "l2mFound") {
+      overlayOut(flag, how);
+      root.classList.remove("l2m-find-off");
+      if (selRides) { selRides = false; if (marks) marks.dropSel(); }
+    }
     else closeViewer(how);
   }
   on(window, "popstate", function (e) {
@@ -341,7 +352,7 @@ window.L2M_nav = function (opts) {
   // except the search itself (back closes it).
   var findBar = bar.querySelector(".bar-find"), findBtn = bar.querySelector('[data-act="find"]');
   var findField = findBar ? findBar.querySelector("input") : null, findCount = findBar ? findBar.querySelector(".find-count") : null;
-  var finding = false, hits = [], hitAt = -1, findTimer = null;
+  var finding = false, hits = [], hitAt = -1, findTimer = null, findAt = -1;
   var GLYPH = {alpha: "1D6FC", beta: "1D6FD", gamma: "1D6FE", delta: "1D6FF", epsilon: "1D716", varepsilon: "1D700", zeta: "1D701",
     eta: "1D702", theta: "1D703", vartheta: "1D717", iota: "1D704", kappa: "1D705", varkappa: "1D718", lambda: "1D706", mu: "1D707",
     nu: "1D708", xi: "1D709", pi: "1D70B", varpi: "1D71B", rho: "1D70C", varrho: "1D71A", sigma: "1D70E", varsigma: "1D70D",
@@ -587,6 +598,7 @@ window.L2M_nav = function (opts) {
     return t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
   }
   function findRun() {
+    foundBack();
     findClear();
     var what = findWhat(findField.value);
     if (!what) { findShow(); return; }
@@ -796,12 +808,20 @@ window.L2M_nav = function (opts) {
     }, after);
   }
   if (navigator.virtualKeyboard) on(navigator.virtualKeyboard, "geometrychange", function () { findSight(250); });
-  function findStep(d) { if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
-  // A found place tapped is selected, as one selects by hand. With a finger, the selection is laid on it as the finger
-  // lifts, and the browser's own tap, on a selection, makes it the browser's: its handles and its menu, as after a long
-  // press. With a mouse, once the click is done (a press would have let it go). The bar to mark it comes, as for any
-  // selection. (Not a link's tap, nor a long press, a drag or a double click: those are the browser's)
-  var downX = 0, downY = 0, downT = 0, downBy = "";
+  function findStep(d) { foundBack(); if (hits.length) findGo((hitAt + d + hits.length) % hits.length); }
+  // A found place tapped: the search's blue goes (a step in the history: back brings it, and only back; a step on to
+  // another place, or a new search, too), and the place is selected, as one selects by hand. With a finger, the
+  // selection is laid on it as the finger lifts, and the browser's own tap, on a selection, makes it the browser's: its
+  // handles and its menu, as after a long press. With a mouse, once the click is done (a press would have let it go).
+  // The bar to mark it comes, as for any selection (and goes with the blue's step, back letting both go). A place
+  // already marked opens its mark's sheet instead, as a tap on a mark does. (Not a link's tap, nor a long press, a
+  // drag or a double click: those are the browser's; nor a tap where the blue has gone)
+  var downX = 0, downY = 0, downT = 0, downBy = "", selRides = false;
+  function foundOff() { return root.classList.contains("l2m-find-off"); }
+  function foundHide() { if (!foundOff()) { root.classList.add("l2m-find-off"); overlayIn("l2mFound"); } }
+  function foundBack() {                           // (the blue back, as the search goes on)
+    if (foundOff()) { if (overlays.indexOf("l2mFound") >= 0) closeOverlay("l2mFound", "hand"); else root.classList.remove("l2m-find-off"); }
+  }
   function hitUnder(e, el) {                       // the found place a tap is on (the smallest, where they overlap)
     var x = e.clientX + window.pageXOffset, y = e.clientY + window.pageYOffset, best = null, least = Infinity;
     hits.forEach(function (h) {
@@ -819,7 +839,7 @@ window.L2M_nav = function (opts) {
     return best;
   }
   function foundAt(e) {
-    if (!finding || !hits.length || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
+    if (!finding || !hits.length || foundOff() || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return null;
     if (Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) > 8) return null;
     var el = e.target.nodeType === 1 ? e.target : e.target.parentNode;
     if (!el || !el.closest || !document.querySelector("main").contains(el) ||
@@ -832,17 +852,15 @@ window.L2M_nav = function (opts) {
     sel.removeAllRanges();
     sel.addRange(r);
   }
+  function tapFound(e) {
+    var h = foundAt(e);
+    if (!h) return;
+    foundHide();
+    if (!(marks && marks.at(e.clientX, e.clientY))) selectFound(h);     // (on a mark: its sheet opens, as the tap goes on)
+  }
   on(window, "pointerdown", function (e) { downX = e.clientX; downY = e.clientY; downT = Date.now(); downBy = e.pointerType; }, true);
-  on(window, "pointerup", function (e) {
-    if (e.pointerType === "mouse" || Date.now() - downT > 450) return;
-    var h = foundAt(e);
-    if (h) selectFound(h);
-  }, true);
-  on(window, "click", function (e) {
-    if (downBy !== "mouse" || e.detail > 1) return;
-    var h = foundAt(e);
-    if (h) selectFound(h);
-  }, true);
+  on(window, "pointerup", function (e) { if (e.pointerType !== "mouse" && Date.now() - downT <= 450) tapFound(e); }, true);
+  on(window, "click", function (e) { if (downBy === "mouse" && e.detail < 2) tapFound(e); }, true);
   // what is selected, as a search: a formula (or a part of one) as its TeX, text as it reads; nothing when too long
   function selectedQuery() {
     var sel = window.getSelection && window.getSelection();
@@ -858,7 +876,7 @@ window.L2M_nav = function (opts) {
     if (!findBar || finding) return;
     closeMenu("jump"); closeSheet();
     finding = true;
-    if (useHistory) { try { if (!state().l2mFind) stepIn({l2mFind: true}); } catch (e) {} }
+    if (useHistory) { try { if (!state().l2mFind) { stepIn({l2mFind: true}); findAt = here(); } } catch (e) {} }
     bar.classList.remove("find-in", "find-out"); void bar.offsetWidth;
     bar.classList.add("finding", "find-in");
     update();
@@ -872,11 +890,17 @@ window.L2M_nav = function (opts) {
     if (!finding) return;
     finding = false;
     clearTimeout(findTimer);
+    var fi = overlays.lastIndexOf("l2mFound");      // (the blue's step, if it is gone: goes with the search's)
+    if (fi >= 0) {
+      overlays.splice(fi, 1);
+      root.classList.remove("l2m-find-off");
+      if (selRides) { selRides = false; if (marks) marks.dropSel(); }
+    }
     if (useHistory && how !== "pop") {
       try {
         if (state().l2mFind) {
-          if (how === "jump") { var st = assign(state(), {}); delete st.l2mFind; history.replaceState(st, ""); }
-          else { skipPop = true; history.back(); }
+          if (how === "jump") { var st = assign(state(), {}); delete st.l2mFind; delete st.l2mFound; history.replaceState(st, ""); }
+          else backTo(findAt);
         }
       } catch (e) {}
     }
@@ -2076,8 +2100,11 @@ window.L2M_nav = function (opts) {
       land: landOn,
       tex: opts.tex || function () { return ""; },
       overlayIn: overlayIn, overlayOut: overlayOut,
-      selIn: function () { if (overlays.indexOf("l2mSel") < 0) overlayIn("l2mSel"); },   // (the bar up: a step)
-      selOut: function (how) { overlayOut("l2mSel", how); },
+      selIn: function () {                         // (the bar up: a step; on the blue's, if that is the last one)
+        if (overlays.indexOf("l2mSel") >= 0 || selRides) return;
+        if (overlays[overlays.length - 1] === "l2mFound" && state().l2mFound) selRides = true; else overlayIn("l2mSel");
+      },
+      selOut: function (how) { if (selRides) selRides = false; else overlayOut("l2mSel", how); },
       closeOthers: function () { closeMenu("jump"); closeSheet(); },
       find: function (q) { openFind(typeof q === "string" ? q : selectedQuery()); },
       barHeight: barHeight, peekHeight: function () { return peekOpen ? peekH : 0; },

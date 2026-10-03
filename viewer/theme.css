@@ -1892,6 +1892,9 @@ mjx-container.l2m-find-f { border-radius: 0.35em 0.6em 0.4em 0.7em / 0.6em 0.35e
 .l2m-find-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 1; pointer-events: none; mix-blend-mode: multiply; }
 .l2m-find-m { position: absolute; display: block; background-color: var(--find-band); transform-origin: 50% 50%; }   /* (its outline: a clip-path per mark) */
 .l2m-find-m.now { background-color: var(--find-band-now); }
+/* a found place tapped: the search's marks go, till back (nav.js) */
+.l2m-find-layer, .l2m-find-g { transition: opacity 180ms ease; }
+html.l2m-find-off .l2m-find-layer, html.l2m-find-off .l2m-find-g { opacity: 0; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .l2m-find-layer { mix-blend-mode: screen; } }
 :root[data-theme="dark"] .l2m-find-layer { mix-blend-mode: screen; }
 .l2m-find-g { fill: var(--find-band); }

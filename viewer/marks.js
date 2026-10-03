@@ -958,6 +958,7 @@ window.L2M_marks = function (host) {
 
   return {
     closeSheet: closeSheet,
+    at: function (x, y) { return dead ? null : hit(boxes, x + window.pageXOffset, y + window.pageYOffset); },   // (the mark at a point of the page)
     dropSel: function () {                         // nav.js: the selection let go (back; what opened over it took its step)
       if (selected()) window.getSelection().removeAllRanges();
       lastRange = null;
