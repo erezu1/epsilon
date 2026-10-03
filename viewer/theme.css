@@ -341,6 +341,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .l2m-bar {
   position: fixed;
   top: 0;
+  border-radius: 0 0 16px 16px;            /* (as a panel's, which unrolls from it) */
   left: 0;
   right: 0;
   z-index: 41;
@@ -503,8 +504,10 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   transition: background-color 180ms ease, box-shadow 180ms ease;
 }
 
-[data-act="settings"] svg { transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-.l2m-settings-open [data-act="settings"] svg { transform: rotate(90deg); }
+/* (the turn set on the button, its icon following: a rule ending in "svg" had every drawing in the paper, formulas and
+   all, looked at again as the settings opened) */
+[data-act="settings"] svg { transform: rotate(var(--gear, 0deg)); transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.l2m-settings-open [data-act="settings"] { --gear: 90deg; }
 .size-a { font-weight: 600; line-height: 1; width: 1.1em; text-align: center; }
 .opt:focus-visible, .seg-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
 .titleblock { position: relative; }
@@ -1131,11 +1134,6 @@ a.lib-title { color: var(--ink); }
 /* the film is laid from the edge each piece of glass ends at, so that edge always meets the film's most coloured
    band (its last rows): the bottom of the bar and of the shown part of a panel, the top of a sheet */
 .l2m-bar::before, .l2m-menu::before { inset: 0 0 auto 0; height: var(--shown, 100%); background-position: 0 100%; }
-/* (a panel's film is as tall as the panel and moved up so that its bottom is the shown edge: a move, not a new
-   height, so a frame of the panel's opening lays nothing out; and what the opening moves is the panel's own and its
-   film's, not passed on to its contents, which would else be restyled whole at every frame) */
-.l2m-menu::before { height: 100%; transform: translateY(calc(var(--shown, 100%) - 100%)); }
-.l2m-menu > * { --open: 0; --shown: initial; --l2m-edge-r: initial; }
 .l2m-fnsheet::before, .app-toast::before { background-position: -300px -889px; }
 /* as on a bubble, the colours gather at the rim (light meets it at a glancing angle there): faint across the glass,
    and the same thin rise, over the last 28px or so, at every edge it has: the sides, and the bottom of the bar and
@@ -1164,16 +1162,21 @@ a.lib-title { color: var(--ink); }
 .l2m-fnsheet::before, .app-toast::before {
   -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides);
 }
-/* a panel unrolls from under the bar: its film covers only what is shown so far and hangs from the shown edge, so
-   rim and film travel down with it (and where it starts, it is the bar's own film, rim and all) */
-@property --open { syntax: "<number>"; inherits: true; initial-value: 0; }
-.l2m-menu, .l2m-menu.open {
-  clip-path: inset(0 0 calc((1 - var(--open)) * (100% - var(--l2m-bar-h, 64px)) - var(--open) * 60px) 0);
-  --shown: min(100%, calc(var(--l2m-bar-h, 64px) + var(--open) * (100% - var(--l2m-bar-h, 64px) + 60px)));   /* the clip's own edge */
+/* A panel unrolls from under the bar, by its clip, its corners rounded as the bar's are throughout (so the clip's
+   shape never changes, and the compositor plays it, the page doing nothing at its frames). Its film hangs from the
+   shown edge, so rim and film travel down with it: as tall as the panel and moved up so that its bottom is the
+   shown edge (and where it starts, it is the bar's own film, rim and all), at a pace prefs.js makes for the panel's
+   height (L2M_filmPace: the clip goes on 60px past the panel, for its shadow, while the film stops at its foot) */
+.l2m-menu {
+  --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h));
+  clip-path: inset(0 0 calc(100% - var(--l2m-close-h)) 0 round 0 0 16px 16px);
+  transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms;
 }
-.l2m-menu { --open: 0; transition: --open 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms; }
-.l2m-menu.open { --open: 1; transition: --open 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s; }
-@media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu.open { transition-duration: 0.01s; } }
+.l2m-menu.open { clip-path: inset(0 0 -60px 0 round 0 0 16px 16px); transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s; }
+.l2m-menu::before { height: 100%; transform: translateY(calc(var(--l2m-close-h) - 100%));
+                    transition: transform 300ms var(--film-pace, cubic-bezier(0.2, 0.8, 0.2, 1)); }
+.l2m-menu.open::before { transform: none; }
+@media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu.open, .l2m-menu::before { transition-duration: 0.01s; } }
 .l2m-bar::before { transition: opacity 0s 300ms; }
 .l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
 .l2m-bar .bar-progress { z-index: 1; }
@@ -1424,8 +1427,6 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
    the page are rounded as a panel's are */
 @media (min-width: 800px) {
   .l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); }
-  .l2m-bar { border-radius: 0 0 16px 16px; }
-  .l2m-menu { border-radius: 0 0 16px 16px; }
   .l2m-fnsheet, .app-toast { border-radius: 16px 16px 0 0; }
 }
 
@@ -1524,17 +1525,6 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 /* a panel over a list with a pinned header: it opens from, and closes onto, the bar with the header (its full
    height), while the header's row folds away and back at the panel's own pace, so the glass never jumps */
 :root { --l2m-join-h: 0px; }
-.l2m-menu, .l2m-menu.open {
-  --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h));
-  clip-path: inset(0 0 calc((1 - var(--open)) * (100% - var(--l2m-close-h)) - var(--open) * 60px) 0
-                   round 0 0 var(--l2m-edge-r) var(--l2m-edge-r));
-  --shown: min(100%, calc(var(--l2m-close-h) + var(--open) * (100% - var(--l2m-close-h) + 60px)));
-}
-/* the edge it rolls down with is rounded as the bar is where it starts (square on a phone, the page's corners on
-   wider screens) and as the panel's own are where it ends, and changes in between at the panel's pace, so the
-   corners never jump */
-.l2m-menu { --l2m-edge-r: min(16px, calc(var(--open) * 24px)); }
-@media (min-width: 800px) { .l2m-menu { --l2m-edge-r: 16px; } }
 .app-bar .app-bar-day, .app-bar.joined.settled .app-bar-day {
   transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
 }
@@ -1819,7 +1809,7 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 .l2m-bar::before, .l2m-menu::before { background-position: var(--glass-x) 0; }
 .l2m-fnsheet::before, .app-toast::before, .peek-head::before { background-position: var(--film-x, 0px) var(--film-y, 0px); }
 /* the film under a rolling panel has the same corners as its moving edge (square where it meets a phone's bar) */
-.l2m-menu::before { border-radius: 0 0 var(--l2m-edge-r, 16px) var(--l2m-edge-r, 16px); }
+.l2m-menu::before { border-radius: 0 0 16px 16px; }
 
 /* buttons side by side in the settings (Connect, Forget the token): as close as a confirmation's */
 .app-settings .app-row { gap: 8px; }

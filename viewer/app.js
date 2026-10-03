@@ -1364,6 +1364,7 @@
       bindPanel(inner);
       bindSetTabs(inner, tab);
     }
+    if (window.L2M_filmPace) L2M_filmPace(el, true);
     el.classList.add("open");
     el.setAttribute("aria-hidden", "false");
     shell.querySelector("#app-bar").classList.add("menu-open");
@@ -1416,6 +1417,7 @@
     } catch (e) {}
     ["#app-settings", "#app-addp"].forEach(function (id) {
       var el = shell.querySelector(id);
+      if (el.classList.contains("open") && window.L2M_filmPace) L2M_filmPace(el, false);
       el.classList.remove("open");
       el.setAttribute("aria-hidden", "true");
     });

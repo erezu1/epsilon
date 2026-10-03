@@ -275,6 +275,7 @@ window.L2M_nav = function (opts) {
 
   // ---------------------------------------------------------------- panels (contents, settings)
   function hidePanel(name) {
+    if (window.L2M_filmPace) L2M_filmPace(panels[name], false);
     panels[name].classList.remove("open");
     panels[name].setAttribute("aria-hidden", "true");
   }
@@ -296,6 +297,7 @@ window.L2M_nav = function (opts) {
     }
     panel = name;
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
+    if (window.L2M_filmPace) L2M_filmPace(el, true);
     el.classList.add("open");
     el.setAttribute("aria-hidden", "false");
     bar.classList.add("menu-open");
