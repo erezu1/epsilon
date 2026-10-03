@@ -1099,8 +1099,8 @@ window.L2M_nav = function (opts) {
     fix();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fix);
   }
-  function swapTheme(t) { crossfade(function () { window.L2M_applyTheme(t); }); }
-  function crossfade(apply) { if (!(window.L2M_fade && L2M_fade(apply))) apply(); }   // (prefs.js: a dip through a veil)
+  function swapTheme(t) { crossfade(function () { window.L2M_applyTheme(t); }, {theme: t}); }
+  function crossfade(apply, next) { if (!(window.L2M_fade && L2M_fade(apply, next))) apply(); }   // (prefs.js: three fades)
 
   if (panels.settings) {
     var pick = panels.settings.querySelector(".font-pick");
@@ -1138,7 +1138,7 @@ window.L2M_nav = function (opts) {
         keepPlace(function () { window.L2M_applySize(z); });
       } else if (tone) {
         session.tone = tone;
-        crossfade(function () { window.L2M_applyTone(tone); });
+        crossfade(function () { window.L2M_applyTone(tone); }, {tone: tone});
       } else {
         session.theme = t;
         swapTheme(t);

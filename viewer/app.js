@@ -1525,9 +1525,9 @@
       if (b.hasAttribute("data-size-opt")) { p.size = b.getAttribute("data-size-opt"); L2M_applySize(p.size); }
       if (b.hasAttribute("data-full-opt")) p.full = b.getAttribute("data-full-opt");
       if (b.hasAttribute("data-width-opt")) { p.width = b.getAttribute("data-width-opt"); L2M_changeWidth(p.width); }
-      var fade = function (f) { if (!(window.L2M_fade && L2M_fade(f))) f(); };
-      if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); fade(function () { L2M_applyTheme(p.theme); }); }
-      if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); fade(function () { L2M_applyTone(p.tone); }); }
+      var fade = function (f, next) { if (!(window.L2M_fade && L2M_fade(f, next))) f(); };
+      if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); fade(function () { L2M_applyTheme(p.theme); }, {theme: p.theme}); }
+      if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); fade(function () { L2M_applyTone(p.tone); }, {tone: p.tone}); }
       if (window.L2M_savePrefs) L2M_savePrefs(p);
       setBarH();
       requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });

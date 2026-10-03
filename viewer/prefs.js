@@ -80,6 +80,7 @@
   // the browser's bar (and a phone's status bar) in the page's own colour (theme.css's --ground), whatever the
   // appearance and tone; the page's meta tags give it before this runs
   function barColour() {
+    if (barHeld) { barDue = true; return; }       // (a change of colours under way: once the screen is in the new ground)
     var c = getComputedStyle(root).getPropertyValue("--ground").trim();
     if (c) Array.prototype.forEach.call(document.querySelectorAll('meta[name="theme-color"]'), function (m) { m.setAttribute("content", c); });
   }
@@ -113,20 +114,47 @@
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
-  // A change of colours (theme, tone): the page dips into its ground and comes back in its new colours. A veil in the
-  // old ground fades in over the page (the bar and the panels stay above it), the colours change under it (the page
-  // restyled once, out of sight), and it fades out. Its fading is the compositor's: it moves from the first frame,
-  // however long the restyle. (A view transition cross-faded two pictures of the page, but had the page restyled whole
+  // A change of colours (theme, tone), in three fades, each the compositor's (smooth however busy the page is): the
+  // page fades into its ground (a veil in the old ground, over everything); the ground fades into the new one (a second
+  // veil, in the new ground, over the first), the page restyled in its new colours under them meanwhile, out of sight;
+  // and the page fades back in. next: what changes ({theme} or {tone}), whose ground theme.css names (without it, the
+  // page is restyled first). (A view transition cross-faded two pictures of the page, but had the page restyled whole
   // as it began and again as it ended: three restyles for one change, the screen still until the second was done)
-  var veil = null, veilT = 0, veilApply = null;
-  window.L2M_fade = function (apply) {
+  var veils = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, FADE = 170;
+  function groundFor(theme, tone) {
+    var dark = theme === "dark" || (theme !== "light" && !!(window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches));
+    return getComputedStyle(root).getPropertyValue("--ground-" + (tone === "paper" ? "paper" + (dark ? "-dark" : "") : dark ? "dark" : "light")).trim();
+  }
+  function veil(i) {
+    if (!veils) veils = [0, 1].map(function () { var v = document.createElement("div"); v.className = "l2m-veil"; document.body.appendChild(v); return v; });
+    return veils[i];
+  }
+  function cut(v) { v.classList.add("cut"); v.classList.remove("on", "out"); }
+  function run() { if (veilApply) { var f = veilApply; veilApply = null; f(); } }
+  function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
+  window.L2M_fade = function (apply, next) {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-    if (!veil) { veil = document.createElement("div"); veil.className = "l2m-veil"; document.body.appendChild(veil); }
     window.L2M_endFade();
-    veil.style.backgroundColor = getComputedStyle(root).getPropertyValue("--ground");
-    veil.classList.add("on");
+    var a = veil(0), b = veil(1);
+    a.style.backgroundColor = getComputedStyle(root).getPropertyValue("--ground").trim();
+    b.style.backgroundColor = next ? groundFor(next.theme != null ? next.theme : root.getAttribute("data-theme") || "system",
+                                              next.tone != null ? next.tone : root.getAttribute("data-tone") || DEF.tone) : "";
+    a.classList.remove("cut"); b.classList.remove("cut");
+    a.classList.add("on");                                   // the page into its ground
     veilApply = apply;
-    veilT = setTimeout(function () { var f = veilApply; veilApply = null; f(); requestAnimationFrame(function () { veil.classList.remove("on"); }); }, 150);
+    barHeld = true;
+    veilT = setTimeout(function () {
+      if (!b.style.backgroundColor) { run(); b.style.backgroundColor = getComputedStyle(root).getPropertyValue("--ground").trim(); }
+      b.classList.add("on");                                 // the ground into the new one, and once that fade runs (on the
+      requestAnimationFrame(function () { setTimeout(run, 0); });   // compositor), the page restyled under it
+      veilT = setTimeout(function () {                       // the page back in its new colours
+        run();
+        cut(a);
+        releaseBar();
+        b.classList.add("out");
+        b.classList.remove("on");
+      }, FADE);
+    }, FADE);
     return true;
   };
   // reading in full screen (on a touch screen whose browser allows it; not an iPhone): on unless turned off
@@ -135,10 +163,11 @@
     return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
   };
   window.L2M_fullOn = function () { return window.L2M_prefs().full === "on"; };
-  window.L2M_endFade = function () {           // (at once: the change applied, the veil going)
+  window.L2M_endFade = function () {           // (at once: the change applied, the veils gone)
     clearTimeout(veilT);
-    if (veilApply) { var f = veilApply; veilApply = null; f(); }
-    if (veil) veil.classList.remove("on");
+    run();
+    if (veils) { cut(veils[0]); cut(veils[1]); }
+    releaseBar();
   };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
   if (/Chrome\/\d/.test(navigator.userAgent)) document.documentElement.classList.add("l2m-marker");
