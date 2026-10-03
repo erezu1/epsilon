@@ -355,4 +355,76 @@
   };
   if (window.L2M_THEME) window.L2M_initPrefs(window.L2M_THEME);   // a bundled page carries its theme inline
 
+  // On a wide screen with a mouse: one scroll bar for a paper and the app's lists alike, just past the page's right
+  // margin, from under the bar to the foot (the browser's own is at the window's edge for a paper, at the lists' for
+  // the app, partly under the bar); seen while scrolling or under the mouse, and it can be dragged (theme.css)
+  (function () {
+    var wide = window.matchMedia && matchMedia("(min-width: 800px) and (hover: hover) and (pointer: fine)");
+    if (!wide) return;
+    var thumb = null, idle = 0, drag = null, queued = false, at = null;
+    function doc(s) { return s === document.scrollingElement || s === root; }
+    function scroller() {                        // the page, or the app's list in sight
+      if (!root.classList.contains("l2m-app-lists")) return document.scrollingElement || root;
+      var ps = document.querySelectorAll(".app-pane"), mid = window.innerWidth / 2;
+      for (var i = 0; i < ps.length; i++) { var r = ps[i].getBoundingClientRect(); if (r.left <= mid && r.right > mid) return ps[i]; }
+      return null;
+    }
+    function place() {
+      queued = false;
+      var s = scroller();
+      if (!s) return;
+      var view = doc(s) ? window.innerHeight : s.clientHeight, full = s.scrollHeight, y = doc(s) ? window.pageYOffset : s.scrollTop;
+      thumb.classList.toggle("none", full <= view + 1);
+      if (full <= view + 1) return;
+      var top = (parseFloat(getComputedStyle(root).getPropertyValue("--l2m-bar-h")) || 64) + 8, track = window.innerHeight - top - 8;
+      var h = Math.round(Math.max(36, track * view / full));
+      if (thumb.l2mH !== h) { thumb.style.height = h + "px"; thumb.l2mH = h; }
+      thumb.style.transform = "translateY(" + (top + (track - h) * Math.min(1, y / (full - view))) + "px)";
+      at = [s, (full - view) / Math.max(1, track - h)];
+    }
+    function queue() { if (!queued && thumb) { queued = true; requestAnimationFrame(place); } }
+    function shown() {                           // in sight a moment, as the browser's own is while scrolling
+      thumb.classList.add("on");
+      clearTimeout(idle);
+      idle = setTimeout(function () { thumb.classList.remove("on"); }, 900);
+    }
+    function start() {
+      if (thumb || !document.body) return;
+      thumb = document.createElement("div");
+      thumb.className = "l2m-thumb";
+      thumb.setAttribute("aria-hidden", "true");
+      thumb.appendChild(document.createElement("i"));
+      document.body.appendChild(thumb);
+      document.addEventListener("scroll", function (e) {
+        var s = scroller();
+        if (!s || (doc(s) ? e.target !== document : e.target !== s)) return;
+        queue(); shown();
+      }, {capture: true, passive: true});
+      window.addEventListener("resize", queue);
+      thumb.addEventListener("pointerenter", queue);
+      thumb.addEventListener("pointerdown", function (e) {
+        if (e.button !== 0 || !at) return;
+        e.preventDefault();
+        thumb.setPointerCapture(e.pointerId);
+        drag = {y: e.clientY, from: doc(at[0]) ? window.pageYOffset : at[0].scrollTop, s: at[0], k: at[1]};
+        thumb.classList.add("drag");
+      });
+      thumb.addEventListener("pointermove", function (e) {
+        if (!drag) return;
+        var v = drag.from + (e.clientY - drag.y) * drag.k;
+        if (doc(drag.s)) window.scrollTo(0, v); else drag.s.scrollTop = v;
+      });
+      var end = function () { drag = null; thumb.classList.remove("drag"); };
+      thumb.addEventListener("pointerup", end);
+      thumb.addEventListener("pointercancel", end);
+      queue();
+    }
+    function apply() {
+      root.classList.toggle("l2m-thumbed", wide.matches);
+      if (wide.matches) { if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); queue(); }
+    }
+    apply();
+    if (wide.addEventListener) wide.addEventListener("change", apply);
+  })();
+
 })();

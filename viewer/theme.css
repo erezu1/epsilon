@@ -2,6 +2,9 @@
 /* no tap highlight, and no focus ring for taps and clicks (it stays for keyboard focus) */
 * { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }
+/* nor for what is focused only by script (the page, a sheet, the marking bar: tabindex -1): the page, focused by a click
+   in it, would else be ringed whole at the next key pressed (Enter marking a selection) */
+[tabindex="-1"]:focus { outline: none; }
 :root {
   color-scheme: light;
   --page-w: 40rem; --chrome-w: calc(var(--page-w) + 6rem);
@@ -2262,3 +2265,20 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 @media (prefers-reduced-motion: reduce) { .mk-tab-line, .l2m-mk-side, .mk-view, .mk-track { transition-duration: 0.01s; } }
 /* a paper's marks, on its row in the library */
 .lib-marks { white-space: nowrap; }
+
+/* on a wide screen with a mouse, one scroll bar for a paper and the app's lists, just past the page's right margin
+   (prefs.js): the browser's own hidden; a slim bar, seen while scrolling or under the mouse, wider under it */
+html.l2m-thumbed, html.l2m-thumbed .app-pane { scrollbar-width: none; }
+html.l2m-thumbed::-webkit-scrollbar, html.l2m-thumbed .app-pane::-webkit-scrollbar { display: none; }
+.l2m-thumb { display: none; }
+html.l2m-thumbed .l2m-thumb {
+  display: block; position: fixed; top: 0; z-index: 38; width: 14px; height: 36px;
+  left: min(calc(50% + var(--page-w) / 2 + 1.5rem - 7px), calc(100% - 16px));
+  opacity: 0; transition: opacity 280ms ease; touch-action: none; -webkit-user-select: none; user-select: none;
+}
+html.l2m-thumbed .l2m-thumb.none { display: none; }
+.l2m-thumb > i { display: block; width: 4px; height: 100%; margin: 0 auto; border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 26%, transparent); transition: width 150ms ease, background-color 150ms ease; }
+html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-duration: 120ms; }
+.l2m-thumb:hover > i, .l2m-thumb.drag > i { width: 7px; background: color-mix(in srgb, var(--ink) 40%, transparent); }
+@media (prefers-reduced-motion: reduce) { .l2m-thumb, .l2m-thumb > i { transition-duration: 0.01s; } }
