@@ -114,8 +114,9 @@
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
-  // A change of colours (theme, tone): the page's words fade out into its ground (a veil over the page, under the bar
-  // and the panels, whose glass stays in sight), then the new colours come in all together, the words with them. The
+  // A change of colours (theme, tone): the page's words fade out as its ground turns into the new one (a veil in the new
+  // ground over the page, under the bar and the panels, whose glass stays in sight; theme.css names the grounds), then
+  // the new colours come in all together, the words with them. The
   // page is restyled once, the moment the veil has closed over it (before, the change would show through it), and the
   // second step waits till the page is drawn anew under it. The glass changes by a cross-fade: a copy of what is in
   // sight, its old colours held in it, laid over it as the colours change, fades out as the glass, in its new ones,
@@ -148,14 +149,21 @@
     });
   }
   function ghostsGone() { ghosts.forEach(function (x) { if (x[2]) x[2].cancel(); x[1].remove(); }); ghosts = []; }
-  window.L2M_fade = function (apply) {
+  function groundOf(to) {                                    // the page's ground once TO ({theme} or {tone}) is applied
+    var theme = to.theme != null ? to.theme : root.getAttribute("data-theme") || "system";
+    var tone = to.tone != null ? to.tone : root.getAttribute("data-tone") || DEF.tone;
+    var dark = theme === "dark" || (theme !== "light" && !!window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+    var c = getComputedStyle(root).getPropertyValue("--ground-" + (tone === "paper" ? "paper" + (dark ? "-dark" : "") : dark ? "dark" : "light")).trim();
+    return c || getComputedStyle(root).getPropertyValue("--ground").trim();
+  }
+  window.L2M_fade = function (apply, to) {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
     window.L2M_endFade();
     if (!veil) {                                             // (made, and seen unshown once, so that its first showing fades)
       veil = document.createElement("div"); veil.className = "l2m-veil"; document.body.appendChild(veil);
       getComputedStyle(veil).opacity;
     }
-    veil.style.backgroundColor = getComputedStyle(root).getPropertyValue("--ground").trim();
+    veil.style.backgroundColor = groundOf(to || {});           // (the ground moves to the new one as the words go)
     veil.classList.remove("cut", "out");
     veil.classList.add("on");                                // the words out
     veilApply = apply;
@@ -166,6 +174,7 @@
       if (Element.prototype.animate) ghostsOver();
       f();                                                   // (the restyle)
       getComputedStyle(root).color;
+      releaseBar();                                          // (the browser's bar: the screen is in the new ground)
       requestAnimationFrame(function () {                    // (and once the page is drawn anew, out of sight)
         veilT = setTimeout(function () {
           ghosts.forEach(function (x) {                      // the glass's cross-fade: the new in under the old first, the
@@ -176,10 +185,7 @@
           });
           veil.classList.add("out");
           veil.classList.remove("on");                       // the new colours in, words and all
-          veilT = setTimeout(function () {
-            releaseBar();                                    // (the browser's bar, midway)
-            veilT = setTimeout(ghostsGone, IN / 2 + 40);
-          }, IN / 2);
+          veilT = setTimeout(ghostsGone, IN + 40);
         }, 0);
       });
     }, OUT + 10);
@@ -199,6 +205,11 @@
     var h = el.offsetHeight, span = h + 60 - top;
     if (!(span > 60)) return;
     var k = (h - top) / span, pts = [];
+    if (!el.querySelector(":scope > .l2m-film")) {   // (theme.css: the frame, and the colours in it)
+      var f = document.createElement("span"); f.className = "l2m-film"; f.setAttribute("aria-hidden", "true");
+      f.appendChild(document.createElement("i")); el.insertBefore(f, el.firstChild);
+      getComputedStyle(f.firstChild).transform;      // (seen where it starts, so that it moves from there)
+    }
     for (var i = 0; i <= 30; i++) {
       var t = i / 30, e = bezier(t), g = opening ? Math.min(1, e / k) : Math.max(0, (e - (1 - k)) / k);
       pts.push(g.toFixed(4) + " " + (t * 100).toFixed(2) + "%");

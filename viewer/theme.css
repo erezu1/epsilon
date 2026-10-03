@@ -8,7 +8,9 @@
   /* Every colour of the app is one of these tokens (the browser's bar takes --ground, from prefs.js; the offline
      page uses this file too). A palette sets its few base colours, and how strong the shades made from them are;
      the rest follows from them here, the same for every palette. */
-  --ground: #ffffff;                 /* the page */
+  /* the four grounds, by name: a change of colours fades the page into its new one before it is restyled (prefs.js) */
+  --ground-light: #ffffff; --ground-dark: #000000; --ground-paper: #f5efe3; --ground-paper-dark: #1e1a15;
+  --ground: var(--ground-light);     /* the page */
   --surface: #eff3f6;                /* boxes on it: theorems, code */
   --ink: #16191d;                    /* text */
   --muted: #5a636e;                  /* secondary text */
@@ -47,7 +49,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --ground: #000000;
+    --ground: var(--ground-dark);
     --surface: #1b2026;
     --ink: #e3e6ea;
     --muted: #9ba4af;
@@ -69,7 +71,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #000000;
+  --ground: var(--ground-dark);
   --surface: #1b2026;
   --ink: #e3e6ea;
   --muted: #9ba4af;
@@ -91,7 +93,7 @@
 
 /* paper tone: a warm palette with its own light and dark versions (the strengths as the neutral ones) */
 :root[data-tone="paper"] {
-  --ground: #f5efe3;
+  --ground: var(--ground-paper);
   --surface: #ebe2d0;
   --ink: #2b241d;
   --muted: #6f6353;
@@ -101,7 +103,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root[data-tone="paper"]:not([data-theme="light"]) {
-    --ground: #1e1a15;
+    --ground: var(--ground-paper-dark);
     --surface: #28221b;
     --ink: #e9dfcf;
     --muted: #a99b86;
@@ -112,7 +114,7 @@
   }
 }
 :root[data-tone="paper"][data-theme="dark"] {
-  --ground: #1e1a15;
+  --ground: var(--ground-paper-dark);
   --surface: #28221b;
   --ink: #e9dfcf;
   --muted: #a99b86;
@@ -1173,17 +1175,26 @@ a.lib-title { color: var(--ink); }
   transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms;
 }
 .l2m-menu.open { clip-path: inset(0 0 -60px 0 round 0 0 16px 16px); transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s; }
-.l2m-menu::before { height: 100%; transform: translateY(calc(var(--l2m-close-h) - 100%));
-                    transition: transform 300ms var(--film-pace, cubic-bezier(0.2, 0.8, 0.2, 1)); }
-.l2m-menu.open::before { transform: none; }
-@media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu.open, .l2m-menu::before { transition-duration: 0.01s; } }
+/* (its film is a frame and the colours in it, prefs.js: the frame, with the rim, moves with the edge, and the colours
+   in it move back by as much, at the same pace, so that on the screen they stay put, as the bar's do) */
+.l2m-menu:has(> .l2m-film)::before { content: none; }
+.l2m-film, .l2m-film > i { position: absolute; inset: 0; pointer-events: none;
+  transition: transform 300ms var(--film-pace, cubic-bezier(0.2, 0.8, 0.2, 1)); }
+.l2m-film { z-index: -1; border-radius: 0 0 16px 16px; opacity: var(--film-o); mix-blend-mode: var(--film-blend);
+  -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  transform: translateY(calc(var(--l2m-close-h) - 100%)); }
+.l2m-film > i { background: url(film.webp) var(--glass-x) 0 / 900px 900px repeat; transform: translateY(calc(100% - var(--l2m-close-h))); }
+.l2m-menu.open > .l2m-film, .l2m-menu.open > .l2m-film > i { transform: none; }
+@media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu.open, .l2m-film, .l2m-film > i { transition-duration: 0.01s; } }
 .l2m-bar::before { transition: opacity 0s 300ms; }
 .l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
 .l2m-bar .bar-progress { z-index: 1; }
 /* a panel open: the bar is clear and the panel's film shows behind it; closing, the bar takes its film back in
-   the same step as its glass */
+   the same step as its glass, and its shadow and line once the panel is shut (over the panel's glass, they drew
+   the bar's outline on it: two glasses) */
 .l2m-bar {
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 160ms ease 300ms, border-color 160ms ease 300ms,
               background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms, background-image 0s 300ms;
   transition-behavior: allow-discrete;
 }
@@ -1468,8 +1479,8 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   box-shadow: 0 0 7px color-mix(in srgb, var(--progress) 60%, transparent), 0 1.5px 2px color-mix(in srgb, var(--shade) 18%, transparent); }
 .lib-rows > li[data-read]::after { background: var(--progress); opacity: 0.9; }
 .app-progress span { background: var(--progress); }
-/* the reading underline fades out as a panel opens, and back in as it closes */
-.l2m-bar .bar-progress { transition: opacity 240ms ease 60ms; }
+/* the reading underline fades out as a panel opens, and back in with the bar's shadow once it has closed */
+.l2m-bar .bar-progress { transition: opacity 160ms ease 300ms; }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 160ms ease; }
 /* the underline sits evenly on the glass (between the back and settings buttons), round at both ends */
 .l2m-bar .bar-progress { left: 50px; right: 50px; height: 3px; border-radius: 999px; }
@@ -1849,8 +1860,7 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 .bar-find { display: none; flex: 1 1 auto; align-items: center; gap: 0; min-width: 0; }
 .l2m-bar.finding .bar-find { display: flex; }
 .l2m-bar.finding .bar-inner > .bar-btn, .l2m-bar.finding .bar-inner > .bar-title { display: none; }
-.l2m-bar.finding .bar-progress { opacity: 0; }
-.l2m-bar .bar-progress { transition: opacity 200ms ease; }
+.l2m-bar.finding .bar-progress { opacity: 0; transition: opacity 200ms ease; }
 .bar-find .app-field { flex: 1 1 auto; min-width: 0; margin: 0 6px 0 14px; font-family: var(--ui); font-size: 18px; border-bottom-color: var(--link); }
 .bar-find .app-field::-webkit-search-cancel-button { display: none; }
 .find-count { flex: 0 0 auto; min-width: 2.6em; padding: 0 4px; text-align: right; font: 500 13px var(--ui); color: var(--muted);
