@@ -1303,12 +1303,20 @@ html:not(.l2m-app-lists) main { font-size-adjust: ex-height 0.48; }
    the screen, at an estimate of its height until it is first laid out, then at the height it had (a paper of six
    thousand formulas opens in a moment, and goes as fast). Places are kept by block (a reading place, Back), so the
    estimates move nothing one returns to. A block whose contents reach outside it is left whole (.l2m-cv-off:
-   viewer.js looks, as each first comes in sight); figures and the notes' and references' sections are left whole
-   too (the skipping would change their margins), their entries not. */
-html:not(.l2m-app-lists) main > :is(p, div, h2, h3, h4, h5, h6, ol, ul, dl, table, blockquote, pre):not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+   viewer.js looks, as each first comes in sight); the notes' and references' sections are left whole too (the
+   skipping would change their margins), their entries not. A figure is skipped too (it would be restyled whole at
+   every change of colours, near or far): the margins of what begins and ends it are trimmed, as they no longer meet
+   its own (theirs the smaller, so nothing moves). */
+html:not(.l2m-app-lists) main > :is(p, div, h2, h3, h4, h5, h6, ol, ul, dl, table, blockquote, pre, figure):not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
 html:not(.l2m-app-lists) main > section > ol > li:not(.l2m-cv-off) {
   content-visibility: auto; contain-intrinsic-block-size: auto 200px;
 }
+html:not(.l2m-app-lists) main > figure > :is(:first-child:not(.fig-open), .fig-open + *),
+html:not(.l2m-app-lists) main > figure > :is(:first-child:not(.fig-open), .fig-open + *) > :first-child,
+html:not(.l2m-app-lists) main > figure > :is(:first-child:not(.fig-open), .fig-open + *) > :first-child > :first-child { margin-top: 0; }
+html:not(.l2m-app-lists) main > figure > :last-child,
+html:not(.l2m-app-lists) main > figure > :last-child > :last-child,
+html:not(.l2m-app-lists) main > figure > :last-child > :last-child > :last-child { margin-bottom: 0; }
 
 /* a paper's running text is set justified, as in print, with the words hyphenated (a phone's short lines would
    leave wide gaps otherwise) and the breaks chosen over the whole paragraph where the browser can. Captions,

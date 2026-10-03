@@ -1100,24 +1100,7 @@ window.L2M_nav = function (opts) {
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(fix);
   }
   function swapTheme(t) { crossfade(function () { window.L2M_applyTheme(t); }); }
-  function crossfade(apply) {
-    var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) { apply(); return; }
-    if (window.L2M_fade ? L2M_fade(apply) : false) return;
-    // fallback: a veil in the page color fades in, the theme changes under it, and it fades out
-    var veil = document.querySelector(".l2m-veil");
-    if (!veil) {
-      veil = document.createElement("div");
-      veil.className = "l2m-veil";
-      document.body.appendChild(veil);
-    }
-    void veil.offsetWidth;
-    veil.classList.add("on");
-    setTimeout(function () {
-      apply();
-      requestAnimationFrame(function () { veil.classList.remove("on"); });
-    }, 150);
-  }
+  function crossfade(apply) { if (!(window.L2M_fade && L2M_fade(apply))) apply(); }   // (prefs.js: a dip through a veil)
 
   if (panels.settings) {
     var pick = panels.settings.querySelector(".font-pick");
@@ -1254,6 +1237,8 @@ window.L2M_nav = function (opts) {
     closeSheet();
     vFigure = fig;
     vContent.innerHTML = "";
+    // its formulas drawn first (the page draws a figure's only as it comes near the screen: a copy would be empty)
+    if (window.L2M_math) Array.prototype.forEach.call(fig.querySelectorAll("mjx-container[data-lazy]"), L2M_math.draw);
     var caps = [];
     Array.prototype.forEach.call(fig.children, function (ch) {
       if (ch.tagName === "FIGCAPTION") { caps.push(ch.innerHTML); return; }

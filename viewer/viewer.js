@@ -223,7 +223,7 @@
     // Which pictures are near the view: their places on the page, measured once (and again only when the page's layout
     // changes: an image in, another text size, the window turned), in page order; a scroll looks up the ones within
     // reach by halving (a few steps, not one test per formula at every frame).
-    var EAGER = ".titleblock, h1, h2, h3, h4, h5, h6, .footnotes, figure, table, .thm-name";
+    var EAGER = ".titleblock, h1, h2, h3, h4, h5, h6, .footnotes, .thm-name";
     function undraw(el) {                // back to its empty picture (far from the view: the page stays small)
       if (el.hasAttribute("data-lazy")) return;
       drawnSet.delete(el);
@@ -340,11 +340,12 @@
     var lib = o.onLibrary && tb.indexOf("library") >= 0 ?
       '<p class="l2m-libnav"><a href="' + esc(o.libraryHref || "./") + '" data-act="library">All papers</a></p>\n' : "";
     main.innerHTML = '<span id="l2m-top"></span>\n' + lib + fill(body, true);
-    // drawn at once where a part of the page is copied elsewhere (headings to the bar, notes to their sheet, figures and
-    // tables to the viewer) or is first seen
+    // drawn at once where a part of the page is copied elsewhere as it is (headings to the bar, notes to their sheet) or
+    // is first seen. (Figures and tables, copied to the viewer, are drawn by it as it opens: drawn here, the many in a
+    // paper's figures and tables would be restyled at every change of colours, near or far, figures never being skipped)
     Array.prototype.forEach.call(main.querySelectorAll(".titleblock mjx-container[data-lazy], h1 mjx-container[data-lazy], h2 mjx-container[data-lazy], " +
       "h3 mjx-container[data-lazy], h4 mjx-container[data-lazy], h5 mjx-container[data-lazy], h6 mjx-container[data-lazy], " +
-      ".footnotes mjx-container[data-lazy], figure mjx-container[data-lazy], table mjx-container[data-lazy], .thm-name mjx-container[data-lazy]"), drawIn);
+      ".footnotes mjx-container[data-lazy], .thm-name mjx-container[data-lazy]"), drawIn);
     watch(main);
     window.L2M_math = mathApi;
     Array.prototype.forEach.call(main.querySelectorAll("details.toc"), function (t) { t.remove(); });

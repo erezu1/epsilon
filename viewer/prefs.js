@@ -113,19 +113,21 @@
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
-  // a change of colours (theme, tone) cross-fades the page; the fade shows a still picture of the page, so anything
-  // that moves meanwhile (a panel closing) cuts it short and moves in sight
-  var fadeVT = null;
+  // A change of colours (theme, tone): the page dips into its ground and comes back in its new colours. A veil in the
+  // old ground fades in over the page (the bar and the panels stay above it), the colours change under it (the page
+  // restyled once, out of sight), and it fades out. Its fading is the compositor's: it moves from the first frame,
+  // however long the restyle. (A view transition cross-faded two pictures of the page, but had the page restyled whole
+  // as it began and again as it ended: three restyles for one change, the screen still until the second was done)
+  var veil = null, veilT = 0, veilApply = null;
   window.L2M_fade = function (apply) {
-    var reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (document.startViewTransition && !reduced) {
-      try {
-        var vt = fadeVT = document.startViewTransition(apply);
-        vt.finished.then(function () { if (fadeVT === vt) fadeVT = null; }, function () { if (fadeVT === vt) fadeVT = null; });
-        return true;
-      } catch (e) {}
-    }
-    return false;
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+    if (!veil) { veil = document.createElement("div"); veil.className = "l2m-veil"; document.body.appendChild(veil); }
+    window.L2M_endFade();
+    veil.style.backgroundColor = getComputedStyle(root).getPropertyValue("--ground");
+    veil.classList.add("on");
+    veilApply = apply;
+    veilT = setTimeout(function () { var f = veilApply; veilApply = null; f(); requestAnimationFrame(function () { veil.classList.remove("on"); }); }, 150);
+    return true;
   };
   // reading in full screen (on a touch screen whose browser allows it; not an iPhone): on unless turned off
   window.L2M_canFull = function () {
@@ -133,7 +135,11 @@
     return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
   };
   window.L2M_fullOn = function () { return window.L2M_prefs().full === "on"; };
-  window.L2M_endFade = function () { if (fadeVT) { try { fadeVT.skipTransition(); } catch (e) {} fadeVT = null; } };
+  window.L2M_endFade = function () {           // (at once: the change applied, the veil going)
+    clearTimeout(veilT);
+    if (veilApply) { var f = veilApply; veilApply = null; f(); }
+    if (veil) veil.classList.remove("on");
+  };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
   if (/Chrome\/\d/.test(navigator.userAgent)) document.documentElement.classList.add("l2m-marker");
   // while something is selected, links take part (otherwise a long press on one opens the peek, not a selection)
