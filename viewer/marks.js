@@ -429,7 +429,8 @@ window.L2M_marks = function (host) {
     if (store.toastAway) store.toastAway();         // (a new selection: the Undo of the last removal goes, the bar comes)
     var lift = host.peekHeight();                  // (above the peek, if it is open)
     dock.style.bottom = lift ? lift + "px" : "";
-    dock.querySelectorAll(".mk-dot").forEach(function (b) { b.classList.toggle("last", +b.getAttribute("data-c") === colourOf()); });
+    if (!dockOpen) picked = colourOf();            // (the colour last marked in, ringed: what Enter or a note takes)
+    ring();
     if (dockOpen) return;
     dockOpen = true;
     dock.classList.add("open");
@@ -437,6 +438,8 @@ window.L2M_marks = function (host) {
     if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
     if (host.selIn) host.selIn();                  // (a step in the history: back lets the selection go)
   }
+  var picked = 0;
+  function ring() { dock.querySelectorAll(".mk-dot").forEach(function (b) { b.classList.toggle("last", +b.getAttribute("data-c") === picked); }); }
   function hideDock(keep) {                        // keep: its step, for what opens next (or gone already)
     if (!dockOpen) return;
     dockOpen = false;
@@ -463,7 +466,7 @@ window.L2M_marks = function (host) {
     if (!b) return;
     if (b.hasAttribute("data-c")) { make(+b.getAttribute("data-c")); return; }
     var what = b.getAttribute("data-mb");
-    if (what === "note") { var id = make(colourOf(), true); if (id) openSheet(id, true); }    // (the sheet takes its step)
+    if (what === "note") { var id = make(picked || colourOf(), true); if (id) openSheet(id, true); }    // (the sheet takes its step)
     else if (what === "find") {
       var sel = window.getSelection();             // (the selection, as it was when the bar came)
       if (lastRange && (!sel.rangeCount || sel.isCollapsed)) { sel.removeAllRanges(); sel.addRange(lastRange); }
@@ -654,6 +657,25 @@ window.L2M_marks = function (host) {
   note.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing && keyboard()) { e.preventDefault(); closeSheet("hand"); }
   });
+  // with a keyboard, something selected (the bar up): Left and Right ring the next colour, as if chosen; Enter marks in
+  // it, with no note (the bar goes with the selection)
+  on(document, "keydown", function (e) {
+    if (dead || !dockOpen || sheetOpen || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing) return;
+    var t = e.target;
+    if (t && t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      var i = ORDER.indexOf(picked), n = ORDER.length;
+      picked = ORDER[(Math.max(0, i) + (e.key === "ArrowRight" ? 1 : n - 1)) % n];
+      ring();
+      e.preventDefault();
+    } else if (e.key === "Enter") {
+      var r = selected();
+      if (!r) return;
+      e.preventDefault();
+      lastRange = r.cloneRange();
+      make(picked || colourOf());
+    }
+  });
   // and something selected, then typing, is a note being written: the selection marked, its note begun with the key
   on(document, "keydown", function (e) {
     if (dead || sheetOpen || e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.key.length !== 1 || e.key === " ") return;
@@ -663,7 +685,7 @@ window.L2M_marks = function (host) {
     if (!r) return;
     e.preventDefault();
     if (r) lastRange = r.cloneRange();
-    var id = make(colourOf());
+    var id = make(picked || colourOf());
     if (!id) return;
     openSheet(id, true);
     note.value = e.key;
