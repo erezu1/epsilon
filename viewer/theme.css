@@ -1159,6 +1159,11 @@ a.lib-title { color: var(--ink); }
 /* the film is laid from the edge each piece of glass ends at, so that edge always meets the film's most coloured
    band (its last rows): the bottom of the bar and of the shown part of a panel, the top of a sheet */
 .l2m-bar::before, .l2m-menu::before { inset: 0 0 auto 0; height: var(--shown, 100%); background-position: 0 100%; }
+/* (a panel's film is as tall as the panel and moved up so that its bottom is the shown edge: a move, not a new
+   height, so a frame of the panel's opening lays nothing out; and what the opening moves is the panel's own and its
+   film's, not passed on to its contents, which would else be restyled whole at every frame) */
+.l2m-menu::before { height: 100%; transform: translateY(calc(var(--shown, 100%) - 100%)); }
+.l2m-menu > * { --open: 0; --shown: initial; --l2m-edge-r: initial; }
 .l2m-fnsheet::before, .app-toast::before { background-position: -300px -889px; }
 /* as on a bubble, the colours gather at the rim (light meets it at a glancing angle there): faint across the glass,
    and the same thin rise, over the last 28px or so, at every edge it has: the sides, and the bottom of the bar and
