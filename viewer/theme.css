@@ -1479,8 +1479,9 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   box-shadow: 0 0 7px color-mix(in srgb, var(--progress) 60%, transparent), 0 1.5px 2px color-mix(in srgb, var(--shade) 18%, transparent); }
 .lib-rows > li[data-read]::after { background: var(--progress); opacity: 0.9; }
 .app-progress span { background: var(--progress); }
-/* the reading underline fades out as a panel opens, and back in with the bar's shadow once it has closed */
-.l2m-bar .bar-progress { transition: opacity 160ms ease 300ms; }
+/* the reading underline fades out as a panel opens, and back in as it closes: from when the panel's edge is near the
+   bar (a fifth of the way from it) to when it is shut, so that it is not drawn over the panel's glass */
+.l2m-bar .bar-progress { transition: opacity 180ms ease 120ms; }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 160ms ease; }
 /* the underline sits evenly on the glass (between the back and settings buttons), round at both ends */
 .l2m-bar .bar-progress { left: 50px; right: 50px; height: 3px; border-radius: 999px; }
