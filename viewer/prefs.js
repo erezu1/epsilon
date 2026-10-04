@@ -15,6 +15,15 @@
       }
     } catch (e) {}
   }
+  // the reader's colours and widths at once, from what is kept (theme.json's defaults left unset), so that the page
+  // drawn while the rest loads (the stand-ins) is in them already
+  try {
+    var kept = JSON.parse(localStorage.getItem("l2m-prefs") || "{}") || {};
+    if (kept.theme === "light" || kept.theme === "dark") root.setAttribute("data-theme", kept.theme);
+    if (kept.tone && kept.tone !== "neutral") root.setAttribute("data-tone", kept.tone);
+    if (kept.width && kept.width !== "narrow") root.setAttribute("data-width", kept.width);
+    if (kept.size && kept.size !== "m") root.setAttribute("data-size", kept.size);
+  } catch (e) {}
   var FONTS = {}, DEF = {};
 
   var INLINE = window.L2M_FONTS_INLINE || null;       // (a one-file page carrying its fonts)
