@@ -1954,15 +1954,6 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 .app-act-row .app-ask-q { flex: 1 1 auto; min-width: 0; }
 .app-act-row .app-confirm-acts { margin: 0 -6px 0 auto; align-items: center; gap: 4px; flex: 0 0 auto; }
 .app-toast-x { color: var(--muted); }
-/* along a message that goes by itself, a line as the bar's reading line, at the edge it meets the page by (the bar's
-   foot, the sheet's top), filling as its time goes */
-.app-toast-time { position: absolute; left: 18px; right: 18px; top: -1px; height: 3px; border-radius: 999px; overflow: hidden;
-  background: color-mix(in srgb, var(--progress) 16%, transparent); }
-.app-toast-time > i { position: absolute; inset: 0; border-radius: 999px; background: var(--progress);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--progress) 55%, transparent); transform: translateX(-100%); }
-.app-toast.on .app-toast-time > i { animation: l2m-toast-time var(--toast-ms, 4000ms) linear forwards; }
-@keyframes l2m-toast-time { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-@media (prefers-reduced-motion: reduce) { .app-toast-time { display: none; } }
 .lib-rows > li:not([data-read]) .lib-read > i { display: none; }   /* not read yet: the line empty */
 
 /* a formula is selected whole: its picture has no letters to select one by one (the selection's ends never fall inside

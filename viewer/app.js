@@ -52,14 +52,12 @@
       localStorage.setItem(PREFS, JSON.stringify(all));
     } catch (e) { return undefined; }
   }
-  // every message is one sheet at the foot of the screen: words, and what can be done about them (an answer, an Undo);
-  // one that goes by itself has a line, as the bar's reading line, filling as its time goes
+  // every message is one sheet at the foot of the screen: words, and what can be done about them (an answer, an Undo)
   function toast(html, ms) {
     var t = document.getElementById("app-toast");
     if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     ms = ms || 4000;
-    t.innerHTML = html + (ms < 60000 ? '<span class="app-toast-time" aria-hidden="true"><i></i></span>' : "");
-    t.style.setProperty("--toast-ms", ms + "ms");
+    t.innerHTML = html;
     t.onclick = null; t.l2mAway = null;            // (what the message before had to do goes with it)
     t.classList.add("on");
     if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
