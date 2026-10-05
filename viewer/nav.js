@@ -1042,8 +1042,44 @@ window.L2M_nav = function (opts) {
   }
 
   function formulaOf(n) { var el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest && el.closest("mjx-container[data-n]"); }
+  // the paper's own macros written out (\Tr, \ket{\psi}, \tilde made \widetilde ...), so that a formula copied works
+  // anywhere: a macro is {name: "body"}, or [body, its number of arguments, the first one's default if it is optional]
+  function unmacro(t) {
+    var M = opts.macros || {}, out, i, n = 0, m, changed = true;
+    function arg(at) {                               // the argument at AT: [what it is, where it ends]
+      while (/\s/.test(t.charAt(at))) at++;
+      var c = t.charAt(at);
+      if (c === "{") { for (var d = 0, e = at; e < t.length; e++) { if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) break; } return [t.slice(at + 1, e), e + 1]; }
+      if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(at)); return [cm ? cm[0] : c, at + (cm ? cm[0].length : 1)]; }
+      return [c, at + 1];
+    }
+    while (changed && n++ < 12 && t.length < 20000) {    // (a macro may use another; a loop is cut short)
+      changed = false; out = ""; i = 0;
+      var re = /\\([A-Za-z]+|[^A-Za-z])/g;
+      while ((m = re.exec(t))) {
+        var name = m[1], def = Object.prototype.hasOwnProperty.call(M, name) ? M[name] : null;
+        if (name === "\\") { continue; }
+        if (def == null) continue;
+        var body = typeof def === "string" ? def : String(def[0]), k = typeof def === "string" ? 0 : +def[1] || 0, at = m.index + m[0].length, args = [];
+        if (k && def.length > 2 && def[2] != null) {      // an optional first argument, [..], or its default
+          var j = at; while (/\s/.test(t.charAt(j))) j++;
+          if (t.charAt(j) === "[") { var close = t.indexOf("]", j); args.push(t.slice(j + 1, close < 0 ? t.length : close)); at = close < 0 ? t.length : close + 1; }
+          else args.push(String(def[2]));
+        }
+        while (args.length < k) { var g = arg(at); args.push(g[0]); at = g[1]; }
+        body = body.replace(/#([1-9])/g, function (x, d) { return args[d - 1] != null ? args[d - 1] : ""; });
+        if (/[A-Za-z]/.test(name) && !k) while (t.charAt(at) === " ") at++;   // (the space a command name ends with)
+        var next = t.charAt(at);
+        if (/\\[A-Za-z]+$/.test(body) && /[A-Za-z]/.test(next)) body += " ";
+        out += t.slice(i, m.index) + body;
+        i = at; re.lastIndex = at; changed = true;
+      }
+      t = out + t.slice(i);
+    }
+    return t;
+  }
   function texOf(f) {                                // a formula's TeX (a picture drawn in it: named, not its stand-in)
-    return (opts.tex ? opts.tex(f.getAttribute("data-n")) || "" : "").trim()
+    return unmacro((opts.tex ? opts.tex(f.getAttribute("data-n")) || "" : "").trim())
       .replace(/\\class\{l2mpic-\d+\}\{\\rule(\[[^\]]*\])?\{[^}]*\}\{[^}]*\}\}/g, "\\text{[picture]}");
   }
   // ---------------------------------------------------------------- copying: formulas as their LaTeX
