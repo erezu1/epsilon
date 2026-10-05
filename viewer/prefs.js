@@ -288,30 +288,19 @@
     }, OUT + 10);
     return true;
   };
-  // A panel's film keeps to its shown edge as it unrolls (theme.css): the edge moves at the panel's pace from under the
-  // bar to 60px past the panel's foot (room for its shadow), the film's bottom with it but no further than the foot.
-  // A move the compositor plays has one pace from start to end, so the film's is made for this panel and this way
-  // (opening, or closing): the panel's own pace, the film's share of each moment of it
-  function bezier(t) {                         // cubic-bezier(0.2, 0.8, 0.2, 1) at t
-    var lo = 0, hi = 1, s = t;
-    for (var i = 0; i < 24; i++) { s = (lo + hi) / 2; if (3 * (1 - s) * s * (0.2 * (1 - s) + 0.2 * s) + s * s * s < t) lo = s; else hi = s; }
-    return 3 * (1 - s) * s * (0.8 * (1 - s) + 1 * s) + s * s * s;
-  }
+  // A panel is one piece of glass growing from the bar's (theme.css): it moves down by its height less the bar's, which
+  // it is told as it opens or closes (it may have changed meanwhile); and it has its film, the rim and the colours
   window.L2M_filmPace = function (el, opening) {
-    var cs = getComputedStyle(root), top = (parseFloat(cs.getPropertyValue("--l2m-bar-h")) || 64) + (parseFloat(cs.getPropertyValue("--l2m-join-h")) || 0);
-    var h = el.offsetHeight, span = h + 60 - top;
-    if (!(span > 60)) return;
-    var k = (h - top) / span, pts = [];
-    if (!el.querySelector(":scope > .l2m-film")) {   // (theme.css: the frame, and the colours in it)
+    if (!el) return;
+    if (!el.querySelector(":scope > .l2m-film")) {
       var f = document.createElement("span"); f.className = "l2m-film"; f.setAttribute("aria-hidden", "true");
       f.appendChild(document.createElement("i")); el.insertBefore(f, el.firstChild);
-      getComputedStyle(f.firstChild).transform;      // (seen where it starts, so that it moves from there)
     }
-    for (var i = 0; i <= 30; i++) {
-      var t = i / 30, e = bezier(t), g = opening ? Math.min(1, e / k) : Math.max(0, (e - (1 - k)) / k);
-      pts.push(g.toFixed(4) + " " + (t * 100).toFixed(2) + "%");
-    }
-    el.style.setProperty("--film-pace", "linear(" + pts.join(", ") + ")");
+    var h = el.offsetHeight + "px";
+    if (el.style.getPropertyValue("--l2m-panel-h") === h) return;
+    if (opening) el.classList.add("l2m-still");      // (closed: put where it starts at once, not moved there)
+    el.style.setProperty("--l2m-panel-h", h);
+    if (opening) { getComputedStyle(el).translate; if (el.lastElementChild) getComputedStyle(el.lastElementChild).translate; el.classList.remove("l2m-still"); }
   };
   // reading in full screen (on a touch screen whose browser allows it; not an iPhone): on unless turned off
   window.L2M_canFull = function () {
