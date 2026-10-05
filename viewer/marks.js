@@ -401,7 +401,7 @@ window.L2M_marks = function (host) {
     }).join("");
   }
   var dock = document.createElement("div");
-  dock.className = "l2m-fnsheet l2m-markbar";
+  dock.className = "l2m-fnsheet l2m-markbar glass glass-bottom";
   dock.setAttribute("role", "toolbar");
   dock.setAttribute("aria-label", "Mark the selection");
   dock.setAttribute("aria-hidden", "true");
@@ -434,10 +434,8 @@ window.L2M_marks = function (host) {
     ring();
     if (dockOpen) return;
     dockOpen = true;
-    dock.classList.add("open");
+    if (window.L2M_footer) L2M_footer(dock, true);
     document.documentElement.style.setProperty("--l2m-dock-h", dock.offsetHeight + "px");
-    dock.setAttribute("aria-hidden", "false");
-    if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
     if (host.selIn) host.selIn();                  // (a step in the history: back lets the selection go)
   }
   var picked = 0;
@@ -445,10 +443,8 @@ window.L2M_marks = function (host) {
   function hideDock(keep) {                        // keep: its step, for what opens next (or gone already)
     if (!dockOpen) return;
     dockOpen = false;
-    dock.classList.remove("open");
+    if (window.L2M_footer) L2M_footer(dock, false);
     document.documentElement.classList.remove("l2m-docked");
-    dock.setAttribute("aria-hidden", "true");
-    if (window.L2M_pinFilm) L2M_pinFilm(dock, 360);
     if (!keep && host.selOut) host.selOut("hand");
   }
   function checkSel() {
@@ -503,7 +499,7 @@ window.L2M_marks = function (host) {
 
   // ---------------------------------------------------------------- a mark's sheet
   var sheet = document.createElement("div");
-  sheet.className = "l2m-fnsheet l2m-marksheet";
+  sheet.className = "l2m-fnsheet l2m-marksheet glass glass-bottom";
   sheet.setAttribute("role", "dialog");
   sheet.setAttribute("aria-label", "Mark");
   sheet.setAttribute("aria-hidden", "true");
@@ -583,9 +579,7 @@ window.L2M_marks = function (host) {
       host.closeOthers();                          // (the contents or settings, a footnote's sheet)
       host.overlayIn("l2mMark");
       sheetOpen = true;
-      sheet.classList.add("open");
-      sheet.setAttribute("aria-hidden", "false");
-      if (window.L2M_pinFilm) L2M_pinFilm(sheet, 360);
+      if (window.L2M_footer) L2M_footer(sheet, true);
       fitKeyboard(false);
     }
     keyboardOver(true);                            // (before the note takes the keyboard)
@@ -600,9 +594,7 @@ window.L2M_marks = function (host) {
     saveNote();
     sheetOpen = false;
     host.overlayOut("l2mMark", how);
-    sheet.classList.remove("open");
-    sheet.setAttribute("aria-hidden", "true");
-    if (window.L2M_pinFilm) L2M_pinFilm(sheet, 360);
+    if (window.L2M_footer) L2M_footer(sheet, false);
     if (document.activeElement && sheet.contains(document.activeElement)) document.activeElement.blur();
     sheet.style.bottom = "";
     openId = null;

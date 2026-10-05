@@ -55,14 +55,13 @@
   // every message is one sheet at the foot of the screen: words, and what can be done about them (an answer, an Undo)
   function toast(html, ms) {
     var t = document.getElementById("app-toast");
-    if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+    if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast glass glass-bottom"; t.setAttribute("role", "status"); document.body.appendChild(t); }
     ms = ms || 4000;
     t.innerHTML = html;
     t.onclick = null; t.l2mAway = null;            // (what the message before had to do goes with it)
-    t.classList.add("on");
-    if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
+    if (window.L2M_footer) L2M_footer(t, true);
     clearTimeout(t.l2mTimer);
-    t.l2mTimer = setTimeout(function () { t.classList.remove("on"); if (window.L2M_pinFilm) L2M_pinFilm(t, 400); }, ms);
+    t.l2mTimer = setTimeout(function () { if (window.L2M_footer) L2M_footer(t, false); }, ms);
   }
   // a message that asks: the question, and two pills (the answer one first); it stays until answered
   function ask(html, yes, onYes, onNo) {
@@ -75,8 +74,7 @@
       if (!b) return;
       t.onclick = null;
       clearTimeout(t.l2mTimer);
-      t.classList.remove("on");
-      if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
+      if (window.L2M_footer) L2M_footer(t, false);
       if (b.getAttribute("data-ask") === "yes") onYes(); else if (onNo) onNo();
     };
   }
@@ -90,8 +88,7 @@
     function away(go) {
       t.onclick = null; t.l2mAway = null;
       clearTimeout(t.l2mTimer);
-      t.classList.remove("on");
-      if (window.L2M_pinFilm) L2M_pinFilm(t, 400);
+      if (window.L2M_footer) L2M_footer(t, false);
       if (go) fn();
     }
     t.l2mAway = function () { away(false); };
@@ -102,7 +99,7 @@
   }
   function toastAway() {                  // a message with a thing to do, gone as its x would take it (nothing done)
     var t = document.getElementById("app-toast");
-    if (t && t.classList.contains("on") && t.l2mAway) t.l2mAway();
+    if (t && t.classList.contains("open") && t.l2mAway) t.l2mAway();
   }
   function eatClick() {                    // the click a gesture ends in: not also a tap
     var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); window.removeEventListener("click", stop, true); };
@@ -253,7 +250,7 @@
     var I = theme.icons || {};
     if (!appSheet) {
       appSheet = document.createElement("div");
-      appSheet.className = "l2m-fnsheet app-sheet";
+      appSheet.className = "l2m-fnsheet app-sheet glass glass-bottom";
       appSheet.setAttribute("role", "dialog");
       appSheet.setAttribute("aria-modal", "true");
       appSheet.setAttribute("aria-hidden", "true");
@@ -275,16 +272,12 @@
     }
     appSheetOpen = true;
     appSheetAt = Date.now();
-    appSheet.classList.add("open");
-    appSheet.setAttribute("aria-hidden", "false");
-    if (window.L2M_pinFilm) L2M_pinFilm(appSheet, 360);
+    if (window.L2M_footer) L2M_footer(appSheet, true);
   }
   function closeAppSheet(how) {       // how: "pop" (closed by back), "jump" (something else follows at once)
     if (!appSheetOpen) return;
     appSheetOpen = false;
-    appSheet.classList.remove("open");
-    appSheet.setAttribute("aria-hidden", "true");
-    if (window.L2M_pinFilm) L2M_pinFilm(appSheet, 360);
+    if (window.L2M_footer) L2M_footer(appSheet, false);
     if (document.activeElement && appSheet.contains(document.activeElement)) document.activeElement.blur();
     try {
       if (how !== "pop" && (history.state || {}).l2mSheet) {
@@ -472,7 +465,7 @@
                                               // the reading line, lit as far as the paper has come)
     dropSkelBar();
     var I = theme.icons || {}, h = document.createElement("div");
-    h.innerHTML = '<header class="l2m-bar show skel-bar" id="l2m-skel-bar" aria-hidden="true"><div class="bar-inner">' +
+    h.innerHTML = '<header class="l2m-bar glass glass-top show skel-bar" id="l2m-skel-bar" aria-hidden="true"><div class="bar-inner">' +
       '<button type="button" class="bar-btn swap" tabindex="-1"><span class="ico ico-back">' + (I.back || "") + '</span><span class="ico ico-close">' +
       (I.close || "") + '</span></button><button type="button" class="bar-title" tabindex="-1"><span class="bar-title-inner"><span class="skel skel-bar-title"></span>' +
       '</span></button><button type="button" class="bar-btn" tabindex="-1">' + (I.search || "") + "</button>" +
@@ -1150,7 +1143,7 @@
     var holder = document.createElement("div");
     holder.className = "l2m-chrome app-chrome";
     holder.innerHTML =
-      '<header class="l2m-bar show app-bar" id="app-bar"><div class="bar-inner">' +
+      '<header class="l2m-bar glass glass-top show app-bar" id="app-bar"><div class="bar-inner">' +
       '<span class="app-lead"><svg class="app-logo" viewBox="119 117 290 290" width="28" height="28" aria-hidden="true"><path d="M 331.1 173.7 A 76 56 0 1 0 250.8 255.1 L 248.7 253.0 A 88 64 0 1 0 337.0 351.8" fill="none" stroke="currentColor" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
       '<button type="button" class="bar-btn app-close" id="app-close" aria-label="Close the settings" tabindex="-1">' + (I.close || "&times;") + "</button></span>" +
       '<span class="app-tabswap"><span class="swap-ind" aria-hidden="true"></span><div class="seg app-tabs" role="tablist" aria-label="Sections"><span class="sel-ind" aria-hidden="true"></span>' +
@@ -1169,9 +1162,9 @@
       '<button type="button" class="bar-btn" id="app-plus" aria-label="Add a paper" aria-expanded="false" aria-controls="app-addp">' + (I.add || "+") + "</button>" +
       '<button type="button" class="bar-btn" id="app-gear" aria-label="Settings" aria-expanded="false" aria-controls="app-settings">' +
       (I.gear || I.settings || "") + '</button></div><div class="app-bar-day" aria-hidden="true"></div></header>' +
-      '<div class="l2m-menu l2m-settings app-settings" id="app-settings" role="dialog" aria-label="Settings" aria-hidden="true">' +
+      '<div class="l2m-menu l2m-settings app-settings glass glass-top" id="app-settings" role="dialog" aria-label="Settings" aria-hidden="true">' +
       '<div class="menu-inner"></div></div>' +
-      '<div class="l2m-menu l2m-settings app-settings" id="app-addp" role="dialog" aria-label="Add a paper" aria-hidden="true">' +
+      '<div class="l2m-menu l2m-settings app-settings glass glass-top" id="app-addp" role="dialog" aria-label="Add a paper" aria-hidden="true">' +
       '<div class="menu-inner"></div></div>';
     dropBoot();
     main.parentNode.insertBefore(holder, main);
@@ -1654,7 +1647,7 @@
     if (e.key !== "Escape" || e.defaultPrevented) return;
     if (shell && current === "app:library" && shell.querySelector("#app-bar").classList.contains("searching")) { e.preventDefault(); searching(false); return; }
     var t = document.getElementById("app-toast");
-    if (t && t.classList.contains("on") && t.l2mAway) { e.preventDefault(); toastAway(); }
+    if (t && t.classList.contains("open") && t.l2mAway) { e.preventDefault(); toastAway(); }
   });
   // Ctrl/Cmd+F in the Library: its own search (the field focused, its words selected if it is open already)
   document.addEventListener("keydown", function (e) {
@@ -2273,7 +2266,7 @@
   }
   function offerApp() {
     if (!appNext || appAsked === appNext || !isPage(current) || panelOpen) return;
-    if (document.querySelector(".app-toast.on, .app-bar.searching")) { setTimeout(offerApp, 5000); return; }   // (after what shows)
+    if (document.querySelector(".app-toast.open, .app-bar.searching")) { setTimeout(offerApp, 5000); return; }   // (after what shows)
     appAsked = appNext;
     ask("A new version of Epsilon is ready.", "Update", function () { savePlace(current, true); location.reload(); });
   }
@@ -2742,7 +2735,7 @@
     var c = document.getElementById("app-pull");
     if (!c && shell) {
       c = document.createElement("div");
-      c.id = "app-pull"; c.className = "app-pull"; c.setAttribute("aria-hidden", "true");
+      c.id = "app-pull"; c.className = "app-pull glass glass-round"; c.setAttribute("aria-hidden", "true");
       c.innerHTML = "<span>" + ((theme.icons || {}).refresh || "&#8635;") + "</span>";
       shell.appendChild(c);
     }

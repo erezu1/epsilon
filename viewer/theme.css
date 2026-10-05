@@ -334,36 +334,19 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .reftext { min-width: 0; overflow-wrap: anywhere; }
 
 
-/* reading bar: appears below the title block; back / section title / top / contents */
-.l2m-bar, .l2m-menu, .l2m-fnsheet {
-  background-color: var(--glass);
-  -webkit-backdrop-filter: blur(8px) saturate(1.5);
-  backdrop-filter: blur(8px) saturate(1.5);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .l2m-bar, .l2m-menu, .l2m-fnsheet { background-color: var(--glass-solid); }
-}
+/* reading bar: appears below the title block; back / section title / top / contents (glass: .glass .glass-top) */
 .l2m-bar {
   position: fixed;
   top: 0;
-  border-radius: 0 0 16px 16px;            /* (as a panel's, which unrolls from it) */
   left: 0;
   right: 0;
   z-index: 41;
   padding: calc(env(safe-area-inset-top, 0px) + 5px) max(8px, env(safe-area-inset-right, 0px)) 5px max(8px, env(safe-area-inset-left, 0px));
-  border-bottom: 1px solid var(--bar-line);
-  box-shadow: 0 10px 30px -20px var(--bar-shadow);
   transform: translateY(calc(-100% - 2px));
   opacity: 0;
   pointer-events: none;
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease,
-              box-shadow 200ms ease, border-color 200ms ease, background-color 220ms ease,
-              -webkit-backdrop-filter 220ms ease, backdrop-filter 220ms ease;
 }
 .l2m-bar.show { transform: none; opacity: 1; pointer-events: auto; }
-.l2m-bar.menu-open { box-shadow: none; border-bottom-color: transparent; background-color: transparent;
-                     -webkit-backdrop-filter: blur(0px) saturate(1); backdrop-filter: blur(0px) saturate(1); }
-.l2m-bar, .l2m-menu, .l2m-fnsheet { background-image: none; }
 .bar-inner { max-width: calc(var(--page-w) + 4rem); margin-inline: auto; display: flex; align-items: center; gap: 2px; }
 .bar-btn {
   flex: 0 0 auto;
@@ -414,34 +397,22 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .bar-title-inner .secnum { font-weight: 600; }
 .bar-title-inner mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
 
-/* contents panel, glued under the bar */
+/* contents panel, glued under the bar (glass: .glass .glass-top; how it grows from the bar: further down) */
 .l2m-menu {
   position: fixed;
   top: 0;
-  padding-top: var(--l2m-bar-h, 49px);
+  padding-top: var(--l2m-bar-h, 64px);
   display: flex;
   flex-direction: column;
   left: 0;
   right: 0;
   z-index: 40;
   overflow: hidden;
-  border-bottom: 1px solid var(--bar-line);
-  border-radius: 0 0 16px 16px;
-  box-shadow: 0 22px 40px -24px var(--bar-shadow);
   font-family: var(--serif);
-  opacity: 0;
-  transform: translateY(-12px);
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 220ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 280ms;
 }
-.l2m-menu.open {
-  opacity: 1;
-  transform: none;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity 220ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
-}
+.l2m-menu.open { visibility: visible; pointer-events: auto; }
 .menu-inner { position: relative; width: 100%; box-sizing: border-box; max-height: min(72vh, 560px); overflow-y: auto; overscroll-behavior: contain; max-width: 44rem; margin-inline: auto; padding: 4px max(8px, env(safe-area-inset-right, 0px)) 12px max(8px, env(safe-area-inset-left, 0px)); }
 .menu-inner, .mk-pane { --fade-top: 0px; --fade-bottom: 0px;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%);
@@ -527,30 +498,10 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .l2m-veil.out { transition-duration: 200ms; }
 .l2m-veil.cut { transition: none; }
 
-/* footnote sheet, slides up from the bottom */
+/* footnote sheet, slides up from the bottom (glass, place and motion: .glass .glass-bottom) */
 .l2m-fnsheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
   z-index: 42;
-  border-top: 1px solid var(--bar-line);
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -14px 36px -22px var(--bar-shadow);
   padding: 4px max(10px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 14px) max(10px, env(safe-area-inset-left, 0px));
-  transform: translateY(calc(100% + 12px));
-  opacity: 0;
-  visibility: hidden;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, visibility 0s linear 320ms;
-}
-/* a keyboard laid over the page (app.js): what sits at the page's foot rises over it; the page scrolls on as far */
-.l2m-fnsheet { bottom: env(keyboard-inset-height, 0px); }
-body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }
-.l2m-fnsheet.open {
-  transform: none;
-  opacity: 1;
-  visibility: visible;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, visibility 0s;
 }
 .sheet-inner { max-width: var(--page-w); margin-inline: auto; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; }
@@ -580,7 +531,7 @@ ol.fnlist .fn-text { min-width: 0; }
   background: color-mix(in srgb, var(--progress) 17%, transparent); box-shadow: 0 0 14px 5px color-mix(in srgb, var(--progress) 12%, transparent); }
 .peek-main { position: relative; }
 @media (prefers-reduced-motion: reduce) {
-  .l2m-bar, .l2m-menu, .l2m-fnsheet, .bar-title-inner, .bar-btn.swap .ico, .opt-check, .seg-btn, .l2m-veil, .sel-ind, [data-act="settings"] svg { transition-duration: 0.01s; }
+  .l2m-bar, .bar-title-inner, .bar-btn.swap .ico, .opt-check, .seg-btn, .l2m-veil, .sel-ind, [data-act="settings"] svg { transition-duration: 0.01s; }
   ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.01s; }
 }
 
@@ -594,11 +545,6 @@ figure.float img { cursor: zoom-in; }
   z-index: 2;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--bar-line);
-  border-radius: 50%;
-  background-color: var(--glass);
-  -webkit-backdrop-filter: blur(8px) saturate(1.5);
-  backdrop-filter: blur(8px) saturate(1.5);
   color: var(--ink);
   display: grid;
   place-items: center;
@@ -615,9 +561,6 @@ figure.float img { cursor: zoom-in; }
   z-index: 60;
   display: flex;
   flex-direction: column;
-  background-color: color-mix(in srgb, var(--ground) 90%, transparent);
-  -webkit-backdrop-filter: blur(10px) saturate(1.3);
-  backdrop-filter: blur(10px) saturate(1.3);
   opacity: 0;
   visibility: hidden;
   transition: opacity 240ms ease, visibility 0s linear 240ms;
@@ -788,16 +731,11 @@ a.lib-title { color: var(--ink); }
 .app-paper-text { flex: 1 1 auto; min-width: 0; }
 .app-paper-act { flex: 0 0 auto; }
 .app-log { font-size: 0.72em; max-height: 40vh; overflow: auto; white-space: pre-wrap; }
-.app-toast {
-  position: fixed; left: 0; right: 0; bottom: env(keyboard-inset-height, 0px); z-index: 70; box-sizing: border-box;
+.app-toast {     /* (glass, place and motion: .glass .glass-bottom) */
+  z-index: 70; box-sizing: border-box;
   padding: 14px max(18px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(18px, env(safe-area-inset-left, 0px));
   font-size: 0.92em; line-height: 1.45; color: var(--ink);
-  background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
-  border-top: 1px solid var(--bar-line); border-radius: 16px 16px 0 0; box-shadow: 0 -14px 36px -22px var(--bar-shadow);
-  transform: translateY(calc(100% + 12px)); opacity: 0; pointer-events: none;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease;
 }
-.app-toast.on { transform: none; opacity: 1; pointer-events: auto; }
 .l2m-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 1em 0 0; }
 .l2m-action {
   border: 0; border-radius: 999px; padding: 6px 13px; background: var(--bar-hover); color: var(--ink);
@@ -807,7 +745,7 @@ a.lib-title { color: var(--ink); }
 @media (hover: hover) { .l2m-action:hover { background: var(--bar-current); text-decoration: none; } }
 .l2m-action[aria-pressed="true"] { background: var(--bar-current); }
 .l2m-action:disabled { color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .app-toast, .app-pill, .app-field { transition-duration: 0.01s; } }
+@media (prefers-reduced-motion: reduce) { .app-pill, .app-field { transition-duration: 0.01s; } }
 .app-search + .l2m-library > li:first-child { border-top: 0; }
 /* the app's own bar and settings panel (the same parts as a paper's) */
 .app-bar .bar-inner { gap: 6px; }
@@ -1005,46 +943,14 @@ a.lib-title { color: var(--ink); }
 .app-pane { height: 100vh; height: 100dvh; }
 .app-pane-in { padding-top: calc(var(--l2m-bar-h, 64px) + 14px); }
 .app-pane .app-day { top: var(--l2m-bar-h, 64px); }
-.app-pane .app-day { background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5); }
 /* a pinned date and the bar are one block: no shadow or line between them */
 .app-bar.joined { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 160ms ease, border-color 160ms ease; }
 .app-pane .app-day { border-bottom-color: transparent; }
-.app-pane .app-day.stuck { border-bottom: 1px solid var(--bar-line); box-shadow: 0 10px 30px -20px var(--bar-shadow); }
+.app-pane .app-day.stuck { border-bottom: 1px solid var(--g-line); box-shadow: var(--g-shadow-top); }
 
-/* panels (contents, settings) under the bar, without flicker: the glass is never faded or doubled.
-   The panel starts below the bar (the two glass layers never overlap) and unrolls with a clip; only its
-   contents fade. While it is open the bar keeps its glass and loses its shadow and line: one block. */
-.l2m-menu {
-  top: var(--l2m-bar-h, 64px); padding-top: 0; opacity: 1; transform: none;
-  clip-path: inset(0 0 100% 0); visibility: hidden;
-  transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms;
-}
-.l2m-menu.open {
-  clip-path: inset(0 0 -60px 0); visibility: visible;
-  transition: clip-path 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
-}
-.l2m-menu .menu-inner, .l2m-menu .mk-tabs { opacity: 0; transform: translateY(-6px); transition: opacity 180ms ease, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-.l2m-menu.open .menu-inner, .l2m-menu.open .mk-tabs { opacity: 1; transform: none; transition: opacity 220ms ease 60ms, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-.l2m-bar.menu-open {
-  background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
-  box-shadow: none; border-bottom-color: transparent;
-}
-@media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu .menu-inner, .l2m-menu .mk-tabs { transition-duration: 0.01s; } }
-/* one glass layer, no seam: the panel reaches up behind the bar, and the part behind the bar is shown from
-   the first frame; in that frame the bar turns clear. Closing, the bar has its glass back when the panel goes. */
-.l2m-menu {
-  top: 0; padding-top: var(--l2m-bar-h, 64px);
-  clip-path: inset(0 0 calc(100% - var(--l2m-bar-h, 64px)) 0);
-}
-.l2m-bar.menu-open {
-  background-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none;
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s,
-              background-color 0s, -webkit-backdrop-filter 0s, backdrop-filter 0s;
-}
-.l2m-bar {
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s 300ms, border-color 0s 300ms,
-              background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms;
-}
+/* a panel's contents fade in, settling a little, as it opens (and out as it closes) */
+.l2m-menu .menu-inner, .l2m-menu .mk-tabs { opacity: 0; transform: translateY(-6px); }
+.l2m-menu.open .menu-inner, .l2m-menu.open .mk-tabs { opacity: 1; transform: none; }
 /* a pinned date is drawn in the bar (one glass layer); the list's own copy stays in place, unseen */
 
 .app-pane .app-day.stuck { visibility: hidden; box-shadow: none; border-bottom-color: transparent; }
@@ -1056,13 +962,6 @@ a.lib-title { color: var(--ink); }
 .lib-rows .app-confirm { margin: 0.5rem 0 0; }
 /* two-line section titles: room for letters below the line (g, y, p) */
 .l2m-bar:not(.app-bar) .bar-title-inner { line-height: 1.3; padding-bottom: 1px; }
-/* closing a panel: the bar's shadow and line ease back in as the panel rolls up (the glass still switches
-   back at the end, in one step) */
-.l2m-bar {
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease,
-              box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
-              background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms;
-}
 /* section titles in the bar fill the first line before wrapping (no balancing) */
 .l2m-bar:not(.app-bar) .bar-title-inner { text-wrap: wrap; }
 /* the list's own date strip has no glass (the bar draws the pinned date; Safari draws blur on a pinned element
@@ -1095,7 +994,7 @@ a.lib-title { color: var(--ink); }
 .app-bar-day { padding: 0 10px; }
 .app-bar.joined .app-bar-day { padding-top: 19px; }          /* on the row itself: right with any version of the script */
 .app-bar-day span { display: inline; padding: 0; }
-.app-bar.joined { box-shadow: 0 10px 30px -20px var(--bar-shadow); border-bottom-color: var(--bar-line); }
+.app-bar.joined { box-shadow: var(--g-shadow-top); border-bottom-color: var(--g-line); }
 .app-pane .app-day.stuck { transition: visibility 0s linear 220ms; }
 @media (prefers-reduced-motion: reduce) { .app-bar-day { transition: none; } }
 
@@ -1131,15 +1030,6 @@ a.lib-title { color: var(--ink); }
 :root { --film-o: 0.32; --film-blend: normal; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --film-o: 0.3; --film-blend: screen; } }
 :root[data-theme="dark"] { --film-o: 0.3; --film-blend: screen; }
-.l2m-bar::before, .l2m-menu::before, .l2m-fnsheet::before, .app-toast::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
-  background: url(film.webp) 0 0 / 900px 900px repeat; opacity: var(--film-o);
-  mix-blend-mode: var(--film-blend);      /* on dark glass the film adds light, as a reflection does */
-}
-/* the film is laid from the edge each piece of glass ends at, so that edge always meets the film's most coloured
-   band (its last rows): the bottom of the bar and of the shown part of a panel, the top of a sheet */
-.l2m-bar::before, .l2m-menu::before { inset: 0 0 auto 0; height: var(--shown, 100%); background-position: 0 100%; }
-.l2m-fnsheet::before, .app-toast::before { background-position: -300px -889px; }
 /* as on a bubble, the colours gather at the rim (light meets it at a glancing angle there): faint across the glass,
    and the same thin rise, over the last 28px or so, at every edge it has: the sides, and the bottom of the bar and
    of a panel or the top of a sheet (the edge a bar starts from, and a sheet rests on, has none). The two masks add
@@ -1159,20 +1049,11 @@ a.lib-title { color: var(--ink); }
   --rim: linear-gradient(to top, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
   --rim-down: linear-gradient(to bottom, rgb(0 0 0 / 0.8) 0, rgb(0 0 0 / 0.48) 4px, rgb(0 0 0 / 0.22) 10px, rgb(0 0 0 / 0.1) 18px, rgb(0 0 0 / 0.07) 28px, rgb(0 0 0 / 0.07) 100%);
 }
-.l2m-bar::before, .l2m-menu::before {
-  -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
-  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
-  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;       /* (the film's own box is the shown part) */
-}
-.l2m-fnsheet::before, .app-toast::before {
-  -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides);
-}
 /* A panel is one piece of glass whose shape grows from the bar's: the panel itself, with its blur, rim, film,
    corners and shadow, moves down from behind the bar (closed, it is just where the bar's glass is, with the same
    shadow), and what is in it (its contents, its film's colours) moves back by as much, at the same pace, so that it
    stays put on the screen: only the glass's edge travels, its shadow with it. Both moves are the compositor's.
    (--l2m-panel-h: the panel's height, prefs.js, as it opens or closes) */
-.l2m-menu, .l2m-menu.open { clip-path: none; box-shadow: 0 10px 30px -20px var(--bar-shadow); }
 .l2m-menu {
   --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h));
   --l2m-lift: calc(var(--l2m-close-h) - var(--l2m-panel-h, 100vh));
@@ -1190,10 +1071,10 @@ a.lib-title { color: var(--ink); }
 /* (its film: the rim on the glass, the colours in it staying put, as the bar's do) */
 .l2m-menu:has(> .l2m-film)::before { content: none; }
 .l2m-film, .l2m-film > i { position: absolute; inset: 0; pointer-events: none; }
-.l2m-film { z-index: -1; border-radius: 0 0 16px 16px; opacity: var(--film-o); mix-blend-mode: var(--film-blend);
+.l2m-film { z-index: -1; border-radius: 0 0 var(--g-r) var(--g-r); opacity: var(--film-o); mix-blend-mode: var(--film-blend);
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
-.l2m-film > i { background: url(film.webp) var(--glass-x) 0 / 900px 900px repeat; }
+.l2m-film > i { background: var(--g-film) var(--glass-x) 0 / 900px 900px repeat; }
 @media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu.open, .l2m-menu > *, .l2m-film > i { transition-duration: 0.01s; } }
 .l2m-bar::before { transition: opacity 0s 300ms; }
 .l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
@@ -1207,6 +1088,7 @@ a.lib-title { color: var(--ink); }
   transition-behavior: allow-discrete;
 }
 .l2m-bar.menu-open {
+  background-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; border-bottom-color: transparent;
   transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s,
               background-color 0s, -webkit-backdrop-filter 0s, backdrop-filter 0s, background-image 0s;
   transition-behavior: allow-discrete;
@@ -1311,7 +1193,7 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 @keyframes l2m-vt-in-back { from { opacity: 0; transform: translateX(-72px); } }
 @media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; } }
 /* (the bar is captured on its own for the transition, where its glass has nothing behind it: solid meanwhile) */
-.l2m-vt .l2m-bar.show { background-color: var(--glass-solid); }
+.l2m-vt .l2m-bar.show { background-color: var(--g-fill-solid); }
 /* a paper's bar is as tall with a one-line section title as with a two-line one (it never jumps between them) */
 .l2m-bar:not(.app-bar) .bar-title { min-height: calc(2.6em + 9px); box-sizing: border-box; }
 .skel-bar .skel-bar-title { width: 62%; height: 0.95em; margin: 0; }
@@ -1442,12 +1324,6 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .app-confirm .app-pill.app-danger { background: linear-gradient(var(--danger-bg), var(--danger-bg)), var(--seg-on); box-shadow: var(--seg-on-shadow); }   /* (as raised as Keep, in red) */
 @media (prefers-reduced-motion: reduce) { .app-confirm, .app-confirm-in { transition: none; } }
 
-/* 6. wider screens: the bars, panels, sheets and messages are as wide as the page, centred; the corners that meet
-   the page are rounded as a panel's are */
-@media (min-width: 800px) {
-  .l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); }
-  .l2m-fnsheet, .app-toast { border-radius: 16px 16px 0 0; }
-}
 
 /* every icon's lines 1.5 screen pixels thick, whatever size it is drawn at (as the settings' icons) */
 svg > g[stroke-linecap="round"] { stroke-width: 1.5px; }
@@ -1707,7 +1583,6 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
   position: fixed; left: 50%; top: var(--l2m-bar-h, 64px); z-index: 39; width: 40px; height: 40px; border-radius: 50%;
   display: grid; place-items: center; color: var(--muted); pointer-events: none; opacity: 0;
   transform: translate(-50%, -44px) scale(0.6);
-  background: var(--glass-solid); box-shadow: 0 2px 10px -2px var(--bar-shadow), 0 0 0 1px var(--bar-line);
   transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, color 160ms ease;
 }
 .app-pull.no-anim { transition: color 160ms ease; }
@@ -1751,32 +1626,13 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 /* dragging a list down with the mouse to refresh: no text selected meanwhile, and the hand shows it */
 
 
-/* the peek: a second view of the paper in a sheet below (rounded top, glass head with the film's rim, the pinned
-   header's small capitals for what it shows); the page above keeps room to scroll to its end */
-.l2m-peek {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 38; height: var(--peek-h, 46vh);
-  background: var(--ground); border-radius: 16px 16px 0 0; overflow: hidden;
-  box-shadow: 0 -14px 36px -22px var(--bar-shadow), 0 -1px 0 var(--bar-line);
-  transform: translateY(calc(100% + 24px)); visibility: hidden;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 320ms; will-change: transform;
-}
-.l2m-peek.open {
-  transform: none; visibility: visible;
-  transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s;
-}
-.l2m-peek.dragging { transition: none; }
+/* the peek: a second view of the paper in a sheet below (its glass, place and motion: after the glass) */
 .peek-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .peek-main { visibility: visible; }     /* (its own: the peek shown or hidden restyles its frame alone) */
 .peek-main { display: block; max-width: var(--page-w); margin: 0 auto; padding: 64px 18px 40vh; box-sizing: border-box; }
-.peek-head {
+.peek-head {      /* (its glass: .glass, with the footer's rim) */
   position: absolute; z-index: 2; top: 0; left: 0; right: 0; touch-action: none; cursor: grab;
-  background-color: var(--glass); -webkit-backdrop-filter: blur(8px) saturate(1.5); backdrop-filter: blur(8px) saturate(1.5);
-  border-bottom: 1px solid var(--bar-line);
-}
-.peek-head::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: url(film.webp) -300px -889px / 900px 900px repeat; opacity: var(--film-o); mix-blend-mode: var(--film-blend);
-  -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides);
+  border-bottom: 1px solid var(--g-line);
 }
 .l2m-peek.dragging .peek-head { cursor: grabbing; }
 .peek-grab { display: block; width: 36px; height: 4px; border-radius: 999px; margin: 7px auto 1px; background: color-mix(in srgb, var(--ink) 22%, transparent); }
@@ -1794,8 +1650,6 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 .peek-title mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
 /* a long press on an internal link is the peek's: not the browser's link menu, nor a selection */
 main a[href^="#"], .l2m-menu a[href^="#"], .l2m-fnsheet a[href^="#"] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-@media (min-width: 800px) { .l2m-peek { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); } }
-@media (prefers-reduced-motion: reduce) { .l2m-peek, .l2m-peek.open { transition-duration: 0.01s; } }
 
 /* a paper's placeholder (the grey lines, until the paper is drawn): exactly the screen, never scrolled */
 html.l2m-boot-paper, html.l2m-skel-page { overflow: hidden; overscroll-behavior: none; }
@@ -1826,10 +1680,6 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
    are set against their place on the screen as they move (L2M_pinFilm). The rims stay with each piece's edges. */
 :root { --glass-x: 0px; }
 @media (min-width: 800px) { :root { --glass-x: calc((var(--chrome-w) - 100vw) / 2); } }
-.l2m-bar::before, .l2m-menu::before { background-position: var(--glass-x) 0; }
-.l2m-fnsheet::before, .app-toast::before, .peek-head::before { background-position: var(--film-x, 0px) var(--film-y, 0px); }
-/* the film under a rolling panel has the same corners as its moving edge (square where it meets a phone's bar) */
-.l2m-menu::before { border-radius: 0 0 16px 16px; }
 
 /* buttons side by side in the settings (Connect, Forget the token): as close as a confirmation's */
 .app-settings .app-row { gap: 8px; }
@@ -2030,13 +1880,6 @@ html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
 .app-abs.open, .l2m-app-lists .app-abs.open { opacity: 1; margin-top: 0.3em; visibility: visible; transition-delay: 0s; }
 .app-toggle { margin-top: 4px; }
 
-/* the peek made the page: in one rise to the bar (its corners squaring), its text fades out at once and the page with
-   it; halfway, the page (now where the peek is) fades back in as the peek's ground and head fade away into the bar */
-.l2m-peek.expanding {
-  border-radius: 0; box-shadow: none; background-color: transparent;
-  transition: height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 340ms ease, box-shadow 200ms ease,
-              background-color 190ms ease 150ms;
-}
 .l2m-peek.expanding .peek-scroll { opacity: 0; transition: opacity 140ms ease; }
 .l2m-peek.expanding .peek-head { opacity: 0; transition: opacity 190ms ease 150ms; }
 main { transition: opacity 190ms ease; }
@@ -2123,7 +1966,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 }
 /* the page width changed: the bar, the peek, the note's sheet, the panels and messages glide to it, while the text
    fades out, is laid out again out of sight and fades back in */
-.l2m-widthing .l2m-bar, .l2m-widthing .l2m-menu, .l2m-widthing .l2m-fnsheet, .l2m-widthing .app-toast, .l2m-widthing .l2m-peek {
+.l2m-widthing :is(.glass-top, .glass-bottom) {
   transition: left 360ms cubic-bezier(0.2, 0.8, 0.2, 1), right 360ms cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 .l2m-widthing .bar-inner, .l2m-widthing .peek-row, .l2m-widthing .sheet-inner { transition: max-width 360ms cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -2161,8 +2004,6 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 /* the bar for what is selected (the three colours, Note, Find), and a mark's sheet: glass sheets from the bottom,
    as a footnote's; nothing in them selects (a press keeps the paper's selection), but the note's text */
 /* a mark's sheet rises with the keyboard as it comes (and the page after it), not at once ahead of it */
-.l2m-marksheet.open { transition: transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, visibility 0s, bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
-@media (prefers-reduced-motion: reduce) { .l2m-marksheet.open { transition-duration: 0.01s; } }
 .l2m-markbar, .l2m-marksheet { z-index: 43; font-family: var(--ui); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* (as tall as the bars at the top, its buttons as the sheets' (48px), its icons as every bar's (24px)) */
 .l2m-markbar { padding-top: 8px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px); }
@@ -2278,3 +2119,83 @@ html.l2m-thumbed .l2m-thumb.none { display: none; }
 html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-duration: 120ms; }
 .l2m-thumb:hover > i, .l2m-thumb.drag > i { width: 7px; background: color-mix(in srgb, var(--ink) 40%, transparent); }
 @media (prefers-reduced-motion: reduce) { .l2m-thumb, .l2m-thumb > i { transition-duration: 0.01s; } }
+
+/* ============================================================ glass
+   Every piece of glass is one material in one of a few shapes, so that a skin (glass, flat, ...) is a set of values
+   here and nothing else. The material, .glass: its fill and what it does to what is behind it, its edge, its soap film
+   (the colours belong to the screen, the rim to the glass's edges), its shadow and its corners. The shapes:
+     .glass-top     the bar, and the panels that grow from it (contents, notes, settings; the library's settings and
+                    "+"): the edge, rim and shadow below, the bottom corners round
+     .glass-bottom  the footers (a message, the marking bar, a note's and a footnote's sheet, the library's sheet for a
+                    paper) and the peek: glued to the foot of the screen, the edge, rim and shadow above, the top corners
+                    round; a footer slides up and fades in, and back (nav.js's L2M_footer)
+     .glass-round   small glass on its own (a figure's button, the pull to refresh): round all round
+   and .glass-cover, the frosted screen behind a figure shown on its own. */
+:root {
+  --g-fill: var(--glass);                                   /* the glass's colour, seen through */
+  --g-fill-solid: var(--glass-solid);                       /* where a browser draws no blur */
+  --g-blur: blur(8px) saturate(1.5);                        /* what it does to what is behind it */
+  --g-line: var(--bar-line);                                /* its edge */
+  --g-film: url(film.webp);                                 /* the soap film (how strong: --film-o) */
+  --g-shadow-top: 0 10px 30px -20px var(--bar-shadow);      /* glass at the top casts down */
+  --g-shadow-bottom: 0 -14px 36px -22px var(--bar-shadow);  /* glass at the foot casts up */
+  --g-shadow-round: 0 2px 10px -2px var(--bar-shadow);      /* small glass, lifted a little */
+  --g-cover-fill: color-mix(in srgb, var(--ground) 90%, transparent);
+  --g-cover-blur: blur(10px) saturate(1.3);
+  --g-r: 16px;                                              /* its corners */
+  --g-move: 320ms cubic-bezier(0.2, 0.8, 0.2, 1);           /* a footer coming and going */
+}
+.glass { background-color: var(--g-fill); background-image: none; -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background-color: var(--g-fill-solid); } }
+.glass::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: var(--g-film) 0 0 / 900px 900px repeat; opacity: var(--film-o);
+  mix-blend-mode: var(--film-blend);      /* on dark glass the film adds light, as a reflection does */
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+}
+.glass-cover { background-color: var(--g-cover-fill); -webkit-backdrop-filter: var(--g-cover-blur); backdrop-filter: var(--g-cover-blur); }
+
+/* at the top: the film laid from the screen's top (on wide screens its left edge too), the rim at the bottom edge */
+.glass-top { border-bottom: 1px solid var(--g-line); border-radius: 0 0 var(--g-r) var(--g-r); box-shadow: var(--g-shadow-top); }
+.glass-top::before { inset: 0 0 auto 0; height: 100%; background-position: var(--glass-x) 0;
+  -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides); }
+
+/* at the foot: the film set against the glass's place on the screen as it moves (L2M_pinFilm), the rim at the top
+   edge (glass inside a footer, the peek's head, takes the footer's) */
+.glass-bottom {
+  position: fixed; left: 0; right: 0; bottom: env(keyboard-inset-height, 0px);    /* (on a keyboard laid over the page) */
+  border-top: 1px solid var(--g-line); border-radius: var(--g-r) var(--g-r) 0 0; box-shadow: var(--g-shadow-bottom);
+  transform: translateY(calc(100% + 12px)); opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform var(--g-move), opacity 220ms ease, visibility 0s linear 320ms;
+}
+.glass-bottom.open { transform: none; opacity: 1; visibility: visible; pointer-events: auto; transition: transform var(--g-move), opacity 220ms ease, visibility 0s; }
+.glass-bottom::before, .glass-bottom .glass::before { background-position: var(--film-x, 0px) var(--film-y, 0px);
+  -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides); }
+body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }   /* (the page scrolls on as far) */
+
+/* small and round: no film (too small for its colours) */
+.glass-round { border: 1px solid var(--g-line); border-radius: 50%; box-shadow: var(--g-shadow-round); }
+.glass-round::before { content: none; }
+
+/* wide screens: the bar, the panels and the footers as wide as the page, centred */
+@media (min-width: 800px) {
+  .glass-top, .glass-bottom { left: calc((100% - var(--chrome-w)) / 2); right: calc((100% - var(--chrome-w)) / 2); }
+}
+@media (prefers-reduced-motion: reduce) { .glass-top, .glass-bottom, .glass-bottom.open { transition-duration: 0.01s; } }
+
+/* the peek: a footer of its own kind, of the page's ground with a glass head; it rises further, without a fade, and is
+   dragged (no motion meanwhile); made the page, it rises to the bar, its corners squaring, its ground and head fading
+   into the bar (nav.js) */
+.l2m-peek {
+  bottom: 0; z-index: 38; height: var(--peek-h, 46vh); box-sizing: border-box; background: var(--ground); overflow: hidden; opacity: 1; pointer-events: auto;
+  transform: translateY(calc(100% + 24px)); transition: transform var(--g-move), visibility 0s linear 320ms; will-change: transform;
+}
+.l2m-peek.open { transform: none; transition: transform var(--g-move), visibility 0s; }
+.l2m-peek.dragging { transition: none; }
+.l2m-peek.expanding {
+  border-radius: 0; box-shadow: none; border-top-color: transparent; background-color: transparent;
+  transition: height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 340ms ease, box-shadow 200ms ease,
+              border-color 200ms ease, background-color 190ms ease 150ms;
+}
+/* a note's sheet rises with the keyboard as it comes (and the page after it), not at once ahead of it */
+.l2m-marksheet.open { transition: transform var(--g-move), opacity 220ms ease, visibility 0s, bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }

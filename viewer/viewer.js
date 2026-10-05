@@ -120,7 +120,7 @@
       library: o.onLibrary ? '<button type="button" class="bar-btn" data-act="library" aria-label="All papers">' + (I.library || "") + "</button>" : ""
     };
     var always = theme.barShows !== "afterTitle";
-    var bar = '<header class="l2m-bar' + (always ? ' show" aria-hidden="false"' : '" aria-hidden="true"') + ' id="l2m-bar"><div class="bar-inner">' +
+    var bar = '<header class="l2m-bar glass glass-top' + (always ? ' show" aria-hidden="false"' : '" aria-hidden="true"') + ' id="l2m-bar"><div class="bar-inner">' +
       (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") +
       ((theme.bar || []).indexOf("search") >= 0 ?
         '<div class="bar-find" role="search"><span class="find-box"><input class="app-field" type="search" enterkeyhint="search" placeholder="Search, \\phi, or x_?" ' +
@@ -130,15 +130,15 @@
         '<button type="button" class="bar-btn find-next" data-act="find-next" aria-label="Next match">' + (I.chevron || "") + "</button>" +
         '<button type="button" class="bar-btn" data-act="find-close" aria-label="Close the search">' + (I.close || "") + "</button></div>" : "") +
       "</div></header>\n";
-    var menu = '<nav class="l2m-menu" id="l2m-menu" aria-label="Contents" aria-hidden="true"><div class="menu-inner">' +
+    var menu = '<nav class="l2m-menu glass glass-top" id="l2m-menu" aria-label="Contents" aria-hidden="true"><div class="menu-inner">' +
       '<p class="menu-head">Contents</p><ol></ol></div></nav>\n';
-    var settings = '<div class="l2m-menu l2m-settings" id="l2m-settings" role="dialog" aria-label="Reading settings" aria-hidden="true">' +
+    var settings = '<div class="l2m-menu l2m-settings glass glass-top" id="l2m-settings" role="dialog" aria-label="Reading settings" aria-hidden="true">' +
       '<div class="menu-inner">' + readingSettings(theme) + "</div></div>\n";
-    var sheet = hasNotes ? '<div class="l2m-fnsheet" id="l2m-fnsheet" role="dialog" aria-label="Footnote" aria-hidden="true" tabindex="-1">' +
+    var sheet = hasNotes ? '<div class="l2m-fnsheet glass glass-bottom" id="l2m-fnsheet" role="dialog" aria-label="Footnote" aria-hidden="true" tabindex="-1">' +
       '<div class="sheet-inner"><div class="sheet-head"><span class="sheet-title">Note <span class="sheet-num"></span></span>' +
       '<button type="button" class="bar-btn" data-act="fnclose" aria-label="Close note">' + (I.close || "") + "</button></div>" +
       '<div class="sheet-body"></div></div></div>\n' : "";
-    var viewer = '<div class="l2m-viewer" id="l2m-viewer" role="dialog" aria-modal="true" aria-label="Figure" aria-hidden="true" tabindex="-1">' +
+    var viewer = '<div class="l2m-viewer glass-cover" id="l2m-viewer" role="dialog" aria-modal="true" aria-label="Figure" aria-hidden="true" tabindex="-1">' +
       '<div class="viewer-top"><span class="viewer-title"></span><button type="button" class="viewer-goto" data-act="goto">Show in text</button>' +
       '<button type="button" class="bar-btn" data-act="vclose" aria-label="Close">' + (I.close || "") + "</button></div>" +
       '<div class="viewer-stage"><div class="viewer-content"></div></div><div class="viewer-cap"></div></div>\n';

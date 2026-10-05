@@ -19,6 +19,16 @@ window.L2M_pinFilm = function (el, ms) {
     if (performance.now() < end) requestAnimationFrame(step);
   })();
 };
+// A footer (glass at the foot of the screen, theme.css's .glass-bottom: a message, the marking bar, a note's or a
+// footnote's sheet, the library's sheet for a paper) comes and goes one way: open or not, said so to assistive
+// technology (a message is a live region: left as it is, so that it is read out), its film kept where it is on the
+// screen as it moves. Who opens it keeps its own place in the history (Back closes it).
+window.L2M_footer = function (el, open) {
+  if (!el) return;
+  el.classList.toggle("open", !!open);
+  if (el.getAttribute("role") !== "status") el.setAttribute("aria-hidden", open ? "false" : "true");
+  window.L2M_pinFilm(el, 360);
+};
 window.L2M_nav = function (opts) {
   "use strict";
   opts = opts || {};
@@ -1313,17 +1323,13 @@ window.L2M_nav = function (opts) {
     activeRef = ref;
     ref.classList.add("active");
     if (!sheet.classList.contains("open")) overlayIn("l2mSheet");
-    sheet.classList.add("open");
-    sheet.setAttribute("aria-hidden", "false");
-    L2M_pinFilm(sheet, 360);
+    L2M_footer(sheet, true);
     return true;
   }
   function closeSheet(how) {              // how: as overlayOut's
     if (!sheet || !sheet.classList.contains("open")) return;
     overlayOut("l2mSheet", how);
-    sheet.classList.remove("open");
-    sheet.setAttribute("aria-hidden", "true");
-    L2M_pinFilm(sheet, 360);
+    L2M_footer(sheet, false);
     if (activeRef) { activeRef.classList.remove("active"); activeRef = null; }
   }
 
@@ -1418,7 +1424,7 @@ window.L2M_nav = function (opts) {
       if (f.parentElement.closest("figure.float")) return;
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "fig-open";
+      b.className = "fig-open glass glass-round";
       b.setAttribute("aria-label", f.classList.contains("table") ? "Open table" : "Open figure");
       b.innerHTML = EXPAND;
       f.insertBefore(b, f.firstChild);
@@ -1540,13 +1546,13 @@ window.L2M_nav = function (opts) {
     if (peek) return;
     var I = theme.icons || {};
     peek = document.createElement("div");
-    peek.className = "l2m-peek";
+    peek.className = "l2m-peek glass-bottom";
     peek.id = "l2m-peek";
     peek.setAttribute("role", "region");
     peek.setAttribute("aria-label", "Second view of the paper");
     peek.setAttribute("aria-hidden", "true");
     peek.innerHTML = '<div class="peek-scroll"><main class="peek-main" tabindex="-1"></main></div>' +
-      '<div class="peek-head"><span class="peek-grab" aria-hidden="true"></span><div class="peek-row">' +
+      '<div class="peek-head glass"><span class="peek-grab" aria-hidden="true"></span><div class="peek-row">' +
       '<button type="button" class="bar-btn peek-back" aria-label="Back in the second view" hidden>' + (I.back || "&lsaquo;") + "</button>" +
       '<span class="peek-title"></span>' +
       '<button type="button" class="bar-btn peek-expand" aria-label="Read here in the full page">' + (I.expand || "&#8599;") + "</button>" +
