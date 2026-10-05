@@ -125,16 +125,18 @@
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
-  // A change of colours (theme, tone), the glass staying in sight: at once, the new ground comes in over the page (a
-  // veil under the glass), its words going; under it, out of sight, the page and the glass are restyled, the glass under
-  // a copy of itself in its old colours (nothing moving meanwhile); then the glass's copy fades out over it in its new
-  // colours as the new words come in. Every move is an opacity, which the compositor plays at its own pace however busy
-  // the page is; nothing heavy is done at the tap, and the second fade begins once the restyle is on the screen.
-  // (A view transition restyled the page three times)
+  // A change of colours (theme, tone), the glass staying in sight. At once, the ground and the glass turn to the new
+  // colours as the words go, the page's and the glass's: a veil in the new ground comes in over the page (under the
+  // glass), a layer in the new ground comes in inside each piece of glass (under its film: with the new ground behind
+  // it, that is the new glass's look), and the glass's contents fade out. Under all that, out of sight, the page and the
+  // glass are restyled (nothing moving meanwhile: on a phone a moment); then the layers go (the glass is now as they
+  // were) and the new words come in, the page's and the glass's. Every move is an opacity, which the compositor plays at
+  // its own pace however busy the page is, and nothing heavy is done at the tap. (A view transition restyled the page
+  // three times)
   var veil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, MID = 220, IN = 220;
   function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
   var GLASS = ".glass-top, .glass-bottom.glass";             // (the glass in sight: the bar, a panel, a footer; not the peek,
-  var ghosts = [];                                           // which is of the page) [the glass, its copy, its hold unseen]
+  var tints = [];                                            // which is of the page) [the glass's new-ground layer, its contents' fades]
   function shown(el) { return !el.checkVisibility || el.checkVisibility({visibilityProperty: true, opacityProperty: true}); }
   function glassShown() {                                   // (the glass is the page's own, or in its chrome: looked for
     var out = [];                                            // there, not through a paper's tens of thousands of elements)
@@ -144,35 +146,30 @@
     });
     return out.filter(shown);
   }
-  function ghostsOver() {                                    // the glass in sight copied as it is, its colours held in it
-    var cs = getComputedStyle(root), held = [];
-    for (var i = 0; i < cs.length; i++) if (cs[i].lastIndexOf("--", 0) === 0) held.push([cs[i], cs.getPropertyValue(cs[i])]);
-    // (all read first, then all written: a read after a write would have the page work out its styles anew)
-    var seen = glassShown().map(function (el) {
-      var own = getComputedStyle(el), from = el.querySelectorAll("*"), at = [];
-      for (var k = 0; k < from.length; k++) {                // (where its lists are scrolled to, what its fields hold)
-        if (from[k].scrollTop || from[k].scrollLeft) at.push([k, "scrollTop", from[k].scrollTop], [k, "scrollLeft", from[k].scrollLeft]);
-        if ("value" in from[k] && from[k].value !== from[k].getAttribute("value")) at.push([k, "value", from[k].value]);
-      }
-      // (the ones it has from the page; not its own, as a panel's unrolling: held, the copy would be rolled up)
-      return [el, held.filter(function (h) { return own.getPropertyValue(h[0]) === h[1]; }), at];
-    });
-    ghosts = seen.map(function (x) {
-      var el = x[0], g = el.cloneNode(true), to = g.querySelectorAll("*");
-      x[1].forEach(function (h) { g.style.setProperty(h[0], h[1]); });
-      g.style.colorScheme = cs.colorScheme;
-      g.style.pointerEvents = "none";
-      g.setAttribute("aria-hidden", "true");
-      g.inert = true;
-      el.after(g);
-      return [el, g, el.animate ? el.animate([{opacity: 0}], {fill: "forwards"}) : null, to, x[2]];
-    });
-    ghosts.forEach(function (x) {
-      x[4].forEach(function (a) { try { x[3][a[0]][a[1]] = a[2]; } catch (e) {} });
-      x.length = 3;
+  function tintsIn(ground) {                                 // the glass to its new look, its contents out
+    tints = glassShown().map(function (el) {
+      var t = document.createElement("span");
+      t.className = "l2m-tint";
+      t.setAttribute("aria-hidden", "true");
+      t.style.backgroundColor = ground;
+      el.appendChild(t);
+      var fades = [t.animate([{opacity: 0}, {opacity: 1}], {duration: MID, easing: "ease-in-out", fill: "forwards"})];
+      Array.prototype.forEach.call(el.children, function (c) {
+        if (c !== t && !c.classList.contains("l2m-film")) fades.push(c.animate([{opacity: 1}, {opacity: 0}], {duration: MID, easing: "ease-in-out", fill: "forwards"}));
+      });
+      return [t, fades];
     });
   }
-  function ghostsGone() { ghosts.forEach(function (x) { if (x[2]) x[2].cancel(); x[1].remove(); }); ghosts = []; }
+  function tintsOut(fade) {                                  // the layers gone (the glass as they were), its contents in
+    tints.forEach(function (x) {
+      x[0].remove();
+      x[1].slice(1).forEach(function (a) {
+        a.cancel();
+        if (fade) a.effect.target.animate([{opacity: 0}, {opacity: 1}], {duration: IN, easing: "ease-in-out"});
+      });
+    });
+    tints = [];
+  }
   function groundOf(to) {                                    // the page's ground once TO ({theme} or {tone}) is applied
     var theme = to.theme != null ? to.theme : root.getAttribute("data-theme") || "system";
     var tone = to.tone != null ? to.tone : root.getAttribute("data-tone") || DEF.tone;
@@ -191,33 +188,25 @@
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
     window.L2M_endFade();
     if (!veil) veil = makeVeil("l2m-veil-new");
-    veil.style.backgroundColor = groundOf(to || {});
+    var ground = groundOf(to || {});
+    veil.style.backgroundColor = ground;
     veil.classList.remove("cut", "out");
     veilApply = apply;
     barHeld = true;
-    function crossfade() {                                   // the glass's copy out over it (the new in under the old first,
-      ghosts.forEach(function (x) {                          // the old out over it after: two half-shown panes of glass
-        if (x[2]) x[2].cancel();                             // would show the page through them)
-        x[2] = null;
-        x[0].animate([{opacity: 0}, {opacity: 1}], {duration: MID / 2, easing: "ease-out"});
-        x[1].animate([{opacity: 1}, {opacity: 0}], {duration: MID, easing: "ease-in", fill: "forwards"});
-      });
-    }
-    veil.classList.add("on");                                // 1. the new ground in, the words going
+    veil.classList.add("on");                                // 1. the ground and the glass to the new colours, the words out
+    if (Element.prototype.animate) tintsIn(ground);
     veilT = setTimeout(function () {
-        var f = veilApply;
-        veilApply = null;
-        if (Element.prototype.animate) ghostsOver();         // 2. the glass held as it is, in a copy,
-        f();                                                 //    and the page and the glass restyled, out of sight
-        getComputedStyle(root).color;
-        releaseBar();                                        //    (the browser's bar: in the new ground)
-        afterPaint(function () {
-          crossfade();                                       // 3. the glass to its new colours, the new words in
-          veil.classList.add("out");
-          veil.classList.remove("on");
-          veilT = setTimeout(ghostsGone, IN + 40);
-        });
-      }, MID + 10);
+      var f = veilApply;
+      veilApply = null;
+      f();                                                   // 2. the page and the glass restyled, out of sight
+      getComputedStyle(root).color;
+      releaseBar();                                          //    (the browser's bar: in the new ground)
+      afterPaint(function () {
+        tintsOut(true);                                      // 3. the new words in, the page's and the glass's
+        veil.classList.add("out");
+        veil.classList.remove("on");
+      });
+    }, MID + 10);
     return true;
   };
   // A panel is one piece of glass growing from the bar's (theme.css): it moves down by its height less the bar's, which
@@ -249,7 +238,7 @@
     if (veilRaf) { cancelAnimationFrame(veilRaf); veilRaf = 0; }
     if (veilApply) { var f = veilApply; veilApply = null; f(); }
     if (veil) { veil.classList.add("cut"); veil.classList.remove("on", "out"); }
-    ghostsGone();
+    tintsOut(false);
     releaseBar();
   };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)

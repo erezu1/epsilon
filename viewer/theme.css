@@ -2215,3 +2215,5 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 .glass-bottom.grow:not(.open) { transform: translateY(calc(100% - var(--from-h, 0px))); opacity: 1; }
 .glass-bottom.grow.open { transition: transform var(--g-move), visibility 0s, bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .glass-bottom.l2m-now { transition: none !important; }
+/* a change of colours: inside each piece of glass, a layer in the new ground comes in under its film (prefs.js) */
+.l2m-tint { position: absolute; inset: 0; z-index: -2; pointer-events: none; border-radius: inherit; }
