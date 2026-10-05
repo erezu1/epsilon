@@ -125,15 +125,56 @@
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
-  // A change of colours (theme, tone), in three fades over the whole screen, the glass too: everything fades into its
-  // ground; the ground fades into the new one, while the page and its glass are restyled under it, out of sight; and
-  // once they are drawn anew, the new ground fades away over them in their new colours. Each fade is a veil's opacity,
-  // which the compositor plays at its own pace however busy the page is (theme.css's .l2m-veil), so the heavy part (the
-  // restyle) adds no time and holds nothing up. (The glass kept in sight while it changed took a copy of it, its new
-  // colours worked out beforehand, and, on a phone, a slow first frame that ate the fade; a view transition restyled the
-  // page three times)
+  // A change of colours (theme, tone): the page's words fade out into its ground (a veil over the page, under the
+  // glass); the page is restyled under it, out of sight, and the glass too, under a copy of itself in its old colours
+  // (the screen holds still meanwhile); then, once that is drawn, the ground and the glass change colour together (a
+  // second veil in the new ground fading in over the first, the glass's copy fading out over the glass in its new
+  // colours); and the new words fade in. Every move is an opacity, which the compositor plays at its own pace however
+  // busy the page is, and the heavy part (the restyle, the copy) is done while nothing moves. (The glass changed ahead
+  // of the page, at the tap, made a slow first frame on a phone, which ate the fade; a view transition restyled the page
+  // three times)
   var veil = null, veil2 = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, OUT = 180, MID = 200;
   function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
+  var GLASS = ".glass-top, .glass-bottom.glass";             // (the glass in sight: the bar, a panel, a footer; not the peek,
+  var ghosts = [];                                           // which is of the page) [the glass, its copy, its hold unseen]
+  function shown(el) { return !el.checkVisibility || el.checkVisibility({visibilityProperty: true, opacityProperty: true}); }
+  function glassShown() {                                   // (the glass is the page's own, or in its chrome: looked for
+    var out = [];                                            // there, not through a paper's tens of thousands of elements)
+    Array.prototype.forEach.call(document.body.children, function (c) {
+      if (c.matches(GLASS)) out.push(c);
+      else if (c.classList.contains("l2m-chrome")) Array.prototype.forEach.call(c.children, function (d) { if (d.matches(GLASS)) out.push(d); });
+    });
+    return out.filter(shown);
+  }
+  function ghostsOver() {                                    // the glass in sight copied as it is, its colours held in it
+    var cs = getComputedStyle(root), held = [];
+    for (var i = 0; i < cs.length; i++) if (cs[i].lastIndexOf("--", 0) === 0) held.push([cs[i], cs.getPropertyValue(cs[i])]);
+    // (all read first, then all written: a read after a write would have the page work out its styles anew)
+    var seen = glassShown().map(function (el) {
+      var own = getComputedStyle(el), from = el.querySelectorAll("*"), at = [];
+      for (var k = 0; k < from.length; k++) {                // (where its lists are scrolled to, what its fields hold)
+        if (from[k].scrollTop || from[k].scrollLeft) at.push([k, "scrollTop", from[k].scrollTop], [k, "scrollLeft", from[k].scrollLeft]);
+        if ("value" in from[k] && from[k].value !== from[k].getAttribute("value")) at.push([k, "value", from[k].value]);
+      }
+      // (the ones it has from the page; not its own, as a panel's unrolling: held, the copy would be rolled up)
+      return [el, held.filter(function (h) { return own.getPropertyValue(h[0]) === h[1]; }), at];
+    });
+    ghosts = seen.map(function (x) {
+      var el = x[0], g = el.cloneNode(true), to = g.querySelectorAll("*");
+      x[1].forEach(function (h) { g.style.setProperty(h[0], h[1]); });
+      g.style.colorScheme = cs.colorScheme;
+      g.style.pointerEvents = "none";
+      g.setAttribute("aria-hidden", "true");
+      g.inert = true;
+      el.after(g);
+      return [el, g, el.animate ? el.animate([{opacity: 0}], {fill: "forwards"}) : null, to, x[2]];
+    });
+    ghosts.forEach(function (x) {
+      x[4].forEach(function (a) { try { x[3][a[0]][a[1]] = a[2]; } catch (e) {} });
+      x.length = 3;
+    });
+  }
+  function ghostsGone() { ghosts.forEach(function (x) { if (x[2]) x[2].cancel(); x[1].remove(); }); ghosts = []; }
   function groundOf(to) {                                    // the page's ground once TO ({theme} or {tone}) is applied
     var theme = to.theme != null ? to.theme : root.getAttribute("data-theme") || "system";
     var tone = to.tone != null ? to.tone : root.getAttribute("data-tone") || DEF.tone;
@@ -158,24 +199,29 @@
     veil2.classList.remove("cut", "out");
     veilApply = apply;
     barHeld = true;
-    veil.classList.add("on");                                // 1. everything into its ground
+    veil.classList.add("on");                                // 1. the words out into the ground
     veilT = setTimeout(function () {
-      var t0 = performance.now();
-      veil2.classList.add("on");                             // 2. the ground into the new one,
-      afterPaint(function () {                               //    (that fade under way on the screen)
-        var f = veilApply;
-        veilApply = null;
-        f();                                                 //    the page restyled under it
-        getComputedStyle(root).color;
-        releaseBar();                                        //    (the browser's bar: the screen is in the new ground)
-        afterPaint(function () {                             // 3. drawn anew, and the second fade done: the new colours in
-          veilT = setTimeout(function () {
-            veil.classList.add("cut");
-            veil.classList.remove("on");                     //    (under the new ground: unseen)
-            veil2.classList.add("out");
-            veil2.classList.remove("on");
-          }, Math.max(0, MID - (performance.now() - t0)));
-        });
+      var f = veilApply;
+      veilApply = null;
+      if (Element.prototype.animate) ghostsOver();           // 2. the glass held as it is, in a copy,
+      f();                                                   //    and the page and the glass restyled, out of sight
+      getComputedStyle(root).color;
+      releaseBar();                                          //    (the browser's bar: in the new ground)
+      afterPaint(function () {                               // 3. once drawn: the ground and the glass to the new colours,
+        veil2.classList.add("on");                           //    together
+        ghosts.forEach(function (x) {
+          if (x[2]) x[2].cancel();
+          x[2] = null;
+          x[0].animate([{opacity: 0}, {opacity: 1}], {duration: MID / 2, easing: "ease-out"});   // (the new in under the
+          x[1].animate([{opacity: 1}, {opacity: 0}], {duration: MID, easing: "ease-in", fill: "forwards"});   // old first,
+        });                                                  //    the old out over it after: two half-shown panes of glass
+        veilT = setTimeout(function () {                     //    would show the page through them)
+          ghostsGone();
+          veil.classList.add("cut");
+          veil.classList.remove("on");                       //    (under the new ground: unseen)
+          veil2.classList.add("out");
+          veil2.classList.remove("on");                      // 4. the new words in
+        }, MID + 20);
       });
     }, OUT + 10);
     return true;
@@ -209,6 +255,7 @@
     if (veilRaf) { cancelAnimationFrame(veilRaf); veilRaf = 0; }
     if (veilApply) { var f = veilApply; veilApply = null; f(); }
     [veil, veil2].forEach(function (v) { if (v) { v.classList.add("cut"); v.classList.remove("on", "out"); } });
+    ghostsGone();
     releaseBar();
   };
   // found words marked as a highlighter would (a band over the letters): where the browser draws it (Chromium)
