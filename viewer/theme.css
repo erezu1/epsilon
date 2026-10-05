@@ -491,11 +491,13 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .titleblock > .kicker, .titleblock > h1:first-of-type { padding-right: 36px; }
 /* theme changes crossfade the whole page (View Transitions), or pass under a quick veil */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
-/* a change of colours (prefs.js): the page's words fade into its ground (a veil over the page, under the bar and the
-   panels), then the new colours come in together, the words with them */
-.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 180ms ease-in-out; }
+/* a change of colours (prefs.js): two veils over the whole screen, the glass too. Everything fades into its ground
+   (the first, 180ms); the ground into the new one (the second over it, 200ms: the page restyled meanwhile, out of
+   sight); then the new ground fades away over the page in its new colours (220ms) */
+.l2m-veil { position: fixed; inset: 0; z-index: 90; opacity: 0; pointer-events: none; transition: opacity 180ms ease-in-out; }
+.l2m-veil-new { z-index: 91; transition-duration: 200ms; }
 .l2m-veil.on { opacity: 1; }
-.l2m-veil.out { transition-duration: 200ms; }
+.l2m-veil.out { transition-duration: 220ms; }
 .l2m-veil.cut { transition: none; }
 
 /* footnote sheet, slides up from the bottom (glass, place and motion: .glass .glass-bottom) */
