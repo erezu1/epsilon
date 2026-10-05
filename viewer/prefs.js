@@ -344,6 +344,7 @@
       l.href = "https://fonts.googleapis.com/css2?family=" + theme.uiFont + "&display=swap";
       (document.head || root).appendChild(l);
     }
+    if (theme.skin && theme.skin !== "glass") root.setAttribute("data-skin", theme.skin); else root.removeAttribute("data-skin");   // (theme.css)
     var p = window.L2M_prefs();
     window.L2M_applyFont(p.font || DEF.font);
     window.L2M_applyTheme(p.theme || DEF.appearance);

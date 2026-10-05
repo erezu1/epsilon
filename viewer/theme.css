@@ -209,7 +209,7 @@ details.toc li { margin: 0.18em 0; }
 .tocnum:empty { display: none; }
 
 /* theorem-like environments */
-.thm { background: var(--surface); border-radius: 6px; padding: 0.85em 1em 0.1em; margin: 1.1em 0 1.2em; }
+.thm { background: var(--surface); border-radius: var(--r); padding: 0.85em 1em 0.1em; margin: 1.1em 0 1.2em; }
 .thm-name { font-weight: 700; }
 .thm-opt { font-weight: 400; }
 .defn { margin: 1em 0 1.1em; }
@@ -322,9 +322,9 @@ figcaption .capname { font-weight: 700; }
 .center .table-wrap table { margin-inline: auto; }
 .flushright { text-align: right; }
 blockquote { margin: 0 0 0.9em; padding-left: 1.1em; border-left: 2px solid var(--rule); }
-pre { font-family: var(--mono); font-size: 0.82em; line-height: 1.45; background: var(--surface); padding: 0.8em 0.9em; border-radius: 6px; overflow-x: auto; margin: 0 0 1em; }
+pre { font-family: var(--mono); font-size: 0.82em; line-height: 1.45; background: var(--surface); padding: 0.8em 0.9em; border-radius: var(--r); overflow-x: auto; margin: 0 0 1em; }
 code { font-family: var(--mono); font-size: 0.86em; }
-.omitted { color: var(--muted); font-style: italic; border: 1px dashed var(--rule); border-radius: 6px; padding: 0.8em; text-align: center; }
+.omitted { color: var(--muted); font-style: italic; border: 1px dashed var(--rule); border-radius: var(--r); padding: 0.8em; text-align: center; }
 
 /* references */
 .references { margin-top: 2.5em; }
@@ -353,7 +353,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   width: 38px;
   height: 38px;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--r-round);
   background: transparent;
   color: var(--ink);
   display: grid;
@@ -384,7 +384,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   align-items: center;
   gap: 8px;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: var(--r);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -422,7 +422,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .menu-head { margin: 0; padding: 6px 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .l2m-menu ol { list-style: none; margin: 0; padding: 0; }
 .l2m-menu li { margin: 0; }
-.l2m-menu a { display: flex; gap: 0.45em; padding: 7px 10px; border-radius: 9px; color: var(--ink); font-size: var(--fs); line-height: 1.35; }
+.l2m-menu a { display: flex; gap: 0.45em; padding: 7px 10px; border-radius: var(--r); color: var(--ink); font-size: var(--fs); line-height: 1.35; }
 @media (hover: hover) { .l2m-menu a:hover { background: var(--bar-hover); text-decoration: none; } }
 .l2m-menu a.current { background: var(--bar-current); }
 .l2m-menu .lvl2 a { padding-left: 1.6em; }
@@ -431,12 +431,12 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 /* reading settings: same glass panel as the contents */
 .l2m-settings .menu-inner { max-width: 30rem; padding-bottom: 16px; }
 .seg, .opt-list { position: relative; }
-.sel-ind { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 9px; pointer-events: none;
+.sel-ind { position: absolute; left: 0; top: 0; z-index: 0; border-radius: var(--r); pointer-events: none;
            transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), width 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
                        height 240ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .sel-ind.no-anim { transition: none; }
 .opt-list .sel-ind { background: var(--bar-current); }
-.seg .sel-ind { background: var(--glass-solid); box-shadow: 0 1px 4px -1px var(--bar-shadow); }
+.seg .sel-ind { border-radius: var(--r-in); }
 .opt, .seg-btn { position: relative; z-index: 1; }
 .opt-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
 .opt {
@@ -446,7 +446,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   width: 100%;
   padding: 9px 10px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--r);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -461,7 +461,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .opt-check { margin-left: auto; align-self: center; display: grid; color: var(--link); opacity: 0; transform: scale(0.6);
              transition: opacity 160ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .opt[aria-checked="true"] .opt-check { opacity: 1; transform: none; }
-.seg { display: flex; gap: 3px; margin: 2px 6px 0; padding: 3px; border-radius: 12px; background: var(--bar-hover); }
+.seg { display: flex; gap: 3px; margin: 2px 6px 0; padding: 3px; border-radius: var(--r); background: var(--bar-hover); }
 .seg-btn {
   flex: 1 1 0;
   display: flex;
@@ -470,7 +470,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   gap: 6px;
   padding: 8px 6px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--r-in);
   background: transparent;
   color: var(--ink);
   font-family: var(--serif);
@@ -520,7 +520,7 @@ ol.fnlist .fn-text { min-width: 0; }
 /* where a link lands: a soft mark over the block (placed by nav.js), in the progress bar's blue, with feathered
    edges and no border; it comes up quickly and fades slowly. It tints what is under it: multiplied on light
    grounds (the ink stays black), screened on dark ones (the ink stays light). */
-.l2m-mark { position: absolute; z-index: 1; pointer-events: none; border-radius: 12px;
+.l2m-mark { position: absolute; z-index: 1; pointer-events: none; border-radius: var(--r);
   background: color-mix(in srgb, var(--progress) 15%, transparent);
   box-shadow: 0 0 14px 5px color-mix(in srgb, var(--progress) 11%, transparent);
   mix-blend-mode: multiply; opacity: 0; animation: l2mmark 2.2s cubic-bezier(0.3, 0, 0.3, 1) forwards; }
@@ -575,7 +575,7 @@ figure.float img { cursor: zoom-in; }
 .viewer-title { flex: 1 1 auto; font-family: var(--serif); font-weight: 600; font-size: 15.5px; }
 .viewer-goto {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 7px 13px;
   background: var(--bar-hover);
   color: var(--ink);
@@ -648,7 +648,7 @@ figure.float img { cursor: zoom-in; }
   display: inline-block;
   margin-top: 6px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 5px 12px;
   background: var(--bar-hover);
   color: var(--ink);
@@ -693,7 +693,7 @@ l2m-math { display: inline; }
 .l2m-menu a.here { background: var(--bar-current); }
 .app-note { color: var(--muted); }
 .app-pill {
-  display: inline-block; flex: 0 0 auto; border: 0; border-radius: 999px; padding: 6px 13px;
+  display: inline-block; flex: 0 0 auto; border: 0; border-radius: var(--r-pill); padding: 6px 13px;
   background: var(--bar-hover); color: var(--ink); font-family: var(--serif); font-size: 14px; line-height: 1.25;
   cursor: pointer; text-decoration: none; white-space: nowrap; -webkit-tap-highlight-color: transparent;
   transition: background-color 150ms ease;
@@ -738,7 +738,7 @@ a.lib-title { color: var(--ink); }
 }
 .l2m-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 1em 0 0; }
 .l2m-action {
-  border: 0; border-radius: 999px; padding: 6px 13px; background: var(--bar-hover); color: var(--ink);
+  border: 0; border-radius: var(--r-pill); padding: 6px 13px; background: var(--bar-hover); color: var(--ink);
   font-family: var(--serif); font-size: 14px; line-height: 1.25; cursor: pointer; text-decoration: none;
   transition: background-color 150ms ease;
 }
@@ -813,7 +813,7 @@ a.lib-title { color: var(--ink); }
 /* the arXiv categories: chips for the chosen ones, a searchable list that slides open */
 .app-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 10px 10px; }
 .app-chip {
-  display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; padding: 5px 11px;
+  display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: var(--r-pill); padding: 5px 11px;
   background: var(--bar-current); color: var(--ink); font-family: var(--serif); font-size: 14px; line-height: 1.2;
   font-variant-numeric: lining-nums; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color 150ms ease;
 }
@@ -884,7 +884,6 @@ a.lib-title { color: var(--ink); }
 /* a paper's bar: the title close to the back button, the other buttons packed at the right */
 .l2m-bar:not(.app-bar) .bar-inner { gap: 0; }
 .l2m-bar:not(.app-bar) .bar-title { padding-left: 2px; gap: 8px; margin-right: 4px; }
-.l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 40px; height: 44px; border-radius: 12px; }
 .l2m-bar:not(.app-bar) { padding-right: max(4px, env(safe-area-inset-right, 0px)); }
 
 /* New: the date stays at the top while its papers scroll under it */
@@ -1145,7 +1144,7 @@ a.lib-title { color: var(--ink); }
 }
 
 /* stand-ins while things load: the bar at once, and grey shapes where the text will be, pulsing gently */
-.skel { display: block; height: 0.78em; margin: 0 0 0.6em; border-radius: 6px;
+.skel { display: block; height: 0.78em; margin: 0 0 0.6em; border-radius: var(--r);
         background: color-mix(in srgb, var(--ink) 8%, transparent); animation: l2m-pulse 1.5s ease-in-out infinite; }
 .skel-list { margin: 0; padding: 0; }
 .skel-row { list-style: none; padding: 1.1rem 0 0.7rem; }
@@ -1258,7 +1257,7 @@ html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens:
 .app-feed-progress { width: auto; margin: 2px 0 10px; }
 /* a paper added and not opened yet: a small "New" before its details */
 .app-new-tag {
-  display: inline-block; margin-right: 8px; padding: 1px 7px 2px; border-radius: 999px; vertical-align: 1px;
+  display: inline-block; margin-right: 8px; padding: 1px 7px 2px; border-radius: var(--r-pill); vertical-align: 1px;
   font-family: var(--ui); font-size: 0.82em; font-weight: 600; letter-spacing: 0.02em; line-height: 1.35;
   color: var(--link); background: var(--bar-current);
 }
@@ -1288,9 +1287,9 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .app-confirm-q { flex: 1 0 100%; }
 /* round buttons are square, so their pressed and hover circle is a circle: the row's buttons 40px, the paper
    bar's 42px (both with the room they had) */
-.lib-rows .app-lib-row > .bar-btn { width: 40px; height: 40px; margin-top: -9px; border-radius: 50%; }
-.l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 42px; height: 42px; border-radius: 50%; }
-.l2m-bar:not(.app-bar) .bar-btn.swap { width: 44px; height: 44px; border-radius: 50%; }
+.lib-rows .app-lib-row > .bar-btn { width: 40px; height: 40px; margin-top: -9px; border-radius: var(--r-round); }
+.l2m-bar:not(.app-bar) .bar-btn:not(.swap) { width: 42px; height: 42px; border-radius: var(--r-round); }
+.l2m-bar:not(.app-bar) .bar-btn.swap { width: 44px; height: 44px; border-radius: var(--r-round); }
 /* buttons packed closer: each keeps its full tap target, overlapping its neighbour a little */
 .app-bar .bar-inner { gap: 0; }
 .app-bar .bar-inner > .bar-btn + .bar-btn { margin-left: -6px; }
@@ -1314,7 +1313,7 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
   transition: grid-template-rows 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease 60ms, margin-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .app-confirm-in {
   min-height: 0; overflow: hidden; display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px;
-  border-radius: 12px; background: var(--bar-hover); padding: 0 12px;
+  border-radius: var(--r); background: var(--bar-hover); padding: 0 12px;
   transition: padding 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .app-confirm.open .app-confirm-in { padding: 10px 10px 10px 14px; }
@@ -1402,7 +1401,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
    to System / View (in the same place, the same style), and search and add step aside; all back as it closes */
 .app-lead, .app-tabswap { display: grid; align-items: center; flex: 0 0 auto; }
 .app-lead > *, .app-tabswap > * { grid-area: 1 / 1; }
-.app-lead .app-close { justify-self: center; width: 40px; height: 40px; border-radius: 50%; }
+.app-lead .app-close { justify-self: center; width: 40px; height: 40px; border-radius: var(--r-round); }
 .app-lead .app-logo, .app-lead .app-close, .app-tabswap > .app-tabs, #app-search, #app-fold, #app-plus {
   transition: opacity 200ms ease, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0s;
 }
@@ -1521,7 +1520,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 /* the section title's highlight fits the words (with room to their left), inside the row: the row itself keeps the
    bar's height for one or two lines, so the underline below is never covered */
 .l2m-bar:not(.app-bar) .bar-inner { min-height: 53.2px; }
-.l2m-bar:not(.app-bar) .bar-title { min-height: 0; align-self: center; padding: 4px 10px; margin-left: -8px; border-radius: 10px; }
+.l2m-bar:not(.app-bar) .bar-title { min-height: 0; align-self: center; padding: 4px 10px; margin-left: -8px; border-radius: var(--r); }
 @media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-inner { min-height: 58.4px; } }
 .l2m-bar:not(.app-bar) .bar-title { padding: 3px 10px; }
 
@@ -1637,7 +1636,7 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
 .l2m-peek.dragging .peek-head { cursor: grabbing; }
 .peek-grab { display: block; width: 36px; height: 4px; border-radius: 999px; margin: 7px auto 1px; background: color-mix(in srgb, var(--ink) 22%, transparent); }
 .peek-row { display: flex; align-items: center; gap: 2px; max-width: calc(var(--page-w) + 4rem); margin: 0 auto; padding: 0 6px 5px; min-height: 42px; }
-.peek-row .bar-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; }
+.peek-row .bar-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: var(--r-round); }
 .peek-row .peek-back[hidden] { display: none; }
 .peek-title {
   flex: 1 1 auto; min-width: 0; padding-left: 12px; font-family: var(--ui); font-size: 12px; font-weight: 600;
@@ -1725,7 +1724,7 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 .find-count { flex: 0 0 auto; min-width: 2.6em; padding: 0 4px; text-align: right; font: 500 13px var(--ui); color: var(--muted);
   font-variant-numeric: tabular-nums; }
 .find-count.none { color: var(--danger); }
-.bar-find .bar-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%; }
+.bar-find .bar-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: var(--r-round); }
 .bar-find .bar-btn:disabled { opacity: 0.35; }
 .bar-find .find-prev svg { transform: rotate(180deg); }
 @keyframes l2m-find-in { from { opacity: 0; transform: translateX(36px) scaleX(0.92); } to { opacity: 1; transform: none; } }
@@ -1784,7 +1783,7 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
    after (the title's other lines, the reading line, authors, abstract) takes the row's full width */
 .lib-rows .app-lib-row.lib-flow { display: block; }
 .lib-rows .lib-flow > .lib-acts { float: right; display: flex; margin: -9px -4px -12px 10px; }   /* (as tall as a title line) */
-.lib-rows .lib-flow > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: 50%; margin: 0; }
+.lib-rows .lib-flow > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: var(--r-round); margin: 0; }
 .lib-rows .lib-flow > .app-lib-text { display: block; }
 .lib-rows .lib-flow > .app-lib-text > .lib-title, .lib-rows .lib-flow .lib-authors, .lib-rows .lib-flow .lib-meta { display: block; }
 /* how far a paper is read: a line right under its title (as the section title's in a paper), the row's width, on a
@@ -1951,7 +1950,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .lib-rows .lib-foot { display: flex; align-items: center; min-height: 30px; margin: 2px -8px -2px 0; }
 .lib-rows .lib-foot > .app-toggle { margin: 0; }
 .lib-rows .lib-foot > .lib-acts { display: flex; margin-left: auto; }
-.lib-rows .lib-foot > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: 50%; margin: -5px 0; }   /* (tap areas whole) */
+.lib-rows .lib-foot > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: var(--r-round); margin: -5px 0; }   /* (tap areas whole) */
 /* the authors and the rest on one line: the details as a quieter tail of it */
 .lib-rows .lib-flow .lib-byline > .lib-meta { display: inline; }
 .lib-title > .app-new-tag { font-size: 0.72em; vertical-align: 2px; }
@@ -2013,12 +2012,12 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mb-sep { flex: 0 0 auto; width: 1px; height: 32px; margin: 0 7px; background: var(--rule); }
 .mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-width: min(60px, 14vw); height: 48px; box-sizing: border-box;
-  border: 0; border-radius: 14px; padding: 3px 8px; background: transparent; color: var(--ink); cursor: pointer;
+  border: 0; border-radius: var(--r); padding: 3px 8px; background: transparent; color: var(--ink); cursor: pointer;
   font: 500 12.5px/1.2 var(--ui); transition: background-color 150ms ease; }
 .mb-btn svg { display: block; width: 24px; height: 24px; }
 .mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: min(48px, 10.5vw); height: 48px; border: 0; padding: 0;
-  border-radius: 50%; background: transparent; cursor: pointer; transition: background-color 150ms ease; }
-.mk-dot i { display: block; width: 26px; height: 26px; border-radius: 50%; background: var(--mk);
+  border-radius: var(--r-round); background: transparent; cursor: pointer; transition: background-color 150ms ease; }
+.mk-dot i { display: block; width: 26px; height: 26px; border-radius: var(--r-round); background: var(--mk);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 10%, transparent); transition: box-shadow 150ms ease; }
 .mk-dot.last i, .mk-dot[aria-pressed="true"] i { box-shadow: 0 0 0 2px var(--ground), 0 0 0 3.5px var(--muted); }
 @media (hover: hover) { .mb-btn:hover, .mk-dot:hover { background: var(--bar-hover); } }
@@ -2035,7 +2034,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-quote.long { -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent); mask-image: linear-gradient(to bottom, #000 62%, transparent); }
 .mk-quote a { color: inherit; pointer-events: none; }
 .mk-note { display: block; box-sizing: border-box; width: 100%; min-height: 2.9em; max-height: 40vh; margin: 0 0 2px; resize: none;
-  border: 1px solid var(--rule); border-radius: 12px; padding: 8px 12px; background: color-mix(in srgb, var(--ground) 72%, transparent);
+  border: 1px solid var(--rule); border-radius: var(--r); padding: 8px 12px; background: color-mix(in srgb, var(--ground) 72%, transparent);
   color: var(--ink); font: 400 16px/1.45 var(--ui); -webkit-user-select: text; user-select: text; transition: border-color 150ms ease; }
 .mk-note::placeholder { color: var(--muted); }
 .mk-was, .mk-by { margin: -4px 6px 10px; font: 400 13px/1.45 var(--ui); color: var(--muted); overflow-wrap: anywhere; }
@@ -2081,7 +2080,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-list { padding: 0 0 4px; }
 .mk-sec { margin: 12px 10px 2px; font: 500 12px/1.35 var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mk-list > .mk-sec:first-child { margin-top: 6px; }
-.l2m-menu a.mk-item, .mk-item { position: relative; display: block; padding: 7px 10px 8px 18px; border-radius: 9px; color: var(--ink); text-decoration: none; }
+.l2m-menu a.mk-item, .mk-item { position: relative; display: block; padding: 7px 10px 8px 18px; border-radius: var(--r); color: var(--ink); text-decoration: none; }
 .mk-item::before { content: ""; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px;
   background: color-mix(in srgb, var(--mk) 85%, transparent); }
 .mk-item.c1 { --mk: var(--mark-1); }
@@ -2142,9 +2141,14 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
   --g-shadow-round: 0 2px 10px -2px var(--bar-shadow);      /* small glass, lifted a little */
   --g-cover-fill: color-mix(in srgb, var(--ground) 90%, transparent);
   --g-cover-blur: blur(10px) saturate(1.3);
-  --g-r: 16px;                                              /* its corners */
+  --g-r: var(--r);                                          /* its corners */
   --g-move: 320ms cubic-bezier(0.2, 0.8, 0.2, 1);           /* a footer coming and going */
 }
+/* how round things are: one radius for every rounded box (the glass, a list's rows, a card, a switch, a theorem's box),
+   and the box sitting 3px inside another (a switch's chosen option) that much less, so its corners follow the outer
+   ones; round buttons and pills by their own names, so a skin may square them too. (Lines are round-ended whatever
+   the skin, as are the search's marker strokes) */
+:root { --r: 12px; --r-in: max(0px, calc(var(--r) - 3px)); --r-round: 50%; --r-pill: 999px; }
 .glass { background-color: var(--g-fill); background-image: none; -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background-color: var(--g-fill-solid); } }
 .glass::before {
@@ -2174,7 +2178,7 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }   /* (the page scrolls on as far) */
 
 /* small and round: no film (too small for its colours) */
-.glass-round { border: 1px solid var(--g-line); border-radius: 50%; box-shadow: var(--g-shadow-round); }
+.glass-round { border: 1px solid var(--g-line); border-radius: var(--r-round); box-shadow: var(--g-shadow-round); }
 .glass-round::before { content: none; }
 
 /* wide screens: the bar, the panels and the footers as wide as the page, centred */
@@ -2199,3 +2203,16 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 }
 /* a note's sheet rises with the keyboard as it comes (and the page after it), not at once ahead of it */
 .l2m-marksheet.open { transition: transform var(--g-move), opacity 220ms ease, visibility 0s, bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* ============================================================ skins
+   A skin is a set of the values above: the glass's (--g-*, --film-o) and how round things are (--r, --r-round,
+   --r-pill). Glass is the one above; a skin is chosen in theme.json ("skin"). A first flat one: the page's own
+   ground, no blur, no film, no shadows, a plain line for the edge, squarer corners. */
+:root[data-skin="flat"] {
+  --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
+  --g-line: var(--rule);
+  --g-shadow-top: none; --g-shadow-bottom: none; --g-shadow-round: none;
+  --g-cover-fill: var(--ground); --g-cover-blur: none;
+  --film-o: 0;
+  --r: 6px; --r-round: 8px;
+}
