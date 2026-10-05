@@ -506,17 +506,35 @@ window.L2M_nav = function (opts) {
     "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"};
   function hex(c) { return c.toString(16).toUpperCase(); }
   var FONTCMD = /^(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm|operatorname)$/;
+  // a letter or digit in \mathcal{...} and the like, as drawn: the codes it may have (the drawing's own: \mathcal's
+  // letters are the plain ones in its calligraphic font, \mathbb's and \mathbf's are Unicode's double-struck and bold)
+  var ODD = {mathbb: {C: "2102", H: "210D", N: "2115", P: "2119", Q: "211A", R: "211D", Z: "2124"},
+    mathfrak: {C: "212D", H: "210C", I: "2111", R: "211C", Z: "2128"},
+    mathscr: {B: "212C", E: "2130", F: "2131", H: "210B", I: "2110", L: "2112", M: "2133", R: "211B", e: "212F", g: "210A", o: "2134"}};
+  var FROM = {mathbb: [0x1D538, 0x1D552, 0x1D7D8], mathfrak: [0x1D504, 0x1D51E], mathscr: [0x1D49C, 0x1D4B6],
+    mathbf: [0x1D400, 0x1D41A, 0x1D7CE], boldsymbol: [0x1D468, 0x1D482, 0x1D7CE], bm: [0x1D468, 0x1D482, 0x1D7CE],
+    mathsf: [0x1D5A0, 0x1D5BA, 0x1D7E2], mathtt: [0x1D670, 0x1D68A, 0x1D7F6]};
+  function fontGlyph(font, c) {
+    var k = c.charCodeAt(0), plain = hex(k), at = c <= "9" ? 2 : c < "a" ? 0 : 1, base = FROM[font] && FROM[font][at];
+    var codes = [plain];
+    if (ODD[font] && ODD[font][c]) codes.push(ODD[font][c]);
+    else if (base) codes.push(hex(base + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
+    if (font === "boldsymbol" || font === "bm") codes.push(hex(FROM.mathbf[at] + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
+    if (font === "mathit" && at < 2) codes.push(hex((at ? 0x1D44E : 0x1D434) + k - (at ? 97 : 65)));
+    return codes;
+  }
   function glyphsOf(q) {
-    var out = [], i = 0, m, wildTo = -1;              // letters in \mathcal{...} and the like: drawn in their own fonts
+    var out = [], i = 0, m, fontTo = -1, font = "";   // letters in \mathcal{...} and the like: drawn in their own fonts
     while (i < q.length) {
       var c = q.charAt(i);
       if ((m = /^\\([A-Za-z]+|.)/.exec(q.slice(i)))) {
         var name = m[1]; i += m[0].length;
         if (FONTCMD.test(name)) {
+          font = name === "operatorname" ? "mathrm" : name;
           if (q.charAt(i) === "{") {
             for (var d = 0, e = i; e < q.length; e++) { if (q.charAt(e) === "{") d++; else if (q.charAt(e) === "}" && !--d) break; }
-            wildTo = e;
-          } else wildTo = i + 1;
+            fontTo = e;
+          } else fontTo = i + 1;
           continue;
         }
         if (GLYPH[name]) out.push([GLYPH[name]]);
@@ -527,7 +545,7 @@ window.L2M_nav = function (opts) {
         continue;
       }
       i++;
-      if (i - 1 < wildTo && /[A-Za-z0-9]/.test(c)) { out.push(["*"]); continue; }
+      if (i - 1 < fontTo && /[A-Za-z0-9]/.test(c)) { out.push(fontGlyph(font, c)); continue; }
       if (/[A-Za-z]/.test(c)) {
         var k = c.charCodeAt(0), it = c === "h" ? "210E" : hex((c < "a" ? 0x1D434 + k - 65 : 0x1D44E + k - 97));
         out.push([it, hex(k)]);
