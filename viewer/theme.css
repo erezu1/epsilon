@@ -2212,3 +2212,8 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 .app-pull, .app-refresh { border-radius: 50%; }
 /* the settings (System, View): as tall as the screen lets them be, below the bar, so that what they hold shows whole */
 .app-settings .menu-inner { max-height: calc(100vh - var(--l2m-bar-h, 64px) - 24px); max-height: calc(100dvh - var(--l2m-bar-h, 64px) - 24px); }
+/* a footer growing out of another (a note's sheet out of the marking bar, marks.js): it starts as the other, its top edge
+   where the other's is (--from-h: the other's height), and rises from there; the other gives way at once */
+.glass-bottom.grow:not(.open) { transform: translateY(calc(100% - var(--from-h, 0px))); opacity: 1; }
+.glass-bottom.grow.open { transition: transform var(--g-move), visibility 0s, bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.glass-bottom.l2m-now { transition: none !important; }

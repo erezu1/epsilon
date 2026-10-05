@@ -465,7 +465,7 @@ window.L2M_marks = function (host) {
     if (!b) return;
     if (b.hasAttribute("data-c")) { make(+b.getAttribute("data-c")); return; }
     var what = b.getAttribute("data-mb");
-    if (what === "note") { var id = make(picked || colourOf(), true); if (id) openSheet(id, true); }    // (the sheet takes its step)
+    if (what === "note") noteFromDock(picked || colourOf());    // (the sheet takes its step)
     else if (what === "find") {
       var sel = window.getSelection();             // (the selection, as it was when the bar came)
       if (lastRange && (!sel.rangeCount || sel.isCollapsed)) { sel.removeAllRanges(); sel.addRange(lastRange); }
@@ -473,6 +473,16 @@ window.L2M_marks = function (host) {
       host.find();
     }
   });
+  // the selection marked and its note begun: the note's sheet grows out of the marking bar (the bar gone at once, the
+  // sheet starting where it was)
+  function noteFromDock(c) {
+    var h = dockOpen ? dock.offsetHeight : 0;
+    if (h) dock.classList.add("l2m-now");
+    var id = make(c, true);
+    if (id) openSheet(id, true, h);
+    if (h) { getComputedStyle(dock).opacity; dock.classList.remove("l2m-now"); }
+    return id;
+  }
   function clearSel(keep) {
     var sel = window.getSelection && window.getSelection();
     if (sel) sel.removeAllRanges();
@@ -569,7 +579,7 @@ window.L2M_marks = function (host) {
     relay();
     listChanged();
   }
-  function openSheet(id, write) {
+  function openSheet(id, write, fromH) {          // fromH: grown out of the marking bar, that tall
     var m = store.all()[id];
     if (!live(m)) return;
     if (sheetOpen && openId !== id) saveNote();
@@ -579,6 +589,17 @@ window.L2M_marks = function (host) {
       host.closeOthers();                          // (the contents or settings, a footnote's sheet)
       host.overlayIn("l2mMark");
       sheetOpen = true;
+      // from the marking bar: the sheet grows out of it (it starts as the bar, its top edge where the bar's is, and rises
+      // from there; the bar gives way to it in the same frame, theme.css's .glass-bottom.grow), not one going down and
+      // the other coming up
+      if (fromH) {
+        sheet.style.setProperty("--from-h", fromH + "px");
+        sheet.classList.add("l2m-now", "grow");    // (put there at once, not moved there)
+        getComputedStyle(sheet).transform;
+        sheet.classList.remove("l2m-now");
+        clearTimeout(sheet.l2mGrowT);
+        sheet.l2mGrowT = setTimeout(function () { sheet.classList.remove("grow"); }, 400);
+      }
       if (window.L2M_footer) L2M_footer(sheet, true);
       fitKeyboard(false);
     }
@@ -680,9 +701,8 @@ window.L2M_marks = function (host) {
     if (!r) return;
     e.preventDefault();
     if (r) lastRange = r.cloneRange();
-    var id = make(picked || colourOf());
+    var id = noteFromDock(picked || colourOf());
     if (!id) return;
-    openSheet(id, true);
     note.value = e.key;
     note.setSelectionRange(1, 1);
     grow();
