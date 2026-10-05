@@ -176,6 +176,13 @@
       x.length = 3;
     });
   }
+  // the colours a change gives the glass ahead of the page, taken off again as the page has them: in every way a change
+  // ends (one cut short by the next too: else they stay on the glass, and it keeps them through the changes after)
+  var pinned = [];                                           // [the glass, the colours set on it]
+  function unpin() {
+    pinned.forEach(function (h) { h[0].style.colorScheme = ""; h[1].forEach(function (k) { h[0].style.removeProperty(k); }); });
+    pinned = [];
+  }
   function ghostsGone() { ghosts.forEach(function (x) { if (x[2]) x[2].cancel(); x[1].remove(); }); ghosts = []; }
   function groundOf(to) {                                    // the page's ground once TO ({theme} or {tone}) is applied
     var theme = to.theme != null ? to.theme : root.getAttribute("data-theme") || "system";
@@ -240,16 +247,16 @@
       veil = document.createElement("div"); veil.className = "l2m-veil"; document.body.appendChild(veil);
       getComputedStyle(veil).opacity;
     }
-    var fresh = Element.prototype.animate ? newColours(to || {}) : null, held = [];
+    var fresh = Element.prototype.animate ? newColours(to || {}) : null;
     if (fresh) {                                             // the glass in its new colours at once, under a copy in its old
       var cs = getComputedStyle(root), old = {};
       for (var k in fresh) old[k] = cs.getPropertyValue(k);
       ghostsOver(Object.keys(fresh));
-      held = ghosts.map(function (x) {                       // (what each has from the page: read all, then written)
+      pinned = ghosts.map(function (x) {                     // (what each has from the page: read all, then written)
         var own = getComputedStyle(x[0]);
         return [x[0], Object.keys(fresh).filter(function (k) { return k !== "color-scheme" && own.getPropertyValue(k) === old[k]; })];
       });
-      held.forEach(function (h) {
+      pinned.forEach(function (h) {
         h[1].forEach(function (k) { h[0].style.setProperty(k, fresh[k]); });
         if (fresh["color-scheme"]) h[0].style.colorScheme = fresh["color-scheme"];
       });
@@ -270,7 +277,7 @@
       veilApply = null;
       if (!fresh && Element.prototype.animate) ghostsOver(); // (no new colours known before: the glass changes with the words)
       f();                                                   // (the restyle)
-      held.forEach(function (h) { h[0].style.colorScheme = ""; h[1].forEach(function (k) { h[0].style.removeProperty(k); }); });
+      unpin();
       if (fresh) ghostsGone();
       getComputedStyle(root).color;
       releaseBar();                                          // (the browser's bar: the screen is in the new ground)
@@ -313,6 +320,7 @@
   window.L2M_endFade = function () {           // (at once: the change applied, the veil and the copies gone)
     clearTimeout(veilT);
     if (veilApply) { var f = veilApply; veilApply = null; f(); }
+    unpin();
     if (veil) { veil.classList.add("cut"); veil.classList.remove("on", "out"); }
     ghostsGone();
     releaseBar();
