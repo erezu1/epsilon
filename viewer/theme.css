@@ -759,7 +759,7 @@ a.lib-title { color: var(--ink); }
 @media (hover: hover) { .app-bar .app-tabs .seg-btn:hover { color: var(--ink); background: none; } }
 .app-bar .app-tabs .seg-btn[aria-checked="true"] { color: var(--ink); }
 .app-bar .app-tabs .sel-ind {
-  top: auto; bottom: 3px; height: 2px; border-radius: 2px; background: var(--ink); box-shadow: none;
+  top: auto; bottom: 3px; height: 2px; border-radius: var(--r-line); background: var(--ink); box-shadow: none;
   transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .app-spacer { flex: 1 1 auto; }
@@ -1173,7 +1173,7 @@ main.l2m-arrive { animation: l2m-arrive 240ms ease-out; }
 .skel-bar, #boot-chrome { pointer-events: none; }
 #boot-chrome .app-tabs .sel-ind { display: none; }
 #boot-chrome .app-tabs .seg-btn[aria-checked="true"]::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 3px; border-radius: 2px; background: var(--ink);
+  content: ""; position: absolute; left: 0; right: 0; bottom: 5px; height: 3px; border-radius: var(--r-line); background: var(--ink);
 }
 .app-bar .app-tabs .sel-ind.no-anim { transition: none; }
 
@@ -1367,8 +1367,8 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .l2m-bar .bar-progress { transition: opacity 180ms ease 120ms; }
 .l2m-bar.menu-open .bar-progress { opacity: 0; transition: opacity 160ms ease; }
 /* the underline sits evenly on the glass (between the back and settings buttons), round at both ends */
-.l2m-bar .bar-progress { left: 50px; right: 50px; height: 3px; border-radius: 999px; }
-.l2m-bar .bar-progress > i { border-radius: 999px; min-width: 3px; }
+.l2m-bar .bar-progress { left: 50px; right: 50px; height: 3px; border-radius: var(--r-line); }
+.l2m-bar .bar-progress > i { border-radius: var(--r-line); min-width: 3px; }
 .l2m-bar .bar-progress { left: 46px; }   /* (the bar's inner area sits 4px right of centre) */
 
 /* the settings' tabs (System / View): text tabs with a sliding line, as the bar's; panes slide sideways and the
@@ -1381,7 +1381,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .set-tabs .seg-btn[aria-checked="true"] { color: var(--ink); }
 @media (hover: hover) { .set-tabs .seg-btn:hover { color: var(--ink); background: none; } }
 .set-tabs .sel-ind {
-  top: auto; bottom: 2px; height: 3px; border-radius: 2px; background: var(--ink); box-shadow: none;
+  top: auto; bottom: 2px; height: 3px; border-radius: var(--r-line); background: var(--ink); box-shadow: none;
   transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), width 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .set-view { overflow: hidden; transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -1390,9 +1390,9 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 @media (prefers-reduced-motion: reduce) { .set-view, .set-track, .set-tabs .sel-ind { transition: none; } }
 
 /* every progress line round at both ends: sized by width (a stretched line would stretch its ends too) */
-.app-progress, .app-progress span { border-radius: 999px; }
+.app-progress, .app-progress span { border-radius: var(--r-line); }
 .lib-rows > li[data-read]::after {
-  right: auto; width: calc(var(--read, 0) * 100%); min-width: 3px; transform: none; border-radius: 999px;
+  right: auto; width: calc(var(--read, 0) * 100%); min-width: 3px; transform: none; border-radius: var(--r-line);
   transition: width 900ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 .lib-rows > li.read-still::after { transition: none; }
@@ -1528,7 +1528,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-tabswap { position: relative; }
 .app-tabswap .app-tabs .sel-ind { visibility: hidden; }
 .swap-ind {
-  position: absolute; left: 0; bottom: 21px; height: 3px; width: 0; border-radius: 2px; background: var(--ink);
+  position: absolute; left: 0; bottom: 21px; height: 3px; width: 0; border-radius: var(--r-line); background: var(--ink);
   pointer-events: none; z-index: 1;
   transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), width 440ms cubic-bezier(0.3, 0.7, 0.25, 1);
 }
@@ -1634,7 +1634,7 @@ html.l2m-vt::view-transition-old(l2m-bar), html.l2m-vt::view-transition-new(l2m-
   border-bottom: 1px solid var(--g-line);
 }
 .l2m-peek.dragging .peek-head { cursor: grabbing; }
-.peek-grab { display: block; width: 36px; height: 4px; border-radius: 999px; margin: 7px auto 1px; background: color-mix(in srgb, var(--ink) 22%, transparent); }
+.peek-grab { display: block; width: 36px; height: 4px; border-radius: var(--r-line); margin: 7px auto 1px; background: color-mix(in srgb, var(--ink) 22%, transparent); }
 .peek-row { display: flex; align-items: center; gap: 2px; max-width: calc(var(--page-w) + 4rem); margin: 0 auto; padding: 0 6px 5px; min-height: 42px; }
 .peek-row .bar-btn { flex: 0 0 auto; width: 40px; height: 40px; border-radius: var(--r-round); }
 .peek-row .peek-back[hidden] { display: none; }
@@ -1789,9 +1789,9 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
 /* how far a paper is read: a line right under its title (as the section title's in a paper), the row's width, on a
    faint track, round, filled as far as it is read; below the buttons when the title is short */
 .lib-rows > li[data-read]::after { display: none; }
-.lib-read { display: block; clear: right; position: relative; height: var(--line, 3px); margin: 8px 0 7px; border-radius: 999px;
+.lib-read { display: block; clear: right; position: relative; height: var(--line, 3px); margin: 8px 0 7px; border-radius: var(--r-line);
   background: color-mix(in srgb, var(--progress) 16%, transparent); }
-.lib-read > i { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--read, 0) * 100%); min-width: 3px; border-radius: 999px;
+.lib-read > i { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--read, 0) * 100%); min-width: 3px; border-radius: var(--r-line);
   background: var(--progress); transition: width 900ms cubic-bezier(0.25, 0.8, 0.25, 1); }
 .lib-rows > li.read-still .lib-read > i { transition: none; }
 @media (prefers-reduced-motion: reduce) { .lib-read > i { transition: none; } }
@@ -1832,10 +1832,10 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
 
 /* the reading underline: a rounded bar that slides into place inside a rounded clip (moved by the graphics card, so
    scrolling paints nothing); its right end is its own, its left end the clip's; the glow follows the visible part */
-.l2m-bar .bar-progress > i { position: absolute; inset: 0; width: auto; min-width: 0; overflow: hidden; border-radius: 999px;
+.l2m-bar .bar-progress > i { position: absolute; inset: 0; width: auto; min-width: 0; overflow: hidden; border-radius: var(--r-line);
   background: none; box-shadow: none;
   filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--progress) 45%, transparent)) drop-shadow(0 1px 0.75px color-mix(in srgb, var(--shade) 14%, transparent)); }
-.l2m-bar .bar-progress > i > b { position: absolute; inset: 0; border-radius: 999px; background: var(--progress);
+.l2m-bar .bar-progress > i > b { position: absolute; inset: 0; border-radius: var(--r-line); background: var(--progress);
   transform: translateX(calc(3px - 100%)); will-change: transform; }
 @supports (animation-timeline: scroll()) {
   .l2m-bar .bar-progress > i > b { animation: l2m-read linear both; animation-timeline: scroll(root block); animation-range: 0px var(--read-end, 100%); }
@@ -2066,7 +2066,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 @media (hover: hover) { .mk-tab:hover { color: var(--ink); } }
 .mk-tab:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; border-radius: 4px; }
 .mk-count { letter-spacing: 0.04em; }
-.mk-tab-line { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; border-radius: 2px; background: var(--ink);
+.mk-tab-line { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; border-radius: var(--r-line); background: var(--ink);
   transition: transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1), width 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 /* the two lists on a strip, as the settings' panes: it slides to the one shown (with the finger on a swipe), and the
    panel takes that one's height as it goes, in the same time. Each list scrolls in its own box (as the panel's list
@@ -2081,7 +2081,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-sec { margin: 12px 10px 2px; font: 500 12px/1.35 var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mk-list > .mk-sec:first-child { margin-top: 6px; }
 .l2m-menu a.mk-item, .mk-item { position: relative; display: block; padding: 7px 10px 8px 18px; border-radius: var(--r); color: var(--ink); text-decoration: none; }
-.mk-item::before { content: ""; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px;
+.mk-item::before { content: ""; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 3px; border-radius: var(--r-line);
   background: color-mix(in srgb, var(--mk) 85%, transparent); }
 .mk-item.c1 { --mk: var(--mark-1); }
 .mk-item.c2 { --mk: var(--mark-2); }
@@ -2113,7 +2113,7 @@ html.l2m-thumbed .l2m-thumb {
   opacity: 0; transition: opacity 280ms ease; touch-action: none; -webkit-user-select: none; user-select: none;
 }
 html.l2m-thumbed .l2m-thumb.none { display: none; }
-.l2m-thumb > i { display: block; width: 4px; height: 100%; margin: 0 auto; border-radius: 999px;
+.l2m-thumb > i { display: block; width: 4px; height: 100%; margin: 0 auto; border-radius: var(--r-line);
   background: color-mix(in srgb, var(--ink) 26%, transparent); transition: width 150ms ease, background-color 150ms ease; }
 html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-duration: 120ms; }
 .l2m-thumb:hover > i, .l2m-thumb.drag > i { width: 7px; background: color-mix(in srgb, var(--ink) 40%, transparent); }
@@ -2146,9 +2146,9 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 }
 /* how round things are: one radius for every rounded box (the glass, a list's rows, a card, a switch, a theorem's box),
    and the box sitting 3px inside another (a switch's chosen option) that much less, so its corners follow the outer
-   ones; round buttons and pills by their own names, so a skin may square them too. (Lines are round-ended whatever
-   the skin, as are the search's marker strokes) */
-:root { --r: 12px; --r-in: max(0px, calc(var(--r) - 3px)); --r-round: 50%; --r-pill: 999px; }
+   ones; round buttons, pills and the ends of lines by their own names, so a skin may square them too (the search's
+   marker strokes keep their drawn shape; the refresh button and the pull to refresh are round in every skin) */
+:root { --r: 12px; --r-in: max(0px, calc(var(--r) - 3px)); --r-round: 50%; --r-pill: 999px; --r-line: 999px; }
 .glass { background-color: var(--g-fill); background-image: none; -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background-color: var(--g-fill-solid); } }
 .glass::before {
@@ -2208,7 +2208,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
    A skin is a set of the values above: the glass's (--g-*, --film-o) and how round things are (--r, --r-round,
    --r-pill). Glass is the one above; the reader chooses one in the settings (System, Style), theme.json ("skin")
    the app's own. Flat: the page's own ground, no blur, no film, a plain line for the edge, squarer corners, and a
-   soft, wide shadow (all round, as the glass's) to lift it off the page. */
+   soft, wide shadow (all round, as the glass's) to lift it off the page; every corner square. */
 :root[data-skin="flat"] {
   --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
   --g-line: var(--rule);
@@ -2216,5 +2216,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
-  --r: 6px; --r-round: 8px;
+  --r: 0px; --r-round: 0px; --r-pill: 0px; --r-line: 0px;      /* (wholly rectangular) */
 }
+/* refreshing is a turn: its button and the pull to refresh round in every skin */
+.app-pull, .app-refresh { border-radius: 50%; }
