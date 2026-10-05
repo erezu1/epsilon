@@ -115,6 +115,28 @@ python3 "$E/epsilon_library.py" --library "$L" unmark 2607.14042 <id>  # take on
 - Leave the user's own marks alone unless they ask; `unmark` is for your own.
 - Link to a mark with the link the tool prints (`#mark-<id>`), as to an equation (section 3).
 
+## 5. Searching a paper in the app, and what its copies look like
+
+The search in a paper's bar (the magnifier) finds words in the text and TeX in the formulas. When the user asks
+how to find something in a paper, tell them what to type there:
+
+- Words as a browser finds them; a symbol by name (`phi`, `\phi`, `φ`) wherever it is drawn; more TeX (`x^2`,
+  `\frac{1}{2}`, `Z_{\text{JT}}`) in the formulas that have it, each place marked where it stands.
+- One symbol however it is written: typed symbols (`α`, `≤`, `≠`, `x²`, `a₁`); other spellings (`<=`, `\le` and
+  `\leq`; `!=`, `\ne` and `\neq`; `\to` and `\rightarrow`; `\epsilon` and `\varepsilon`, `\phi` and
+  `\varphi`, ...); with or without `\left`, `\right`, `\big`; fractions in any form (`\frac12`, `\dfrac{1}{2}`).
+- A letter typed plainly is found in any font and with any accent or prime: `B>1` finds `\mathcal{B}>1`,
+  `\bar{B}>1` and `B'>1`. Typed with the font or accent (`\mathcal{B}`, `\tilde{Z}`), only that one.
+- `?` stands for any one symbol, `{?}` for anything in braces: `P_?` finds every P with a subscript,
+  `\frac{?}{2}` every half of something.
+- `$...$` searches the formulas only; a passage copied with its formulas (`the trace $\mathrm{Tr}\,\rho$ is`) is
+  found as it stands.
+
+When the user copies from a paper, each formula comes as its TeX (`$...$` in a line, `\[...\]` on its own line),
+with the paper's own macros written out so that it works anywhere, but the standard `physics` and `braket` commands
+(`\ket`, `\bra`, `\braket`, `\expval`, `\abs`, `\norm`, `\dv`, `\pdv`, `\Tr`, `\comm`, ...) kept as they are. So
+TeX pasted from Epsilon needs no preamble beyond amsmath and, if those appear, the physics or braket package.
+
 ## Writing LaTeX for Epsilon
 
 Ordinary LaTeX works: sections, `equation`/`align` with `\label` and `\eqref`, theorem environments, `\cite` with
