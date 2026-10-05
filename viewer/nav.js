@@ -1044,6 +1044,8 @@ window.L2M_nav = function (opts) {
   function formulaOf(n) { var el = n.nodeType === 1 ? n : n.parentElement; return el && el.closest && el.closest("mjx-container[data-n]"); }
   // the paper's own macros written out (\Tr, \ket{\psi}, \tilde made \widetilde ...), so that a formula copied works
   // anywhere: a macro is {name: "body"}, or [body, its number of arguments, the first one's default if it is optional]
+  // (kept as they are: the standard physics packages' commands, physics and braket, which work wherever those do)
+  var KEEP = /^(ket|bra|braket|ketbra|expval|ev|mel|matrixel|innerproduct|ip|outerproduct|op|dyad|Bra|Ket|Braket|Set|set|abs|norm|eval|qty|pqty|bqty|Bqty|vqty|comm|commutator|acomm|anticommutator|pb|poissonbracket|order|dd|dv|pdv|fdv|var|derivative|partialderivative|grad|gradient|div|divergence|curl|laplacian|vb|vu|va|vdot|vectorbold|vectorunit|vectorarrow|cross|tr|Tr|trace|Trace|rank|erf|Res|Re|Im|pv|PV|qq|qc|qcc|qif|qthen|qelse|qotherwise|qunless|qgiven|qusing|qassume|qsince|qlet|qfor|qall|qeven|qodd|qinteger|qand|qor|qas|qin|mqty|pmqty|bmqty|vmqty|smqty|spmqty|sbmqty|svmqty|imat|identitymatrix|xmat|zmat|pmat|dmat|admat)$/;
   function unmacro(t) {
     var M = opts.macros || {}, out, i, n = 0, m, changed = true;
     function arg(at) {                               // the argument at AT: [what it is, where it ends]
@@ -1059,7 +1061,7 @@ window.L2M_nav = function (opts) {
       while ((m = re.exec(t))) {
         var name = m[1], def = Object.prototype.hasOwnProperty.call(M, name) ? M[name] : null;
         if (name === "\\") { continue; }
-        if (def == null) continue;
+        if (def == null || KEEP.test(name)) continue;
         var body = typeof def === "string" ? def : String(def[0]), k = typeof def === "string" ? 0 : +def[1] || 0, at = m.index + m[0].length, args = [];
         if (k && def.length > 2 && def[2] != null) {      // an optional first argument, [..], or its default
           var j = at; while (/\s/.test(t.charAt(j))) j++;
