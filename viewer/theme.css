@@ -2206,12 +2206,14 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 
 /* ============================================================ skins
    A skin is a set of the values above: the glass's (--g-*, --film-o) and how round things are (--r, --r-round,
-   --r-pill). Glass is the one above; a skin is chosen in theme.json ("skin"). A first flat one: the page's own
-   ground, no blur, no film, no shadows, a plain line for the edge, squarer corners. */
+   --r-pill). Glass is the one above; the reader chooses one in the settings (System, Style), theme.json ("skin")
+   the app's own. Flat: the page's own ground, no blur, no film, a plain line for the edge, squarer corners, and a
+   soft, wide shadow (all round, as the glass's) to lift it off the page. */
 :root[data-skin="flat"] {
   --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
   --g-line: var(--rule);
-  --g-shadow: none; --g-shadow-round: none;
+  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 22%, transparent);
+  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
   --r: 6px; --r-round: 8px;

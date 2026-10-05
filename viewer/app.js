@@ -1325,7 +1325,11 @@
       '<p class="menu-head">On this device</p><p class="app-help app-pad">' +
       (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
            "No papers saved offline yet. In the library, tap the download button next to a paper.") + "</p>" +
-      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill app-danger" id="off-clear">Remove offline copies</button></p>' : "");
+      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill app-danger" id="off-clear">Remove offline copies</button></p>' : "") +
+      // the look of the app's glass: its skin (theme.css)
+      '<p class="menu-head">Style</p><div class="seg app-skin" role="radiogroup" aria-label="Style"><span class="sel-ind" aria-hidden="true"></span>' +
+      '<button type="button" class="seg-btn" role="radio" data-skin-opt="glass"><span>Glass</span></button>' +
+      '<button type="button" class="seg-btn" role="radio" data-skin-opt="flat"><span>Flat</span></button></div>';
     return h;
   }
   var skipPop = false;       // the history step of a panel closed by hand: already handled
@@ -1475,7 +1479,7 @@
     var D = theme.defaults || {};
     var want = {"data-font": prefs.font || D.font, "data-size-opt": prefs.size || D.size,
                 "data-theme-opt": prefs.theme || D.appearance, "data-tone-opt": prefs.tone || D.tone, "data-width-opt": prefs.width || "narrow",
-                "data-full-opt": prefs.full === "on" ? "on" : "off"};
+                "data-full-opt": prefs.full === "on" ? "on" : "off", "data-skin-opt": prefs.skin || theme.skin || "glass"};
     Object.keys(want).forEach(function (attr) {
       Array.prototype.forEach.call(inner.querySelectorAll("[" + attr + "]"), function (b) {
         b.setAttribute("aria-checked", b.getAttribute(attr) === want[attr] ? "true" : "false");
@@ -1502,7 +1506,7 @@
         requestAnimationFrame(function () { Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide); });
         return;
       }
-      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-full-opt], [data-width-opt], [data-cross]");
+      var b = e.target.closest("[data-font], [data-size-opt], [data-theme-opt], [data-tone-opt], [data-full-opt], [data-width-opt], [data-skin-opt], [data-cross]");
       if (!b) return;
       if (b.hasAttribute("data-font")) {
         showFont(b.getAttribute("data-font"));
@@ -1518,6 +1522,7 @@
       if (b.hasAttribute("data-size-opt")) { p.size = b.getAttribute("data-size-opt"); L2M_applySize(p.size); }
       if (b.hasAttribute("data-full-opt")) p.full = b.getAttribute("data-full-opt");
       if (b.hasAttribute("data-width-opt")) { p.width = b.getAttribute("data-width-opt"); L2M_changeWidth(p.width); }
+      if (b.hasAttribute("data-skin-opt")) { p.skin = b.getAttribute("data-skin-opt"); L2M_applySkin(p.skin); }
       var fade = function (f, to) { if (!(window.L2M_fade && L2M_fade(f, to))) f(); };
       if (b.hasAttribute("data-theme-opt")) { p.theme = b.getAttribute("data-theme-opt"); fade(function () { L2M_applyTheme(p.theme); }, {theme: p.theme}); }
       if (b.hasAttribute("data-tone-opt")) { p.tone = b.getAttribute("data-tone-opt"); fade(function () { L2M_applyTone(p.tone); }, {tone: p.tone}); }

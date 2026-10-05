@@ -23,6 +23,7 @@
     if (kept.tone && kept.tone !== "neutral") root.setAttribute("data-tone", kept.tone);
     if (kept.width && kept.width !== "narrow") root.setAttribute("data-width", kept.width);
     if (kept.size && kept.size !== "m") root.setAttribute("data-size", kept.size);
+    if (kept.skin && kept.skin !== "glass") root.setAttribute("data-skin", kept.skin);
   } catch (e) {}
   var FONTS = {}, DEF = {};
 
@@ -100,6 +101,7 @@
   }
   window.L2M_applyTheme = function (t) { attr("data-theme", t === "light" || t === "dark" ? t : "", "system"); barColour(); };
   window.L2M_applySize = function (z) { attr("data-size", z, DEF.size); };
+  window.L2M_applySkin = function (s) { attr("data-skin", s, "glass"); };      // (theme.css's skins)
   window.L2M_applyWidth = function (w) { attr("data-width", w, "narrow"); };
   // the page width chosen: at once the bars and panels glide to it while the text fades out; the text keeps its width
   // until it is out of sight, is then laid out anew (KEEP holds the reader's place through it) and fades back in
@@ -344,8 +346,8 @@
       l.href = "https://fonts.googleapis.com/css2?family=" + theme.uiFont + "&display=swap";
       (document.head || root).appendChild(l);
     }
-    if (theme.skin && theme.skin !== "glass") root.setAttribute("data-skin", theme.skin); else root.removeAttribute("data-skin");   // (theme.css)
     var p = window.L2M_prefs();
+    window.L2M_applySkin(p.skin || theme.skin || "glass");             // (the reader's, or the app's own)
     window.L2M_applyFont(p.font || DEF.font);
     window.L2M_applyTheme(p.theme || DEF.appearance);
     window.L2M_applySize(p.size || DEF.size);
