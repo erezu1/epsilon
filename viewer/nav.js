@@ -484,9 +484,14 @@ window.L2M_nav = function (opts) {
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
     return w;
   }
+  // a letter asked for plainly is found in any font (B in \mathcal{B} > 1, for B>1); asked for in one, only in it
+  var FONTED = /\\(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm)\{([^{}]*)\}/g;
   function texHas(tex, q) {
     var t = texNorm(tex), i;
-    q = texNorm(q); i = t.indexOf(q);
+    q = texNorm(q);
+    if (!FONTED.test(q)) t = t.replace(FONTED, "$2");
+    FONTED.lastIndex = 0;
+    i = t.indexOf(q);
     while (i >= 0) {
       // \phi is not the start of \phiup: after a command name the next character is no letter
       if (!(/\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
@@ -548,7 +553,7 @@ window.L2M_nav = function (opts) {
       if (i - 1 < fontTo && /[A-Za-z0-9]/.test(c)) { out.push(fontGlyph(font, c)); continue; }
       if (/[A-Za-z]/.test(c)) {
         var k = c.charCodeAt(0), it = c === "h" ? "210E" : hex((c < "a" ? 0x1D434 + k - 65 : 0x1D44E + k - 97));
-        out.push([it, hex(k)]);
+        out.push([it, hex(k)].concat(Object.keys(FROM).map(function (f) { return fontGlyph(f, c)[1]; })));   // (and in any font)
       } else if (/[0-9]/.test(c)) out.push([hex(c.charCodeAt(0))]);
       else if (SYM[c]) out.push([SYM[c]].concat(c === "-" ? ["2D"] : c === "|" ? ["2223"] : []));
       else if (/[\s_^{}&~]/.test(c)) continue;
