@@ -384,7 +384,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   align-items: center;
   gap: 8px;
   padding: 6px;
-  border-radius: var(--r);
+  border-radius: var(--r-control);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -422,7 +422,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .menu-head { margin: 0; padding: 6px 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 .l2m-menu ol { list-style: none; margin: 0; padding: 0; }
 .l2m-menu li { margin: 0; }
-.l2m-menu a { display: flex; gap: 0.45em; padding: 7px 10px; border-radius: var(--r); color: var(--ink); font-size: var(--fs); line-height: 1.35; }
+.l2m-menu a { display: flex; gap: 0.45em; padding: 7px 10px; border-radius: var(--r-control); color: var(--ink); font-size: var(--fs); line-height: 1.35; }
 @media (hover: hover) { .l2m-menu a:hover { background: var(--bar-hover); text-decoration: none; } }
 .l2m-menu a.current { background: var(--bar-current); }
 .l2m-menu .lvl2 a { padding-left: 1.6em; }
@@ -431,7 +431,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 /* reading settings: same glass panel as the contents */
 .l2m-settings .menu-inner { max-width: 30rem; padding-bottom: 16px; }
 .seg, .opt-list { position: relative; }
-.sel-ind { position: absolute; left: 0; top: 0; z-index: 0; border-radius: var(--r); pointer-events: none;
+.sel-ind { position: absolute; left: 0; top: 0; z-index: 0; border-radius: var(--r-control); pointer-events: none;
            transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), width 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
                        height 240ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .sel-ind.no-anim { transition: none; }
@@ -446,7 +446,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   width: 100%;
   padding: 9px 10px;
   border: 0;
-  border-radius: var(--r);
+  border-radius: var(--r-control);
   background: transparent;
   color: var(--ink);
   text-align: left;
@@ -461,7 +461,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .opt-check { margin-left: auto; align-self: center; display: grid; color: var(--link); opacity: 0; transform: scale(0.6);
              transition: opacity 160ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .opt[aria-checked="true"] .opt-check { opacity: 1; transform: none; }
-.seg { display: flex; gap: 3px; margin: 2px 6px 0; padding: 3px; border-radius: var(--r); background: var(--bar-hover); }
+.seg { display: flex; gap: 3px; margin: 2px 6px 0; padding: 3px; border-radius: var(--r-control); background: var(--bar-hover); }
 .seg-btn {
   flex: 1 1 0;
   display: flex;
@@ -1522,7 +1522,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 /* the section title's highlight fits the words (with room to their left), inside the row: the row itself keeps the
    bar's height for one or two lines, so the underline below is never covered */
 .l2m-bar:not(.app-bar) .bar-inner { min-height: 53.2px; }
-.l2m-bar:not(.app-bar) .bar-title { min-height: 0; align-self: center; padding: 4px 10px; margin-left: -8px; border-radius: var(--r); }
+.l2m-bar:not(.app-bar) .bar-title { min-height: 0; align-self: center; padding: 4px 10px; margin-left: -8px; border-radius: var(--r-control); }
 @media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-inner { min-height: 58.4px; } }
 .l2m-bar:not(.app-bar) .bar-title { padding: 3px 10px; }
 
@@ -2014,7 +2014,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mb-sep { flex: 0 0 auto; width: 1px; height: 32px; margin: 0 7px; background: var(--rule); }
 .mb-btn { flex: 0 0 auto; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-width: min(60px, 14vw); height: 48px; box-sizing: border-box;
-  border: 0; border-radius: var(--r); padding: 3px 8px; background: transparent; color: var(--ink); cursor: pointer;
+  border: 0; border-radius: var(--r-control); padding: 3px 8px; background: transparent; color: var(--ink); cursor: pointer;
   font: 500 12.5px/1.2 var(--ui); transition: background-color 150ms ease; }
 .mb-btn svg { display: block; width: 24px; height: 24px; }
 .mk-dot { flex: 0 0 auto; display: inline-grid; place-items: center; width: min(48px, 10.5vw); height: 48px; border: 0; padding: 0;
@@ -2036,7 +2036,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-quote.long { -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent); mask-image: linear-gradient(to bottom, #000 62%, transparent); }
 .mk-quote a { color: inherit; pointer-events: none; }
 .mk-note { display: block; box-sizing: border-box; width: 100%; min-height: 2.9em; max-height: 40vh; margin: 0 0 2px; resize: none;
-  border: 1px solid var(--rule); border-radius: var(--r); padding: 8px 12px; background: color-mix(in srgb, var(--ground) 72%, transparent);
+  border: 1px solid var(--rule); border-radius: var(--r-control); padding: 8px 12px; background: color-mix(in srgb, var(--ground) 72%, transparent);
   color: var(--ink); font: 400 16px/1.45 var(--ui); -webkit-user-select: text; user-select: text; transition: border-color 150ms ease; }
 .mk-note::placeholder { color: var(--muted); }
 .mk-was, .mk-by { margin: -4px 6px 10px; font: 400 13px/1.45 var(--ui); color: var(--muted); overflow-wrap: anywhere; }
@@ -2082,7 +2082,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .mk-list { padding: 0 0 4px; }
 .mk-sec { margin: 12px 10px 2px; font: 500 12px/1.35 var(--ui); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mk-list > .mk-sec:first-child { margin-top: 6px; }
-.l2m-menu a.mk-item, .mk-item { position: relative; display: block; padding: 7px 10px 8px 18px; border-radius: var(--r); color: var(--ink); text-decoration: none; }
+.l2m-menu a.mk-item, .mk-item { position: relative; display: block; padding: 7px 10px 8px 18px; border-radius: var(--r-control); color: var(--ink); text-decoration: none; }
 .mk-item::before { content: ""; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 3px; border-radius: var(--r-line);
   background: color-mix(in srgb, var(--mk) 85%, transparent); }
 .mk-item.c1 { --mk: var(--mark-1); }
@@ -2146,11 +2146,12 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
   --g-r: var(--r);                                          /* its corners */
   --g-move: 320ms cubic-bezier(0.2, 0.8, 0.2, 1);           /* a footer coming and going */
 }
-/* how round things are: one radius for every rounded box (the glass, a list's rows, a card, a switch, a theorem's box),
+/* how round things are: one radius for the surfaces and boxes (the glass, a card, a theorem's box), one for what is
+   pressed or typed in (a list's rows, a switch, a field, the marking bar's buttons),
    and the box sitting 3px inside another (a switch's chosen option) that much less, so its corners follow the outer
    ones; round buttons, pills and the ends of lines by their own names, so a skin may square them too (the search's
    marker strokes keep their drawn shape; the refresh button and the pull to refresh are round in every skin) */
-:root { --r: 12px; --r-in: max(0px, calc(var(--r) - 3px)); --r-round: 50%; --r-pill: 999px; --r-line: 999px; }
+:root { --r: 12px; --r-control: 12px; --r-in: max(0px, calc(var(--r-control) - 3px)); --r-round: 50%; --r-pill: 999px; --r-line: 999px; }
 .glass { background-color: var(--g-fill); background-image: none; -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background-color: var(--g-fill-solid); } }
 .glass::before {
@@ -2218,7 +2219,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
-  --r: 0px;                     /* (the glass and every box square; buttons, pills and lines round, as in glass) */
+  --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
 }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
