@@ -216,9 +216,11 @@
   function coloursOf(theme, tone) {
     var d = probeReady();
     if (!d) return null;
-    var key = theme + "/" + tone + "/" + (!!window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+    var skin = root.getAttribute("data-skin") || "";        // (the skin the reader has: its glass, not the default's)
+    var key = theme + "/" + tone + "/" + skin + "/" + (!!window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
     if (colours[key]) return colours[key];
     var r = d.documentElement, o = {};
+    if (skin) r.setAttribute("data-skin", skin); else r.removeAttribute("data-skin");
     if (theme) r.setAttribute("data-theme", theme); else r.removeAttribute("data-theme");
     if (tone) r.setAttribute("data-tone", tone); else r.removeAttribute("data-tone");
     var cs = getComputedStyle(r);
