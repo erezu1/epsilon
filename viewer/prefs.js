@@ -134,7 +134,7 @@
   // the page itself, at every frame, had a frame only as often as the page could draw one: a few, on a phone).
   // (A view transition cross-faded two pictures of the page, but had the page restyled whole as it began and again as
   // it ended: three restyles for one change, the screen still until the second was done)
-  var veil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, OUT = 130, IN = 200;   // (theme.css's .l2m-veil)
+  var veil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, OUT = 180, IN = 200;   // (theme.css's .l2m-veil)
   var GLASS = ".l2m-bar, .l2m-menu, .l2m-fnsheet, .app-toast";    // (what stays above the veil)
   var ghosts = [];                                           // [the glass, its copy, the glass's hold out of sight]
   function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
@@ -262,29 +262,31 @@
         h[1].forEach(function (k) { h[0].style.setProperty(k, fresh[k]); });
         if (fresh["color-scheme"]) h[0].style.colorScheme = fresh["color-scheme"];
       });
-      ghosts.forEach(function (x) {
+    }
+    veil.style.backgroundColor = fresh && fresh["--ground"] || groundOf(to || {});   // (the ground moves to the new one as the words go)
+    veil.classList.remove("cut", "out");
+    veilApply = apply;
+    barHeld = true;
+    // (the glass, given its new colours, is drawn anew, out of sight under its copy, before anything moves: on a phone
+    // that frame is slow, and a fade begun with it would be over before it showed)
+    afterPaint(function () {
+      if (fresh) ghosts.forEach(function (x) {
         if (x[2]) x[2].cancel();                             // (the cross-fade, as the ground's: the new in under the old
         x[2] = null;                                         // first, the old out over it after; two half-shown panes of
         x[0].animate([{opacity: 0}, {opacity: 1}], {duration: OUT / 2, easing: "ease-out"});      // glass would show
         x[1].animate([{opacity: 1}, {opacity: 0}], {duration: OUT, easing: "ease-in", fill: "forwards"});   // the page)
       });
-    }
-    veil.style.backgroundColor = fresh && fresh["--ground"] || groundOf(to || {});   // (the ground moves to the new one as the words go)
-    veil.classList.remove("cut", "out");
-    veil.classList.add("on");                                // the words out, the ground and the glass to their new colours
-    veilApply = apply;
-    barHeld = true;
-    veilT = setTimeout(function () {
-      var f = veilApply;
-      veilApply = null;
-      if (!fresh && Element.prototype.animate) ghostsOver(); // (no new colours known before: the glass changes with the words)
-      f();                                                   // (the restyle)
-      unpin();
-      if (fresh) ghostsGone();
-      getComputedStyle(root).color;
-      releaseBar();                                          // (the browser's bar: the screen is in the new ground)
-      requestAnimationFrame(function () {                    // (and once the page is drawn anew, out of sight)
-        veilT = setTimeout(function () {
+      veil.classList.add("on");                              // the words out, the ground and the glass to their new colours
+      veilT = setTimeout(function () {
+        var f = veilApply;
+        veilApply = null;
+        if (!fresh && Element.prototype.animate) ghostsOver(); // (no new colours known before: the glass changes with the words)
+        f();                                                 // (the restyle)
+        unpin();
+        if (fresh) ghostsGone();
+        getComputedStyle(root).color;
+        releaseBar();                                        // (the browser's bar: the screen is in the new ground)
+        afterPaint(function () {                             // (and once the page is drawn anew, out of sight)
           ghosts.forEach(function (x) {
             if (x[2]) x[2].cancel();
             x[2] = null;
@@ -294,9 +296,9 @@
           veil.classList.add("out");
           veil.classList.remove("on");                       // the new words in
           veilT = setTimeout(ghostsGone, IN + 40);
-        }, 0);
-      });
-    }, OUT + 10);
+        });
+      }, OUT + 10);
+    });
     return true;
   };
   // A panel is one piece of glass growing from the bar's (theme.css): it moves down by its height less the bar's, which
@@ -319,8 +321,13 @@
     return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
   };
   window.L2M_fullOn = function () { return window.L2M_prefs().full === "on"; };
+  var veilRaf = 0;
+  function afterPaint(fn) {                    // fn once what is changed now is on the screen (two frames on)
+    veilRaf = requestAnimationFrame(function () { veilRaf = requestAnimationFrame(function () { veilRaf = 0; fn(); }); });
+  }
   window.L2M_endFade = function () {           // (at once: the change applied, the veil and the copies gone)
     clearTimeout(veilT);
+    if (veilRaf) { cancelAnimationFrame(veilRaf); veilRaf = 0; }
     if (veilApply) { var f = veilApply; veilApply = null; f(); }
     unpin();
     if (veil) { veil.classList.add("cut"); veil.classList.remove("on", "out"); }

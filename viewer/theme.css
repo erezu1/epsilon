@@ -493,7 +493,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
 /* a change of colours (prefs.js): the page's words fade into its ground (a veil over the page, under the bar and the
    panels), then the new colours come in together, the words with them */
-.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 130ms ease-in-out; }
+.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 180ms ease-in-out; }
 .l2m-veil.on { opacity: 1; }
 .l2m-veil.out { transition-duration: 200ms; }
 .l2m-veil.cut { transition: none; }
@@ -2220,3 +2220,5 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
+/* the settings (System, View): as tall as the screen lets them be, below the bar, so that what they hold shows whole */
+.app-settings .menu-inner { max-height: calc(100vh - var(--l2m-bar-h, 64px) - 24px); max-height: calc(100dvh - var(--l2m-bar-h, 64px) - 24px); }
