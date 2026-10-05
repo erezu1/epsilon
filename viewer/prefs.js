@@ -132,7 +132,7 @@
   // veil in the new ground (the peek's under one of its own). Then, out of sight, the page is redrawn (on a phone, a
   // moment with nothing moving), and its text fades back in. Every fade but the peek box's is an opacity, which the
   // compositor plays at its own pace however busy the page is. (A view transition restyled the page three times)
-  var veil = null, peekVeil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, MID = 220, IN = 220;
+  var veil = null, peekVeil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, MID = 260, IN = 260;
   function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
   var GLASS = ".glass-top, .glass-bottom.glass";             // (the glass in sight: the bar, a panel, a footer)
   var ghosts = [];                                           // [a piece, its copy, its hold unseen]
@@ -208,7 +208,9 @@
     var d = probeReady();
     if (!d) return null;
     var skin = root.getAttribute("data-skin") || "";        // (the skin the reader has: its glass, not the default's)
-    var key = theme + "/" + tone + "/" + skin + "/" + (!!window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+    // (System: the screen's own, said outright: a page in a frame takes "dark" from the page round it, not the screen)
+    if (!theme) theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    var key = theme + "/" + tone + "/" + skin;
     if (colours[key]) return colours[key];
     var r = d.documentElement, o = {};
     if (skin) r.setAttribute("data-skin", skin); else r.removeAttribute("data-skin");

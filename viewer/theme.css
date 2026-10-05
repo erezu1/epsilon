@@ -491,11 +491,11 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .titleblock > .kicker, .titleblock > h1:first-of-type { padding-right: 36px; }
 /* theme changes crossfade the whole page (View Transitions), or pass under a quick veil */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
-/* a change of colours (prefs.js): a veil in the new ground over the page, under the glass, comes in (220ms) as all
-   but the page's text changes colour; the page is redrawn under it; it goes (220ms), the text coming back */
-.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 220ms ease-in-out; }
+/* a change of colours (prefs.js): a veil in the new ground over the page, under the glass, comes in (260ms) as all
+   but the page's text changes colour; the page is redrawn under it; it goes (260ms), the text coming back */
+.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 260ms ease-in-out; }
 .l2m-veil.on { opacity: 1; }
-.l2m-veil.out { transition-duration: 220ms; }
+.l2m-veil.out { transition-duration: 260ms; }
 .l2m-veil.cut { transition: none; }
 
 /* footnote sheet, slides up from the bottom (glass, place and motion: .glass .glass-bottom) */
