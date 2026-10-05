@@ -450,7 +450,37 @@ window.L2M_nav = function (opts) {
     });
     hits = []; hitAt = -1;
   }
-  // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn)
+  // one symbol spelled in several ways (\varepsilon and \epsilon, \le and \leq and <=, ...): all one, both in what is
+  // asked and in the formulas' TeX (SAME: each spelling's one), and as drawn (alts: the drawings of each)
+  var SAME = {varepsilon: "epsilon", varphi: "phi", vartheta: "theta", varrho: "rho", varsigma: "sigma", varpi: "pi",
+    varkappa: "kappa", varGamma: "Gamma", varDelta: "Delta", varTheta: "Theta", varLambda: "Lambda", varXi: "Xi", varPi: "Pi",
+    varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
+    varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
+    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac"};
+  function alts(name) {
+    var one = SAME[name] || name, out = [];
+    [one].concat(Object.keys(SAME).filter(function (k) { return SAME[k] === one; })).forEach(function (n) {
+      var c = GLYPH[n] || OPS[n];
+      if (c && out.indexOf(c) < 0) out.push(c);
+    });
+    return out;
+  }
+  // a query typed with the symbols themselves (a phone's keys): α, ≤, x², ... read as their TeX
+  var UNI = {"≤": "leq", "≥": "geq", "≠": "neq", "≈": "approx", "∼": "sim", "≡": "equiv", "∝": "propto", "∫": "int",
+    "∮": "oint", "∑": "sum", "∏": "prod", "√": "sqrt", "→": "rightarrow", "←": "leftarrow", "⊗": "otimes", "⊕": "oplus",
+    "∈": "in", "⊂": "subset", "±": "pm", "∓": "mp", "×": "times", "·": "cdot", "⋅": "cdot", "⟨": "langle", "⟩": "rangle",
+    "†": "dagger", "…": "ldots", "⋯": "cdots", "∧": "wedge", "∨": "vee", "∩": "cap", "∪": "cup", "∘": "circ", "∗": "ast"};
+  var SUPS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ", SUPT = "0123456789+-=()ni", SUBS = "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎", SUBT = "0123456789+-=()";
+  function uniTeX(q) {
+    if (!/[^\x00-\x7f]/.test(q)) return q;
+    q = q.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ]+/g, function (r) { return "^{" + r.split("").map(function (c) { return SUPT.charAt(SUPS.indexOf(c)); }).join("") + "}"; })
+      .replace(/[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+/g, function (r) { return "_{" + r.split("").map(function (c) { return SUBT.charAt(SUBS.indexOf(c)); }).join("") + "}"; });
+    return q.replace(/[^\x00-\x7f]/g, function (c) {
+      var n = UNI[c] || GREEK[c];
+      return n ? "\\" + n + " " : c === "′" ? "'" : c === "−" ? "-" : c;
+    });
+  }
+  // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn: its drawings)
   // operators drawn as upright words (\log, \sin, ...): their letters, as drawn
   var OPNAME = /^(log|ln|lg|exp|sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|coth|arcsin|arccos|arctan|det|dim|ker|deg|hom|lim|liminf|limsup|max|min|sup|inf|arg|gcd|Pr|Tr|tr)$/;
   function findWhat(q) {
@@ -469,28 +499,44 @@ window.L2M_nav = function (opts) {
     if (q.charAt(0) === "$") {                       // "$...": the formulas only (the rest read as TeX)
       q = q.slice(1).replace(/\$$/, "").trim();
       if (!q) return null;
+      q = uniTeX(q).trim();
       if (GLYPH[q]) q = "\\" + q;
       var c1 = /^\\([A-Za-z]+)$/.exec(q);
-      return c1 && GLYPH[c1[1]] ? {glyph: GLYPH[c1[1]], tex: q} : {tex: q};
+      return c1 && GLYPH[c1[1]] ? {glyph: alts(c1[1]), tex: q} : {tex: q};
     }
-    if (GREEK[q]) return {glyph: GLYPH[GREEK[q]], tex: "\\" + GREEK[q]};
+    if (GREEK[q]) return {glyph: alts(GREEK[q]), tex: "\\" + GREEK[q]};
+    q = uniTeX(q).trim();
     var cmd = /^\\([A-Za-z]+)$/.exec(q);
-    if (cmd && GLYPH[cmd[1]]) return {glyph: GLYPH[cmd[1]], tex: q};
+    if (cmd && GLYPH[cmd[1]]) return {glyph: alts(cmd[1]), tex: q};
     if (/[\\^_{}]/.test(q)) return {tex: q};
     var w = {text: q.replace(/[^A-Za-z]/g, "").length >= 3 || /[^A-Za-z\s]/.test(q) && q.length >= 2 ? q.toLowerCase() : null};
-    if (GLYPH[q]) { w.glyph = GLYPH[q]; w.tex = "\\" + q; }         // "phi": the word, and the symbol
+    if (GLYPH[q]) { w.glyph = alts(q); w.tex = "\\" + q; }         // "phi": the word, and the symbol
     else if (/^[A-Za-z]{3,}$/.test(q) && (OPS[q] || OPNAME.test(q))) w.tex = "\\" + q;   // "sum", "log": the word, and the command
     if (!w.text && !w.tex && !w.glyph) return null;              // (too short to look for yet)
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
     return w;
   }
-  // a letter asked for plainly is found in any font (B in \mathcal{B} > 1, for B>1); asked for in one, only in it
-  var FONTED = /\\(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm)\{([^{}]*)\}/g;
+  // a letter asked for plainly is found in any font, with any accent or prime (B in \mathcal{B} > 1, \bar{B} > 1 or
+  // B' > 1, for B>1); asked for in a font, with an accent or a prime, only so
+  var FONTS = "mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm";
+  var ACCS = "hat|bar|tilde|vec|dot|ddot|check|breve|acute|grave|widehat|widetilde|overline|underline|mathring";
+  var FONTED = new RegExp("\\\\(" + FONTS + ")\\{([^{}]*)\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{([^{}]*)\\}", "g");
+  var HAS_FONT = new RegExp("\\\\(" + FONTS + ")\\{"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")\\{");
+  var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
+  function plainly(t, q) {             // the formula's TeX as a plain query reads it
+    if (!HAS_FONT.test(q)) t = t.replace(FONTED, "$2");
+    if (!HAS_ACC.test(q)) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, "$2");
+    if (!/'|\\prime/.test(q)) t = t.replace(PRIMED, "");
+    return t;
+  }
+  // ? in a query: any one symbol, or (as {?}) anything in braces: Z_? is any Z with something under it
+  var GROUP = "\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\}", TOKEN = "(?:\\\\[A-Za-z]+|" + GROUP + "|[^{}\\\\])";
   function texHas(tex, q) {
-    var t = texNorm(tex), i;
     q = texNorm(q);
-    if (!FONTED.test(q)) t = t.replace(FONTED, "$2");
-    FONTED.lastIndex = 0;
+    var t = plainly(texNorm(tex), q), i;
+    if (q.indexOf("?") >= 0) {
+      return new RegExp(q.split("{?}").map(function (part) { return part.split("?").map(reEsc).join(TOKEN); }).join(GROUP)).test(t);
+    }
     i = t.indexOf(q);
     while (i >= 0) {
       // \phi is not the start of \phiup: after a command name the next character is no letter
@@ -542,14 +588,15 @@ window.L2M_nav = function (opts) {
           } else fontTo = i + 1;
           continue;
         }
-        if (GLYPH[name]) out.push([GLYPH[name]]);
+        if (GLYPH[name]) out.push(alts(name));
         else if (OPNAME.test(name)) { for (var o = 0; o < name.length; o++) out.push([hex(name.charCodeAt(o))]); }
-        else if (OPS[name]) out.push([OPS[name]]);
+        else if (OPS[name]) out.push(alts(name));
         else if (name === "{" || name === "}") out.push([hex(name.charCodeAt(0))]);
         else if (!QUIET.test(name)) return null;
         continue;
       }
       i++;
+      if (c === "?") { out.push(["*"]); continue; }
       if (i - 1 < fontTo && /[A-Za-z0-9]/.test(c)) { out.push(fontGlyph(font, c)); continue; }
       if (/[A-Za-z]/.test(c)) {
         var k = c.charCodeAt(0), it = c === "h" ? "210E" : hex((c < "a" ? 0x1D434 + k - 65 : 0x1D44E + k - 97));
@@ -617,10 +664,37 @@ window.L2M_nav = function (opts) {
     }
     return t;
   }
+  var SIZES = /\\(left|right|middle|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|bigm|Bigm)(?![A-Za-z])\s*\.?/g;
+  var NAMED_FA = new RegExp("\\\\(" + FONTS + "|" + ACCS + ")\\s*([A-Za-z0-9]|\\\\[A-Za-z]+)(?![A-Za-z])", "g");
+  function fracBraces(t) {             // \frac12, \frac a{b}: \frac{1}{2}, \frac{a}{b}
+    var out = "", i = 0, m, re = /\\frac(?![A-Za-z])/g;
+    while ((re.lastIndex = i, m = re.exec(t))) {
+      var at = m.index + 5;
+      out += t.slice(i, at);
+      for (var a = 0; a < 2; a++) {
+        while (t.charAt(at) === " ") at++;
+        var c = t.charAt(at), end = at;
+        if (c === "{") { for (var d = 0, e = at; e < t.length; e++) { if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) break; } end = e + 1; out += t.slice(at, end); }
+        else if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(at)); end = at + (cm ? cm[0].length : 1); out += "{" + t.slice(at, end) + "}"; }
+        else if (c) { end = at + 1; out += "{" + c + "}"; }
+        at = end;
+      }
+      i = at;
+    }
+    return out + t.slice(i);
+  }
+  var normed = {}, normedN = 0;
   function texNorm(t) {
-    t = expand(t || "").replace(/\\(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm)\s+([A-Za-z0-9])/g, "\\$1{$2}");
+    t = t || "";
+    if (normed.hasOwnProperty(t)) return normed[t];
+    var was = t;
+    t = uniTeX(expand(t)).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
+    t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
+    t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"));
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
-    return t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
+    t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
+    if (++normedN > 20000) { normed = {}; normedN = 0; }
+    return (normed[was] = t);
   }
   function findRun() {
     foundBack();
@@ -664,7 +738,10 @@ window.L2M_nav = function (opts) {
       }
     }
     if (what.glyph || what.tex) {
-      var seq = what.glyph ? [[what.glyph]] : glyphsOf(texNorm(what.tex));
+      var seq = what.glyph ? [what.glyph] : glyphsOf(texNorm(what.tex)), qn = what.tex ? texNorm(what.tex) : "";
+      // (an accent's or a prime's drawing passed over, unless asked for: B>1 finds \bar{B}>1 and B'>1)
+      var ACC_C = /^(5E|7E|AF|2C9|2D9|A8|2C7|2D8|B4|60|2C6|2DC|20D7)$/, plainAcc = !HAS_ACC.test(qn), plainPrime = !/'|\\prime/.test(qn);
+      var over = function (c) { return (plainAcc && ACC_C.test(c)) || (plainPrime && c === "2032"); };
       forms.forEach(function (f) {
         var drawn = f.el.tagName !== "L2M-MATH", tex = opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "";
         // a single symbol: wherever it is drawn (a paper's own macros for it too); more TeX: in formulas whose TeX has it
@@ -674,6 +751,9 @@ window.L2M_nav = function (opts) {
           // a formula not drawn yet is searched in its drawing as kept (its marks come when it is drawn)
           var gl = lazy ? null : f.el.querySelectorAll("[data-c]");
           var codes = lazy ? L2M_math.codes(+f.el.getAttribute("data-n")) : Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
+          var idx = [], all = codes;
+          for (var k = 0; k < all.length; k++) if (what.glyph || !over(all[k])) idx.push(k);
+          codes = idx.map(function (k) { return all[k]; });
           for (var i = 0; i + seq.length <= codes.length; i++) {
             var ok = true;
             for (var j = 0; j < seq.length && ok; j++) ok = seq[j][0] === "*" || seq[j].indexOf(codes[i + j]) >= 0;
@@ -687,7 +767,8 @@ window.L2M_nav = function (opts) {
               }
             }
             if (!ok) continue;
-            found.push({at: f.at + (got++) * 1e-4, el: f.el, span: [i, i + seq.length], glyphs: gl ? Array.prototype.slice.call(gl, i, i + seq.length) : null});
+            var s0 = idx[i], s1 = idx[i + seq.length - 1] + 1;
+            found.push({at: f.at + (got++) * 1e-4, el: f.el, span: [s0, s1], glyphs: gl ? Array.prototype.slice.call(gl, s0, s1) : null});
             i += seq.length - 1;
           }
         }
