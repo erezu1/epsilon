@@ -123,7 +123,7 @@
     var bar = '<header class="l2m-bar' + (always ? ' show" aria-hidden="false"' : '" aria-hidden="true"') + ' id="l2m-bar"><div class="bar-inner">' +
       (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") +
       ((theme.bar || []).indexOf("search") >= 0 ?
-        '<div class="bar-find" role="search"><span class="find-box"><input class="app-field" type="search" enterkeyhint="search" placeholder="Search, or TeX: \\phi" ' +
+        '<div class="bar-find" role="search"><span class="find-box"><input class="app-field" type="search" enterkeyhint="search" placeholder="Search, \\phi, or x_?" ' +
         'aria-label="Search this paper, words or TeX" autocomplete="off" autocapitalize="off" spellcheck="false"></span>' +
         '<span class="find-count" aria-live="polite"></span>' +
         '<button type="button" class="bar-btn find-prev" data-act="find-prev" aria-label="Previous match">' + (I.chevron || "") + "</button>" +
