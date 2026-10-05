@@ -491,11 +491,9 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .titleblock > .kicker, .titleblock > h1:first-of-type { padding-right: 36px; }
 /* theme changes crossfade the whole page (View Transitions), or pass under a quick veil */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
-/* a change of colours (prefs.js): two veils over the page, under the glass. The words fade into the ground (the first,
-   180ms); the page is restyled under it; the ground fades into the new one (the second over it, 200ms) as the glass
-   changes with it; then the new ground fades away over the page in its new colours (220ms) */
-.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 180ms ease-in-out; }
-.l2m-veil-new { transition-duration: 200ms; }
+/* a change of colours (prefs.js): a veil in the new ground over the page, under the glass: it comes in (220ms) as the
+   glass changes with it, the page's words going; the page is restyled under it; it goes (220ms), the new words coming */
+.l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 220ms ease-in-out; }
 .l2m-veil.on { opacity: 1; }
 .l2m-veil.out { transition-duration: 220ms; }
 .l2m-veil.cut { transition: none; }
