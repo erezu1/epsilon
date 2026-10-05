@@ -125,13 +125,12 @@
     }, reduced ? 0 : 180);                         // (the text wholly out of sight first)
   };
   window.L2M_applyTone = function (t) { attr("data-tone", t, DEF.tone); barColour(); };
-  // A change of colours (theme, tone), the glass staying in sight: at the tap, nothing moves while the glass is given
-  // its new colours under a copy of itself in its old ones (worked out beforehand, below); then, in one fade, the new
-  // ground comes in over the page, so its words go as the ground and the glass change colour together (the copy fading
-  // out over the glass); under that ground, out of sight, the page is restyled (nothing moving again); and the new words
-  // fade in. Every move is an opacity, which the compositor plays at its own pace however busy the page is, and the
-  // heavy parts are done while nothing moves, each fade beginning once they are on the screen (a phone's slow frame
-  // had eaten a fade begun with them). (A view transition restyled the page three times)
+  // A change of colours (theme, tone), the glass staying in sight: at once, the new ground comes in over the page (a
+  // veil under the glass), its words going; under it, out of sight, the page and the glass are restyled, the glass under
+  // a copy of itself in its old colours (nothing moving meanwhile); then the glass's copy fades out over it in its new
+  // colours as the new words come in. Every move is an opacity, which the compositor plays at its own pace however busy
+  // the page is; nothing heavy is done at the tap, and the second fade begins once the restyle is on the screen.
+  // (A view transition restyled the page three times)
   var veil = null, veilT = 0, veilApply = null, barHeld = false, barDue = false, MID = 220, IN = 220;
   function releaseBar() { barHeld = false; if (barDue) { barDue = false; barColour(); } }
   var GLASS = ".glass-top, .glass-bottom.glass";             // (the glass in sight: the bar, a panel, a footer; not the peek,
@@ -174,63 +173,6 @@
     });
   }
   function ghostsGone() { ghosts.forEach(function (x) { if (x[2]) x[2].cancel(); x[1].remove(); }); ghosts = []; }
-  // The glass's new colours, known before the page is restyled: a small page out of sight holding only theme.css, its
-  // root put in the old colours and in the new, and what differs read (theme.css's colours, all made from the root's)
-  var probe = null;
-  function probeReady() {
-    var d = probe && probe.contentDocument;
-    return d && d.readyState === "complete" && d.documentElement && getComputedStyle(d.documentElement).getPropertyValue("--ground-light") ? d : null;
-  }
-  function makeProbe() {
-    if (probe || !document.body) return;
-    var css = Array.prototype.filter.call(document.querySelectorAll('link[rel~="stylesheet"], style'), function (n) {
-      return n.tagName === "LINK" ? /theme\.css/.test(n.href) : n.textContent.indexOf("--ground-light") >= 0;
-    }).map(function (n) { return n.tagName === "LINK" ? '<link rel="stylesheet" href="' + n.href.replace(/"/g, "&quot;") + '">' : n.outerHTML; });
-    if (!css.length) return;
-    probe = document.createElement("iframe");
-    probe.setAttribute("aria-hidden", "true"); probe.tabIndex = -1;
-    probe.style.cssText = "position:fixed;left:0;top:0;width:100vw;height:1px;border:0;visibility:hidden;pointer-events:none";
-    probe.srcdoc = "<!doctype html><html><head>" + css.join("") + "</head><body></body></html>";
-    document.body.appendChild(probe);
-  }
-  function prepare() { makeProbe(); if (probe) setTimeout(readAhead, 300); }
-  if (window.requestIdleCallback) requestIdleCallback(prepare, {timeout: 4000}); else setTimeout(prepare, 1500);
-  var colours = {};                                          // (each state's, read once: theme and tone attributes, dark)
-  function coloursOf(theme, tone) {
-    var d = probeReady();
-    if (!d) return null;
-    var skin = root.getAttribute("data-skin") || "";        // (the skin the reader has: its glass, not the default's)
-    var key = theme + "/" + tone + "/" + skin + "/" + (!!window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
-    if (colours[key]) return colours[key];
-    var r = d.documentElement, o = {};
-    if (skin) r.setAttribute("data-skin", skin); else r.removeAttribute("data-skin");
-    if (theme) r.setAttribute("data-theme", theme); else r.removeAttribute("data-theme");
-    if (tone) r.setAttribute("data-tone", tone); else r.removeAttribute("data-tone");
-    var cs = getComputedStyle(r);
-    for (var i = 0; i < cs.length; i++) if (cs[i].lastIndexOf("--", 0) === 0) o[cs[i]] = cs.getPropertyValue(cs[i]);
-    o["color-scheme"] = cs.colorScheme;
-    return (colours[key] = o);
-  }
-  function newColours(to) {                                  // {property: new value}, for those the change changes
-    var theme = root.getAttribute("data-theme") || "", tone = root.getAttribute("data-tone") || "";
-    var was = coloursOf(theme, tone);
-    if (!was) return null;
-    if (to.theme != null) theme = to.theme === "light" || to.theme === "dark" ? to.theme : "";
-    if (to.tone != null) tone = to.tone && to.tone !== DEF.tone ? to.tone : "";
-    var now = coloursOf(theme, tone), diff = {}, any = false;
-    for (var k in now) if (now[k] !== was[k]) { diff[k] = now[k]; any = true; }
-    return any ? diff : null;
-  }
-  function readAhead() {                                     // (the six states, read while the page is idle)
-    if (!probeReady()) return setTimeout(readAhead, 500);
-    ["", "light", "dark"].forEach(function (t) { ["", "paper"].forEach(function (n) { coloursOf(t, n); }); });
-  }
-  // the new colours given the glass ahead of the page, taken off again as the page has them, in every way a change ends
-  var pinned = [];                                           // [the glass, the colours set on it]
-  function unpin() {
-    pinned.forEach(function (h) { h[0].style.colorScheme = ""; h[1].forEach(function (k) { h[0].style.removeProperty(k); }); });
-    pinned = [];
-  }
   function groundOf(to) {                                    // the page's ground once TO ({theme} or {tone}) is applied
     var theme = to.theme != null ? to.theme : root.getAttribute("data-theme") || "system";
     var tone = to.tone != null ? to.tone : root.getAttribute("data-tone") || DEF.tone;
@@ -253,20 +195,6 @@
     veil.classList.remove("cut", "out");
     veilApply = apply;
     barHeld = true;
-    var fresh = Element.prototype.animate ? newColours(to || {}) : null;
-    if (fresh) {                                             // 1. the glass in its new colours, under a copy in its old
-      var cs = getComputedStyle(root), old = {};
-      for (var k in fresh) old[k] = cs.getPropertyValue(k);
-      ghostsOver();
-      pinned = ghosts.map(function (x) {                     // (what each has from the page: read all, then written)
-        var own = getComputedStyle(x[0]);
-        return [x[0], Object.keys(fresh).filter(function (k) { return k !== "color-scheme" && own.getPropertyValue(k) === old[k]; })];
-      });
-      pinned.forEach(function (h) {
-        h[1].forEach(function (k) { h[0].style.setProperty(k, fresh[k]); });
-        if (fresh["color-scheme"]) h[0].style.colorScheme = fresh["color-scheme"];
-      });
-    }
     function crossfade() {                                   // the glass's copy out over it (the new in under the old first,
       ghosts.forEach(function (x) {                          // the old out over it after: two half-shown panes of glass
         if (x[2]) x[2].cancel();                             // would show the page through them)
@@ -275,26 +203,21 @@
         x[1].animate([{opacity: 1}, {opacity: 0}], {duration: MID, easing: "ease-in", fill: "forwards"});
       });
     }
-    afterPaint(function () {                                 // (once that is on the screen)
-      veil.classList.add("on");                              // 2. the new ground in, the words going, the glass with it
-      if (fresh) crossfade();
-      veilT = setTimeout(function () {
+    veil.classList.add("on");                                // 1. the new ground in, the words going
+    veilT = setTimeout(function () {
         var f = veilApply;
         veilApply = null;
-        if (!fresh && Element.prototype.animate) ghostsOver(); // (its new colours not known: it changes as the words come)
-        f();                                                 // 3. the page restyled, out of sight
-        unpin();
-        if (fresh) ghostsGone();
+        if (Element.prototype.animate) ghostsOver();         // 2. the glass held as it is, in a copy,
+        f();                                                 //    and the page and the glass restyled, out of sight
         getComputedStyle(root).color;
         releaseBar();                                        //    (the browser's bar: in the new ground)
         afterPaint(function () {
-          if (!fresh) crossfade();
+          crossfade();                                       // 3. the glass to its new colours, the new words in
           veil.classList.add("out");
-          veil.classList.remove("on");                       // 4. the new words in
+          veil.classList.remove("on");
           veilT = setTimeout(ghostsGone, IN + 40);
         });
       }, MID + 10);
-    });
     return true;
   };
   // A panel is one piece of glass growing from the bar's (theme.css): it moves down by its height less the bar's, which
@@ -326,7 +249,6 @@
     if (veilRaf) { cancelAnimationFrame(veilRaf); veilRaf = 0; }
     if (veilApply) { var f = veilApply; veilApply = null; f(); }
     if (veil) { veil.classList.add("cut"); veil.classList.remove("on", "out"); }
-    unpin();
     ghostsGone();
     releaseBar();
   };
