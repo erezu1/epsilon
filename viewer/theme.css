@@ -491,8 +491,8 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .titleblock > .kicker, .titleblock > h1:first-of-type { padding-right: 36px; }
 /* theme changes crossfade the whole page (View Transitions), or pass under a quick veil */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
-/* a change of colours (prefs.js): a veil in the new ground over the page, under the glass: it comes in (220ms) as the
-   glass changes with it, the page's words going; the page is restyled under it; it goes (220ms), the new words coming */
+/* a change of colours (prefs.js): a veil in the new ground over the page, under the glass, comes in (220ms) as all
+   but the page's text changes colour; the page is redrawn under it; it goes (220ms), the text coming back */
 .l2m-veil { position: fixed; inset: 0; z-index: 39; opacity: 0; pointer-events: none; transition: opacity 220ms ease-in-out; }
 .l2m-veil.on { opacity: 1; }
 .l2m-veil.out { transition-duration: 220ms; }
@@ -2215,5 +2215,5 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 .glass-bottom.grow:not(.open) { transform: translateY(calc(100% - var(--from-h, 0px))); opacity: 1; }
 .glass-bottom.grow.open { transition: transform var(--g-move), visibility 0s, bottom 260ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .glass-bottom.l2m-now { transition: none !important; }
-/* a change of colours: inside each piece of glass, a layer in the new ground comes in under its film (prefs.js) */
-.l2m-tint { position: absolute; inset: 0; z-index: -2; pointer-events: none; border-radius: inherit; }
+/* a change of colours: the peek's text under a veil of its own, under its head (prefs.js) */
+.l2m-veil.l2m-peek-veil { position: absolute; z-index: 1; }
