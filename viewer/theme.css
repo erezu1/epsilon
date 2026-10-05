@@ -401,7 +401,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .l2m-menu {
   position: fixed;
   top: 0;
-  padding-top: var(--l2m-bar-h, 64px);
+  padding-top: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h, 0px));     /* (below the bar, and its pinned date) */
   display: flex;
   flex-direction: column;
   left: 0;
@@ -945,7 +945,6 @@ a.lib-title { color: var(--ink); }
 .app-pane-in { padding-top: calc(var(--l2m-bar-h, 64px) + 14px); }
 .app-pane .app-day { top: var(--l2m-bar-h, 64px); }
 /* a pinned date and the bar are one block: no shadow or line between them */
-.app-bar.joined { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 160ms ease, border-color 160ms ease; }
 .app-pane .app-day { border-bottom-color: transparent; }
 .app-pane .app-day.stuck { border-bottom: 1px solid var(--g-line); box-shadow: var(--g-shadow); }
 
@@ -995,7 +994,6 @@ a.lib-title { color: var(--ink); }
 .app-bar-day { padding: 0 10px; }
 .app-bar.joined .app-bar-day { padding-top: 19px; }          /* on the row itself: right with any version of the script */
 .app-bar-day span { display: inline; padding: 0; }
-.app-bar.joined { box-shadow: var(--g-shadow); border-bottom-color: var(--g-line); }
 .app-pane .app-day.stuck { transition: visibility 0s linear 220ms; }
 @media (prefers-reduced-motion: reduce) { .app-bar-day { transition: none; } }
 
@@ -1094,8 +1092,6 @@ a.lib-title { color: var(--ink); }
               background-color 0s, -webkit-backdrop-filter 0s, backdrop-filter 0s, background-image 0s;
   transition-behavior: allow-discrete;
 }
-/* a panel open over New: the pinned date steps aside (the panel starts right under the bar's first row) */
-.app-bar.menu-open .app-bar-day { height: 0 !important; padding-top: 0 !important; opacity: 0 !important; }
 /* the gear turns as its panel opens, and turns back as it closes */
 #app-gear svg { transition: transform 480ms cubic-bezier(0.3, 0.9, 0.25, 1); }
 #app-gear[aria-expanded="true"] svg { transform: rotate(120deg); }
@@ -1207,7 +1203,6 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 /* (--seg-on, --seg-on-shadow) */
 .seg .sel-ind, .app-seg .seg-btn[aria-checked="true"] { background: var(--seg-on); box-shadow: var(--seg-on-shadow); }
 /* a panel open over New with a date pinned: the bar has no shadow or line of its own either (the panel has them) */
-.app-bar.joined.menu-open { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 0s, border-color 0s; }
 
 /* in a paper, every font's small letters stand at the same height (fonts differ a lot there), so a change of font
    changes its style, not how big the text reads */
@@ -1419,8 +1414,8 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   .app-lead > *, .app-tabswap > *, #app-search, #app-fold, #app-plus { transition-duration: 0.01s; }
 }
 
-/* a panel over a list with a pinned header: it opens from, and closes onto, the bar with the header (its full
-   height), while the header's row folds away and back at the panel's own pace, so the glass never jumps */
+/* a panel over a list with a pinned header: it opens from, and closes onto, the bar with the header (its full height:
+   --l2m-join-h, the header's, app.js) */
 :root { --l2m-join-h: 0px; }
 .app-bar .app-bar-day, .app-bar.joined.settled .app-bar-day {
   transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
@@ -1468,16 +1463,8 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-bar.set-mode .app-tabswap > .set-tabs, .app-bar.set-mode .app-lead > .app-close,
 .app-bar:not(.set-mode) .app-tabswap > .app-tabs:not(.set-tabs), .app-bar:not(.set-mode) .app-lead > .app-logo { transform: none; }
 
-/* the bar with a pinned header takes its glass back only as the panel finishes rolling up (as the plain bar does:
-   never two layers of glass at once), and the header's words fade in as the panel reaches them */
-.app-bar.joined:not(.menu-open) {
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 260ms ease 80ms, border-color 260ms ease 80ms,
-              background-color 0s 300ms, -webkit-backdrop-filter 0s 300ms, backdrop-filter 0s 300ms, background-image 0s 300ms;
-  transition-behavior: allow-discrete;
-}
-.app-bar.panel-closing .app-bar-day {
-  transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 160ms ease 160ms !important;
-}
+/* a bar with a pinned date is the bar, taller: the same glass, edge and shadow, and a panel opens from it and closes
+   onto it whole (the date stays) as onto the plain bar */
 /* the flip's soft edges always in place, outside the tabs (a fading margin above and below them): nothing at rest is
    dimmed, so the underline keeps its strength from start to end, and moving text fades as it leaves */
 .app-tabswap, .app-lead, .app-bar.flapping .app-tabswap, .app-bar.flapping .app-lead {

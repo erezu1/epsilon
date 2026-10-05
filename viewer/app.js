@@ -1394,12 +1394,6 @@
   }
   function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
     if (panelOpen && window.L2M_endFade) L2M_endFade();
-    if (shell && panelOpen) {             // while the panel rolls up, the bar waits (its header's words come in last)
-      var cb = shell.querySelector("#app-bar");
-      cb.classList.add("panel-closing");
-      clearTimeout(closePanel.t);
-      closePanel.t = setTimeout(function () { cb.classList.remove("panel-closing"); }, 340);
-    }
     if (shell) setMode(false);
     if (!panelOpen || !shell) { panelOpen = false; return; }
     // the keyboard goes down with the panel, not after it (a text field in it keeps focus otherwise)
