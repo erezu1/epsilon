@@ -2208,7 +2208,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
    A skin is a set of the values above: the glass's (--g-*, --film-o) and how round things are (--r, --r-round,
    --r-pill). Glass is the one above; the reader chooses one in the settings (System, Style), theme.json ("skin")
    the app's own. Flat: the page's own ground, no blur, no film, a plain line for the edge, squarer corners, and a
-   soft, wide shadow (all round, as the glass's) to lift it off the page; every corner square. */
+   soft, wide shadow (all round, as the glass's) to lift it off the page; its panels, sheets and boxes square. */
 :root[data-skin="flat"] {
   --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
   --g-line: var(--rule);
@@ -2216,7 +2216,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
-  --r: 0px; --r-round: 0px; --r-pill: 0px; --r-line: 0px;      /* (wholly rectangular) */
+  --r: 0px;                     /* (the glass and every box square; buttons, pills and lines round, as in glass) */
 }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
