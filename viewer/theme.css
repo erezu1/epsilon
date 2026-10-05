@@ -945,7 +945,7 @@ a.lib-title { color: var(--ink); }
 /* a pinned date and the bar are one block: no shadow or line between them */
 .app-bar.joined { box-shadow: none; border-bottom-color: transparent; transition: box-shadow 160ms ease, border-color 160ms ease; }
 .app-pane .app-day { border-bottom-color: transparent; }
-.app-pane .app-day.stuck { border-bottom: 1px solid var(--g-line); box-shadow: var(--g-shadow-top); }
+.app-pane .app-day.stuck { border-bottom: 1px solid var(--g-line); box-shadow: var(--g-shadow); }
 
 /* a panel's contents fade in, settling a little, as it opens (and out as it closes) */
 .l2m-menu .menu-inner, .l2m-menu .mk-tabs { opacity: 0; transform: translateY(-6px); }
@@ -993,7 +993,7 @@ a.lib-title { color: var(--ink); }
 .app-bar-day { padding: 0 10px; }
 .app-bar.joined .app-bar-day { padding-top: 19px; }          /* on the row itself: right with any version of the script */
 .app-bar-day span { display: inline; padding: 0; }
-.app-bar.joined { box-shadow: var(--g-shadow-top); border-bottom-color: var(--g-line); }
+.app-bar.joined { box-shadow: var(--g-shadow); border-bottom-color: var(--g-line); }
 .app-pane .app-day.stuck { transition: visibility 0s linear 220ms; }
 @media (prefers-reduced-motion: reduce) { .app-bar-day { transition: none; } }
 
@@ -2136,9 +2136,9 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
   --g-blur: blur(8px) saturate(1.5);                        /* what it does to what is behind it */
   --g-line: var(--bar-line);                                /* its edge */
   --g-film: url(film.webp);                                 /* the soap film (how strong: --film-o) */
-  --g-shadow-top: 0 10px 30px -20px var(--bar-shadow);      /* glass at the top casts down */
-  --g-shadow-bottom: 0 -14px 36px -22px var(--bar-shadow);  /* glass at the foot casts up */
-  --g-shadow-round: 0 2px 10px -2px var(--bar-shadow);      /* small glass, lifted a little */
+  /* its shadow: the same all round, round corners and all (no light from one side: it lifts, it does not cast) */
+  --g-shadow: 0 0 22px 0 color-mix(in srgb, var(--bar-shadow) 30%, transparent);
+  --g-shadow-round: 0 0 8px 0 color-mix(in srgb, var(--bar-shadow) 40%, transparent);   /* small glass */
   --g-cover-fill: color-mix(in srgb, var(--ground) 90%, transparent);
   --g-cover-blur: blur(10px) saturate(1.3);
   --g-r: var(--r);                                          /* its corners */
@@ -2160,7 +2160,7 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 .glass-cover { background-color: var(--g-cover-fill); -webkit-backdrop-filter: var(--g-cover-blur); backdrop-filter: var(--g-cover-blur); }
 
 /* at the top: the film laid from the screen's top (on wide screens its left edge too), the rim at the bottom edge */
-.glass-top { border-bottom: 1px solid var(--g-line); border-radius: 0 0 var(--g-r) var(--g-r); box-shadow: var(--g-shadow-top); }
+.glass-top { border-bottom: 1px solid var(--g-line); border-radius: 0 0 var(--g-r) var(--g-r); box-shadow: var(--g-shadow); }
 .glass-top::before { inset: 0 0 auto 0; height: 100%; background-position: var(--glass-x) 0;
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides); }
 
@@ -2168,7 +2168,7 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
    edge (glass inside a footer, the peek's head, takes the footer's) */
 .glass-bottom {
   position: fixed; left: 0; right: 0; bottom: env(keyboard-inset-height, 0px);    /* (on a keyboard laid over the page) */
-  border-top: 1px solid var(--g-line); border-radius: var(--g-r) var(--g-r) 0 0; box-shadow: var(--g-shadow-bottom);
+  border-top: 1px solid var(--g-line); border-radius: var(--g-r) var(--g-r) 0 0; box-shadow: var(--g-shadow);
   transform: translateY(calc(100% + 12px)); opacity: 0; visibility: hidden; pointer-events: none;
   transition: transform var(--g-move), opacity 220ms ease, visibility 0s linear 320ms;
 }
@@ -2211,7 +2211,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 :root[data-skin="flat"] {
   --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
   --g-line: var(--rule);
-  --g-shadow-top: none; --g-shadow-bottom: none; --g-shadow-round: none;
+  --g-shadow: none; --g-shadow-round: none;
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
   --r: 6px; --r-round: 8px;
