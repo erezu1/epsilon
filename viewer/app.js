@@ -1950,14 +1950,13 @@
     var rm = removing(), I = theme.icons || {};
     var read = store("opened") || {};
     var papers = ((lib && lib.papers) || []).filter(function (x) { return !rm[keyOf(x)]; }), p = pending(), off = offlineSet();
-    // papers added and not opened yet (on any device) come first, newest first, marked new; then the papers read
-    // last; then the others, newest added first (the index's own order)
+    // the papers read last first; a paper added and not opened yet (on any device), marked new, is placed as though
+    // it was opened when it was added, so papers opened since go above it; then the others, newest added first (the
+    // index's own order)
     var fresh = function (x) { return isNewPaper(x, read); };
-    papers = papers.map(function (x, i) { return [x, i]; }).sort(function (a, b) {
-      var na = fresh(a[0]), nb = fresh(b[0]);
-      if (na !== nb) return na ? -1 : 1;
-      if (na) return (Date.parse(b[0].added) || 0) - (Date.parse(a[0].added) || 0) || a[1] - b[1];
-      return (read[keyOf(b[0])] || 0) - (read[keyOf(a[0])] || 0) || a[1] - b[1];
+    var when = function (x) { return read[keyOf(x)] || (fresh(x) ? Date.parse(x.added) || 0 : 0); };
+    papers = papers.map(function (x, i) { return [x, i, when(x)]; }).sort(function (a, b) {
+      return b[2] - a[2] || a[1] - b[1];
     }).map(function (a) { return a[0]; });
     var waiting = Object.keys(p).filter(function (k) {
       return !papers.some(function (x) { return keyOf(x) === k && x.converted && Date.parse(x.converted) >= p[k].since - 60000; });

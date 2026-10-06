@@ -454,6 +454,13 @@ window.L2M_marks = function (host) {
     else hideDock();
   }
   on(document, "selectionchange", function () { clearTimeout(selT); selT = setTimeout(checkSel, 160); });
+  // a tap on a displayed formula selects it, as one in the text is (the browser does that one itself; in the
+  // displayed one's box, which scrolls sideways, it does not)
+  on(document, "click", function (e) {
+    var f = e.target.closest && e.target.closest(".eqbody mjx-container[data-n]"), s = getSelection();
+    if (!f || (s.rangeCount && !s.isCollapsed)) return;
+    var r = document.createRange(); r.selectNode(f); s.removeAllRanges(); s.addRange(r);
+  });
   // with a mouse, the bar comes once the button is let go (not while the selection is still being drawn)
   on(document, "pointerdown", function (e) { pointer = e.pointerType; if (e.pointerType === "mouse" && !dock.contains(e.target)) mouseDown = true; }, true);
   on(document, "pointerup", function (e) { if (e.pointerType === "mouse" && mouseDown) { mouseDown = false; clearTimeout(selT); selT = setTimeout(checkSel, 30); } }, true);
