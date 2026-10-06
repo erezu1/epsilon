@@ -365,6 +365,32 @@ def strip_comments(text):
     return s.replace("\x01", "")
 
 
+def drop_stray_braces(s):
+    """The braces that never pair up, dropped: LaTeX lets a group run on to the end of the document (a stray "{" at a
+    paragraph's start, say), but the converter reads groups whole. Verbatim-like environments and \\verb are left be."""
+    skip = re.compile(r"\\begin\{(verbatim\*?|Verbatim|lstlisting|minted|comment|BVerbatim|alltt)\}.*?\\end\{\1\}"
+                      r"|\\verb\*?([^A-Za-z\s*]).*?\2", re.S)
+    open_, bad, j, n = [], [], 0, len(s)
+    while j < n:
+        c = s[j]
+        if c == "\\":
+            m = skip.match(s, j)
+            j = m.end() if m else j + 2
+            continue
+        if c == "{":
+            open_.append(j)
+        elif c == "}":
+            if open_:
+                open_.pop()
+            else:
+                bad.append(j)
+        j += 1
+    bad = sorted(bad + open_)
+    if not bad:
+        return s
+    return "".join(s[a + 1:b] for a, b in zip([-1] + bad, bad + [n]))
+
+
 def png_size(data):
     if data[:8] == b"\x89PNG\r\n\x1a\n":
         return struct.unpack(">II", data[16:24])
@@ -2763,6 +2789,7 @@ class Converter:
             pat = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(map(re.escape, aliases)))
             self.parse_preamble(pat.sub(lambda m: aliases[m.group(1)], pre))
             body = pat.sub(lambda m: aliases[m.group(1)], body)
+        body = drop_stray_braces(body)
         self.scan_definitions(body)
         body = self.add_auto_labels(self.expand_env_shortcuts(body))
         body_c = self.add_auto_labels(self.expand_env_shortcuts(body_c))
