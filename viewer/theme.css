@@ -2201,7 +2201,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
 }
 /* (on a wide screen, where the glass floats clear of the screen's edges: its corners slightly round) */
-@media (min-width: 800px) { :root[data-skin="flat"] { --g-r: 6px;
+@media (min-width: 800px) { :root[data-skin="flat"] { --g-r: 10px;
   --g-edge-top: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 -0.5px 0 0 var(--g-hair);
   --g-edge-bottom: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 0.5px 0 0 var(--g-hair); } }
 /* (the peek's head, on the page's own ground: lifted off the text under it by the flat glass's shadow, as the bar is) */
