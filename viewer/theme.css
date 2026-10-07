@@ -905,7 +905,10 @@ a.lib-title { color: var(--ink); }
 /* library rows: the text opens the paper; INSPIRE opens INSPIRE */
 .app-lib-text { flex: 1 1 auto; min-width: 0; padding: 0.85rem 0; cursor: pointer; }
 .app-lib-text .lib-title { display: block; color: var(--ink); text-decoration: none; }
-.lib-rows > li[data-archived] .lib-title { color: var(--muted); }    /* archived (seen in its folder, or Archive): paler, as its authors */
+/* archived (seen in its folder, or Archive): its title and byline one paler shade, the muted ink taken halfway to the
+   ground (so each theme and tone its own) */
+.lib-rows > li[data-archived] { --archived-ink: color-mix(in srgb, var(--muted) 55%, var(--ground)); }
+.lib-rows > li[data-archived] :is(.lib-title, .lib-byline, .lib-meta) { color: var(--archived-ink); }
 @media (hover: hover) { .lib-rows > li[data-archived] a.lib-title:hover { color: var(--link); } }
 @media (hover: hover) { .app-lib-text:hover .lib-title { color: var(--link); } }
 .app-ext { color: var(--link); text-decoration: none; }
