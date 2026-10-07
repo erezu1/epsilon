@@ -284,7 +284,8 @@
         peek.style.transition = "background-color " + MID + "ms ease-in-out, border-color " + MID + "ms ease-in-out, box-shadow " + MID + "ms ease-in-out";
         peek.style.backgroundColor = ground;
         if (fresh["--g-line"]) peek.style.borderTopColor = fresh["--g-line"];
-        if (fresh["--g-shadow"]) peek.style.boxShadow = fresh["--g-shadow"];
+        if (fresh["--g-shadow"] || fresh["--g-edge-bottom"])                 // (its shadow and its skin's edge line)
+          peek.style.boxShadow = (fresh["--g-shadow"] || cs.getPropertyValue("--g-shadow")) + ", " + (fresh["--g-edge-bottom"] || cs.getPropertyValue("--g-edge-bottom"));
       }
     }
     function crossfade(ms) {                                 // the copies out over the pieces (the new in under the old

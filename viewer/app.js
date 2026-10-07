@@ -1995,8 +1995,10 @@
     waiting = waiting.filter(inView);
     function row(x) {
       var k = keyOf(x), meta = [];
-      if (x.arxiv) meta.push(esc(x.arxiv.id) + (x.arxiv.primary ? " &middot; " + esc(x.arxiv.primary) : "") +
-                             inspireLink(x.arxiv.id, x.arxiv.categories || [x.arxiv.primary]).replace(" &middot; ", " &middot; "));
+      // (as in Explore: the category, then the arXiv number as a link to it, then INSPIRE)
+      if (x.arxiv) meta.push((x.arxiv.primary ? esc(x.arxiv.primary) + " &middot; " : "") +
+                             '<a class="app-ext" href="https://arxiv.org/abs/' + encodeURIComponent(x.arxiv.id).replace(/%2F/g, "/") + '" target="_blank" rel="noopener" aria-label="' +
+                             esc(x.arxiv.id) + ' on arXiv">' + esc(x.arxiv.id) + "</a>" + inspireLink(x.arxiv.id, x.arxiv.categories || [x.arxiv.primary]));
       else if (x.kind === "draft") meta.push("your draft");
       else if (x.kind === "note") meta.push("note");
       if (x.status === "failed") meta.push('<span class="app-bad">could not be converted</span>');

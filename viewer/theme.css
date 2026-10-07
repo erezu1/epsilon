@@ -951,7 +951,7 @@ a.lib-title { color: var(--ink); }
 .app-pane .app-day { top: var(--l2m-bar-h, 64px); }
 /* a pinned date and the bar are one block: no shadow or line between them */
 .app-pane .app-day { border-bottom-color: transparent; }
-.app-pane .app-day.stuck { border-bottom: 1px solid var(--g-line); box-shadow: var(--g-shadow); }
+.app-pane .app-day.stuck { border-bottom: 1px solid var(--g-line); box-shadow: var(--g-shadow), var(--g-edge-top); }
 
 /* a panel's contents fade in, settling a little, as it opens (and out as it closes) */
 .l2m-menu .menu-inner, .l2m-menu .mk-tabs { opacity: 0; transform: translateY(-6px); }
@@ -2110,6 +2110,9 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
   /* its shadow: the same all round, round corners and all (no light from one side: it lifts, it does not cast) */
   --g-shadow: 0 0 22px 0 color-mix(in srgb, var(--bar-shadow) 30%, transparent);
   --g-shadow-round: 0 0 8px 0 color-mix(in srgb, var(--bar-shadow) 40%, transparent);   /* small glass */
+  /* a skin's line along the edges, drawn within the glass (none here: the glass's edge is its border): a piece at the
+     screen's top, on its other sides; at its foot, on its other sides; a round one, all round */
+  --g-edge-top: 0 0 transparent; --g-edge-bottom: 0 0 transparent; --g-edge-round: 0 0 transparent;
   --g-cover-fill: color-mix(in srgb, var(--ground) 90%, transparent);
   --g-cover-blur: blur(10px) saturate(1.3);
   --g-r: var(--r);                                          /* its corners */
@@ -2132,7 +2135,7 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 .glass-cover { background-color: var(--g-cover-fill); -webkit-backdrop-filter: var(--g-cover-blur); backdrop-filter: var(--g-cover-blur); }
 
 /* at the top: the film laid from the screen's top (on wide screens its left edge too), the rim at the bottom edge */
-.glass-top { border-bottom: 1px solid var(--g-line); border-radius: 0 0 var(--g-r) var(--g-r); box-shadow: var(--g-shadow); }
+.glass-top { border-bottom: 1px solid var(--g-line); border-radius: 0 0 var(--g-r) var(--g-r); box-shadow: var(--g-shadow), var(--g-edge-top); }
 .glass-top::before { inset: 0 0 auto 0; height: 100%; background-position: var(--glass-x) 0;
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides); }
 
@@ -2140,7 +2143,7 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
    edge (glass inside a footer, the peek's head, takes the footer's) */
 .glass-bottom {
   position: fixed; left: 0; right: 0; bottom: env(keyboard-inset-height, 0px);    /* (on a keyboard laid over the page) */
-  border-top: 1px solid var(--g-line); border-radius: var(--g-r) var(--g-r) 0 0; box-shadow: var(--g-shadow);
+  border-top: 1px solid var(--g-line); border-radius: var(--g-r) var(--g-r) 0 0; box-shadow: var(--g-shadow), var(--g-edge-bottom);
   transform: translateY(calc(100% + 12px)); opacity: 0; visibility: hidden; pointer-events: none;
   transition: transform var(--g-move), opacity 220ms ease, visibility 0s linear 320ms;
 }
@@ -2150,7 +2153,7 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }   /* (the page scrolls on as far) */
 
 /* small and round: no film (too small for its colours) */
-.glass-round { border: 1px solid var(--g-line); border-radius: var(--r-round); box-shadow: var(--g-shadow-round); }
+.glass-round { border: 1px solid var(--g-line); border-radius: var(--r-round); box-shadow: var(--g-shadow-round), var(--g-edge-round); }
 .glass-round::before { content: none; }
 
 /* wide screens: the bar, the panels and the footers as wide as the page, centred */
@@ -2183,18 +2186,23 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
    soft, wide shadow (all round, as the glass's) to lift it off the page; its panels, sheets and boxes square. */
 :root[data-skin="flat"] {
   --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
-  /* its edge: a faint line the same all round, round corners and all, inside it (a ring drawn within the glass, not a
-     border on one side) */
+  /* its edge: a faint hairline drawn within it, round corners and all, on every side but one at the screen's edge
+     (the header's top, a footer's foot; on a phone, where the glass meets the screen's sides, those too) */
   --g-line: transparent;
-  --g-bevel: inset 0 0 0 1px color-mix(in srgb, var(--rule) 70%, transparent);
-  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 22%, transparent), var(--g-bevel);
-  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent), var(--g-bevel);
+  --g-hair: color-mix(in srgb, var(--rule) 70%, transparent);
+  --g-edge-top: inset 0 -0.5px 0 0 var(--g-hair);
+  --g-edge-bottom: inset 0 0.5px 0 0 var(--g-hair);
+  --g-edge-round: inset 0 0 0 0.5px var(--g-hair);
+  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 22%, transparent);
+  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
   --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
 }
 /* (on a wide screen, where the glass floats clear of the screen's edges: its corners slightly round) */
-@media (min-width: 800px) { :root[data-skin="flat"] { --g-r: 6px; } }
+@media (min-width: 800px) { :root[data-skin="flat"] { --g-r: 6px;
+  --g-edge-top: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 -0.5px 0 0 var(--g-hair);
+  --g-edge-bottom: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 0.5px 0 0 var(--g-hair); } }
 /* (the peek's head, on the page's own ground: lifted off the text under it by the flat glass's shadow, as the bar is) */
 :root[data-skin="flat"] .peek-head { box-shadow: var(--g-shadow); }
 /* (flat: no border, so that the edge's ring, drawn just inside the box, lies on the glass's very edge) */
