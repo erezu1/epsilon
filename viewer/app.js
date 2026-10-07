@@ -958,14 +958,17 @@
   }
   function pullReading() {
     if (!src || !src.readWithSha) return Promise.resolve();
-    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeArchived((r.data || {}).archived); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
+    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; readingRest = r.data || {}; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeArchived((r.data || {}).archived); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
                                                 function () {});
   }
   var readingSent = "";                        // what was last written: the same again is not written
+  // what the file held as last read: written back with ours, so that what a newer version of the app keeps there
+  // (unknown to this one) is never lost when this one writes
+  var readingRest = {};
   function pushReading(keepalive) {
     if (!readingDirty || !src || !src.putJSON) return;
     readingDirty = false;
-    var data = {papers: reading, pins: pins, archived: archived, folders: folders, placed: placed, marks: markCounts}, text = JSON.stringify(data);
+    var data = Object.assign({}, readingRest, {papers: reading, pins: pins, archived: archived, folders: folders, placed: placed, marks: markCounts}), text = JSON.stringify(data);
     if (text === readingSent) return;
     readingSent = text;
     src.putJSON("reading.json", data, readingSha, "Reading places", keepalive).then(function (sha) {
