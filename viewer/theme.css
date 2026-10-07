@@ -2207,12 +2207,10 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 :root[data-skin="flat"] .peek-head { box-shadow: var(--g-shadow); }
 /* (flat: no border, so that the edge's ring, drawn just inside the box, lies on the glass's very edge) */
 :root[data-skin="flat"] :is(.glass-top, .glass-bottom, .glass-round, .app-day.stuck) { border-width: 0; }
-/* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide. Under
-   the note being written, it as it will read */
+/* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */
 .l2m-note-tex.display { display: block; overflow-x: auto; overflow-y: hidden; text-align: center; margin: 0.3em 0; }
 .l2m-note-tex mjx-container[jax="SVG"] { margin: 0 !important; }
 .l2m-note-tex mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
-.mk-note-tex { margin: 6px 2px 0; color: var(--ink); font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
 /* the settings (System, View): as tall as the screen lets them be, below the bar, so that what they hold shows whole */

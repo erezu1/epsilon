@@ -34,7 +34,6 @@ window.L2M_marks = function (host) {
   // paper's macros; until drawn (or when the drawing fails), the TeX as written. Each drawn once (notes are laid again
   // and again).
   var TEX = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$((?:\\.|[^$\\])+?)\$/g, texDrawn = {};
-  function hasTeX(t) { TEX.lastIndex = 0; return TEX.test(t || ""); }
   function noteInto(el, text) {
     var at = 0, mm;
     TEX.lastIndex = 0;
@@ -604,18 +603,10 @@ window.L2M_marks = function (host) {
     '<button type="button" class="bar-btn" data-mk="remove" aria-label="Remove the mark">' + (I.trash || "") + "</button>" +
     '<button type="button" class="bar-btn" data-mk="close" aria-label="Close">' + (I.close || "") + "</button></div></div>" +
     '<div class="mk-quote"></div><p class="mk-was" hidden></p><p class="mk-by" hidden></p>' +
-    '<textarea class="mk-note" rows="2" placeholder="Add a note (LaTeX: $x^2$)" aria-label="Note"></textarea><div class="mk-note-tex" aria-hidden="true" hidden></div></div>';
+    '<textarea class="mk-note" rows="2" placeholder="Add a note (LaTeX: $x^2$)" aria-label="Note"></textarea></div>';
   document.body.appendChild(sheet);
   var quote = sheet.querySelector(".mk-quote"), note = sheet.querySelector(".mk-note"), was = sheet.querySelector(".mk-was");
-  var by = sheet.querySelector(".mk-by"), texView = sheet.querySelector(".mk-note-tex"), texT = 0;
-  // a note with formulas: as it reads, drawn, under it as it is written
-  function showTeX() {
-    clearTimeout(texT);
-    var v = note.value;
-    texView.hidden = !hasTeX(v);
-    texView.textContent = "";
-    if (!texView.hidden) noteInto(texView, v);
-  }
+  var by = sheet.querySelector(".mk-by");
   var sheetOpen = false, noteT = 0;
   // a mark's words as they stand in the paper (its formulas drawn first: one not drawn yet would be copied empty);
   // at most limit characters of them
@@ -657,7 +648,6 @@ window.L2M_marks = function (host) {
     by.hidden = !m.by;                             // (a mark someone else made: Claude, through the library tool)
     by.textContent = m.by ? "Marked by " + m.by : "";
     note.value = m.note || "";
-    showTeX();
     grow();
   }
   function grow() { note.style.height = "auto"; note.style.height = Math.min(note.scrollHeight + 2, Math.round(window.innerHeight * 0.4)) + "px"; keepInSight(); }
@@ -759,7 +749,7 @@ window.L2M_marks = function (host) {
   }
   // (and once the keyboard is up, whether or not the window said so: a phone's keyboard comes in some 300ms)
   note.addEventListener("focus", function () { keepInSight(700); });
-  note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); clearTimeout(texT); texT = setTimeout(showTeX, 350); });
+  note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); });
   // with a keyboard (a mouse or trackpad beside it): Enter is done with the note, Shift+Enter a new line in it. Without
   // one (a phone's keys), Enter is a new line, as it is anywhere
   function keyboard() { return !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches); }
