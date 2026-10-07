@@ -317,7 +317,11 @@
     // for the reading view's own use (its second view, its search): draw one, look into one before drawing it
     var mathApi = {draw: drawIn, undraw: undraw, watch: watch, codes: codesOf, onDraw: null, onUndraw: null,
                    lazy: function (k) { return inner[+k] != null; }, eager: EAGER,
-                   has: function (k, code) { return inner[+k] != null && inner[+k].indexOf('data-c="' + code + '"') >= 0; }};
+                   has: function (k, code) { return inner[+k] != null && inner[+k].indexOf('data-c="' + code + '"') >= 0; },
+                   // a piece of TeX not in the paper (a reader's note), drawn with the paper's own macros: a promise of it
+                   tex: function (src, display) {
+                     return mathJax(o.mathjax || theme.mathjax, m).then(function () { return MathJax.tex2svg(src, {display: !!display}); });
+                   }};
     if (svg) {
       var st = document.createElement("style");
       st.textContent = cache.css || "";
@@ -458,7 +462,7 @@
   };
 
   // ------------------------------------------------------------------ formulas drawn in the browser
-  var mjLoading = null;
+  var mjLoading = null, mjFor = null;
   function mathJax(url, m) {
     // MathJax is loaded once per page; each paper's macros are set before its formulas are drawn
     if (!mjLoading) {
@@ -466,7 +470,7 @@
         window.MathJax = {
           loader: {load: []},
           // a formula MathJax cannot read shows its TeX
-          tex: {packages: m.packages, macros: m.macros, tags: "ams", formatError: function (jax, err) { throw err; }},
+          tex: Object.assign(m.packages ? {packages: m.packages} : {}, {macros: m.macros || {}, tags: "ams", formatError: function (jax, err) { throw err; }}),
           svg: {fontCache: "local"},
           // no MathJax menu, and no hidden MathML copy (it can stick out past the screen)
           options: {enableMenu: false, menuOptions: {settings: {assistiveMml: false}}},
@@ -479,15 +483,18 @@
         var s = document.createElement("script");
         s.src = url;
         s.async = true;
-        s.onerror = reject;
+        s.onerror = function (e) { mjLoading = null; reject(e); };     // (offline: tried again next time)
         document.head.appendChild(s);
       });
+      mjFor = m;
       return mjLoading;
     }
     return mjLoading.then(function () {
+      if (mjFor === m) return;
       // a later paper: its own macros and packages
-      MathJax.config.tex.macros = m.macros;
-      MathJax.config.tex.packages = m.packages;
+      mjFor = m;
+      MathJax.config.tex.macros = m.macros || {};
+      if (m.packages) MathJax.config.tex.packages = m.packages;
       MathJax.startup.getComponents();
     });
   }

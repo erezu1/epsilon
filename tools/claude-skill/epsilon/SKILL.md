@@ -109,7 +109,8 @@ python3 "$E/epsilon_library.py" --library "$L" unmark 2607.14042 <id>  # take on
 - To annotate a paper for them (explain an equation where it stands, answer a question they left), mark the exact
   words with a short note. Take the words from `text`, where formulas appear as their TeX between `$` signs. The mark
   is written to the library at once and shows in the app in the margin and under Notes, as "Marked by Claude". The
-  tool prints its link.
+  tool prints its link. A note may hold LaTeX, drawn in the app with the paper's own macros: `$...$` or `\(...\)` in
+  the line, `$$...$$` or `\[...\]` on a line of its own.
 - The tool refuses words that appear several times (give a few more of them) or that it cannot find (check `text`).
   Quotes, dashes and capitals may differ.
 - Leave the user's own marks alone unless they ask; `unmark` is for your own.

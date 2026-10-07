@@ -28,6 +28,37 @@ window.L2M_marks = function (host) {
   function isWS(c) { return c === 32 || c === 10 || c === 9 || c === 13 || c === 12 || c === 160 || c === 8201 || c === 8202 || c === 8239; }
   var SKIP = "svg, script, style, button, textarea, input, [hidden], .skel-paper, .l2m-mark, .l2m-mk-layer, details.toc, .l2m-libnav, .l2m-actions, .mjx-hl";
   var FORMULA = "mjx-container[data-n], l2m-math[n]";
+
+  // ---------------------------------------------------------------- a note's own LaTeX
+  // A note's words with its formulas drawn ($...$ and \(...\) in the line, $$...$$ and \[...\] on their own), with the
+  // paper's macros; until drawn (or when the drawing fails), the TeX as written. Each drawn once (notes are laid again
+  // and again).
+  var TEX = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$((?:\\.|[^$\\])+?)\$/g, texDrawn = {};
+  function hasTeX(t) { TEX.lastIndex = 0; return TEX.test(t || ""); }
+  function noteInto(el, text) {
+    var at = 0, mm;
+    TEX.lastIndex = 0;
+    while ((mm = TEX.exec(text))) {
+      if (mm.index > at) el.appendChild(document.createTextNode(text.slice(at, mm.index)));
+      at = TEX.lastIndex;
+      var display = mm[1] != null || mm[2] != null, src = (mm[1] || mm[2] || mm[3] || mm[4] || "").trim(), key = (display ? "D" : "I") + src;
+      var sp = document.createElement("span");
+      sp.className = "l2m-note-tex" + (display ? " display" : "");
+      if (texDrawn[key]) { sp.innerHTML = texDrawn[key]; el.appendChild(sp); continue; }
+      sp.textContent = mm[0];
+      el.appendChild(sp);
+      if (window.L2M_math && L2M_math.tex) (function (sp, key, src, display) {
+        L2M_math.tex(src, display).then(function (node) {
+          if (node.querySelector && node.querySelector("merror")) return;
+          texDrawn[key] = node.outerHTML;
+          sp.textContent = "";
+          sp.appendChild(node);
+        }, function () {});
+      })(sp, key, src, display);
+    }
+    if (at < text.length) el.appendChild(document.createTextNode(text.slice(at)));
+    return el;
+  }
   // A text: {root, M: {C, segs, at (node -> segment), heads}, job}. Read once (it stays as long as the paper, or the
   // peek's copy, is open): at once when a mark is made, else a little at a time in the page's idle moments (a long
   // paper takes some tens of milliseconds on a phone)
@@ -337,7 +368,8 @@ window.L2M_marks = function (host) {
           var n = document.createElement("div");
           n.className = "l2m-mk-side" + c + (d.id === openId || d.id === hoverId ? " on" : "");
           n.setAttribute("data-id", d.id);
-          n.textContent = (d.m.by ? d.m.by + ": " : "") + d.m.note;
+          n.textContent = d.m.by ? d.m.by + ": " : "";
+          noteInto(n, d.m.note);
           n.style.left = (right + x0 + 28) + "px";
           n.style.width = wide + "px";
           n.style.top = (d.first.top + y0 - 2) + "px";
@@ -572,10 +604,18 @@ window.L2M_marks = function (host) {
     '<button type="button" class="bar-btn" data-mk="remove" aria-label="Remove the mark">' + (I.trash || "") + "</button>" +
     '<button type="button" class="bar-btn" data-mk="close" aria-label="Close">' + (I.close || "") + "</button></div></div>" +
     '<div class="mk-quote"></div><p class="mk-was" hidden></p><p class="mk-by" hidden></p>' +
-    '<textarea class="mk-note" rows="2" placeholder="Add a note" aria-label="Note"></textarea></div>';
+    '<textarea class="mk-note" rows="2" placeholder="Add a note (LaTeX: $x^2$)" aria-label="Note"></textarea><div class="mk-note-tex" aria-hidden="true" hidden></div></div>';
   document.body.appendChild(sheet);
   var quote = sheet.querySelector(".mk-quote"), note = sheet.querySelector(".mk-note"), was = sheet.querySelector(".mk-was");
-  var by = sheet.querySelector(".mk-by");
+  var by = sheet.querySelector(".mk-by"), texView = sheet.querySelector(".mk-note-tex"), texT = 0;
+  // a note with formulas: as it reads, drawn, under it as it is written
+  function showTeX() {
+    clearTimeout(texT);
+    var v = note.value;
+    texView.hidden = !hasTeX(v);
+    texView.textContent = "";
+    if (!texView.hidden) noteInto(texView, v);
+  }
   var sheetOpen = false, noteT = 0;
   // a mark's words as they stand in the paper (its formulas drawn first: one not drawn yet would be copied empty);
   // at most limit characters of them
@@ -617,6 +657,7 @@ window.L2M_marks = function (host) {
     by.hidden = !m.by;                             // (a mark someone else made: Claude, through the library tool)
     by.textContent = m.by ? "Marked by " + m.by : "";
     note.value = m.note || "";
+    showTeX();
     grow();
   }
   function grow() { note.style.height = "auto"; note.style.height = Math.min(note.scrollHeight + 2, Math.round(window.innerHeight * 0.4)) + "px"; keepInSight(); }
@@ -718,7 +759,7 @@ window.L2M_marks = function (host) {
   }
   // (and once the keyboard is up, whether or not the window said so: a phone's keyboard comes in some 300ms)
   note.addEventListener("focus", function () { keepInSight(700); });
-  note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); });
+  note.addEventListener("input", function () { grow(); clearTimeout(noteT); noteT = setTimeout(saveNote, 700); clearTimeout(texT); texT = setTimeout(showTeX, 350); });
   // with a keyboard (a mouse or trackpad beside it): Enter is done with the note, Shift+Enter a new line in it. Without
   // one (a phone's keys), Enter is a new line, as it is anywhere
   function keyboard() { return !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches); }
@@ -961,7 +1002,11 @@ window.L2M_marks = function (host) {
       q.className = "mk-item-q";
       q.appendChild(runOn(wordsOf(id, 220)));
       a.appendChild(q);
-      if (m.note || m.by) { var n = document.createElement("span"); n.className = "mk-item-n"; n.textContent = m.note ? (m.by ? m.by + ": " : "") + m.note : "Marked by " + m.by; a.appendChild(n); }
+      if (m.note || m.by) {
+        var n = document.createElement("span"); n.className = "mk-item-n";
+        if (m.note) { n.textContent = m.by ? m.by + ": " : ""; noteInto(n, m.note); } else n.textContent = "Marked by " + m.by;
+        a.appendChild(n);
+      }
       frag.appendChild(a);
     });
     if (lostIds.length) {
@@ -969,8 +1014,9 @@ window.L2M_marks = function (host) {
       lostIds.forEach(function (id) {
         var m = all[id], d = document.createElement("div");
         d.className = "mk-item mk-lost c" + (m.c || 1);
-        d.innerHTML = '<span class="mk-item-q">' + esc(m.quote) + "</span>" + (m.note ? '<span class="mk-item-n">' + esc(m.note) + "</span>" : "") +
+        d.innerHTML = '<span class="mk-item-q">' + esc(m.quote) + "</span>" + (m.note ? '<span class="mk-item-n"></span>' : "") +
           '<button type="button" class="bar-btn mk-item-x" data-mk-drop="' + esc(id) + '" aria-label="Remove this mark">' + (I.close || "&times;") + "</button>";
+        if (m.note) noteInto(d.querySelector(".mk-item-n"), m.note);
         frag.appendChild(d);
       });
     }
