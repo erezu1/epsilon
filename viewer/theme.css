@@ -2211,6 +2211,8 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --film-o: 0;
   --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
 }
+/* (on a wide screen, where the glass floats clear of the screen's edges: its corners slightly round) */
+@media (min-width: 800px) { :root[data-skin="flat"] { --g-r: 6px; } }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
 /* the settings (System, View): as tall as the screen lets them be, below the bar, so that what they hold shows whole */
