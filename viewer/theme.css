@@ -128,11 +128,11 @@
 }
 
 /* text size: small / medium / large */
-:root { --fs: 17px; }
+:root { --fs: 17px; --fs-s: 15.5px; }                /* (--fs-s: the small size, whatever is chosen: notes in the margin) */
 :root[data-size="s"] { --fs: 15.5px; }
 :root[data-size="l"] { --fs: 19px; }
 @media (min-width: 720px) {
-  :root { --fs: 18px; }
+  :root { --fs: 18px; --fs-s: 16.5px; }
   :root[data-size="s"] { --fs: 16.5px; }
   :root[data-size="l"] { --fs: 20.5px; }
 }
@@ -2018,7 +2018,7 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .l2m-mk-side-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 1; }
 .l2m-mk-side { position: absolute; box-sizing: border-box; padding: 1px 0 2px 10px; cursor: pointer; pointer-events: auto;
   border-left: 2px solid color-mix(in srgb, var(--mk) 85%, transparent); color: var(--muted);
-  font: 400 13px/1.45 var(--ui); white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 400 var(--fs-s)/1.45 var(--ui); white-space: pre-wrap; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; line-clamp: 8; overflow: hidden;
   -webkit-user-select: none; user-select: none; transition: color 150ms ease; }
 .l2m-mk-side.on, .l2m-mk-side:hover { color: var(--ink); }
