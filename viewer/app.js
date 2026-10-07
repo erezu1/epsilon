@@ -2031,7 +2031,7 @@
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && (src.run || src.putJSON) ? '<button type="button" class="bar-btn app-more" data-more="' + esc(k) + '" aria-label="Folder' + (src.run ? ", or remove" : "") + '">' + (I.more || "&hellip;") + "</button>" : "") +
         "</span>";
-      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow">' +
+      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (isArchived(k) ? " data-archived" : "") + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow">' +
         '<div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") +
         (x.titleHtml || esc(x.title || k)) + "</a>" +

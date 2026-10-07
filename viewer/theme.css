@@ -905,6 +905,8 @@ a.lib-title { color: var(--ink); }
 /* library rows: the text opens the paper; INSPIRE opens INSPIRE */
 .app-lib-text { flex: 1 1 auto; min-width: 0; padding: 0.85rem 0; cursor: pointer; }
 .app-lib-text .lib-title { display: block; color: var(--ink); text-decoration: none; }
+.lib-rows > li[data-archived] .lib-title { color: var(--muted); }    /* archived (seen in its folder, or Archive): paler, as its authors */
+@media (hover: hover) { .lib-rows > li[data-archived] a.lib-title:hover { color: var(--link); } }
 @media (hover: hover) { .app-lib-text:hover .lib-title { color: var(--link); } }
 .app-ext { color: var(--link); text-decoration: none; }
 @media (hover: hover) { .app-ext:hover { text-decoration: underline; } }
