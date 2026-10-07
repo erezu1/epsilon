@@ -1915,24 +1915,6 @@
       }, 1100);
     }, wait);
   }
-  // each paper's reading line (the bottom rule of its row, filled as far as it is read) grows to a new length
-  var shownRead = null;
-  function growReading(box) {
-    var was = shownRead;
-    shownRead = {};
-    Array.prototype.forEach.call(box.querySelectorAll("li[data-k]"), function (li) {
-      var k = li.getAttribute("data-k"), now = parseFloat(li.style.getPropertyValue("--read")) || 0;
-      shownRead[k] = now;
-      if (!was || Math.abs((was[k] || 0) - now) < 0.002) return;
-      li.setAttribute("data-read", "");
-      li.style.setProperty("--read", String(was[k] || 0));
-      li.classList.add("read-still");
-      void li.offsetWidth;
-      li.classList.remove("read-still");
-      setTimeout(function () { li.style.setProperty("--read", String(now)); if (!now) li.removeAttribute("data-read"); },
-                 root.classList.contains("l2m-in-back") || root.classList.contains("l2m-vt-back") ? 420 : 40);
-    });
-  }
   var NEW_DAYS = 30;
   function isNewPaper(x, read) {
     var k = keyOf(x), t = Date.parse(x.added || "");
@@ -2023,7 +2005,6 @@
                                     (mc.w ? " &middot; " + mc.w + (mc.w === 1 ? " note" : " notes") : "") + "</span>");
       var fk = folderOf(k);
       var hay = (x.title + " " + (x.authors || []).join(" ") + " " + (x.arxiv ? x.arxiv.id : "") + " " + (fk ? folders[fk].name : "")).toLowerCase();
-      var got = reading[k] && reading[k].progress > 0.005 ? reading[k].progress : 0;
       // the title the row's whole width (a new paper's tag before it); the buttons on the last line, after "Abstract"
       var acts = '<span class="lib-acts">' +
         (x.status !== "failed" ? '<button type="button" class="bar-btn app-pin" data-pin="' + esc(k) + '" aria-pressed="' + isPinned(k) +
@@ -2034,11 +2015,10 @@
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && (src.run || src.putJSON) ? '<button type="button" class="bar-btn app-more" data-more="' + esc(k) + '" aria-label="Folder' + (src.run ? ", or remove" : "") + '">' + (I.more || "&hellip;") + "</button>" : "") +
         "</span>";
-      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (isArchived(k) ? " data-archived" : "") + (got ? ' data-read style="--read: ' + got + '"' : "") + '><div class="app-lib-row lib-flow">' +
+      return '<li data-k="' + esc(k) + '" data-hay="' + esc(hay) + '"' + (isArchived(k) ? " data-archived" : "") + '><div class="app-lib-row lib-flow">' +
         '<div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") +
         (x.titleHtml || esc(x.title || k)) + "</a>" +
-        '<span class="lib-read" aria-hidden="true"><i></i></span>' +     // (unread: the empty track)
         // the authors and the rest (arXiv number, category, INSPIRE, note) on one line, to keep the row short
         '<span class="lib-authors lib-byline">' + esc(authorsLine(x.authors)) +
         (meta.length ? '<span class="lib-meta">' + ((x.authors || []).length ? " &middot; " : "") + meta.join(" &middot; ") + "</span>" : "") + "</span></div>" +
@@ -2088,7 +2068,6 @@
     if (box.parentNode.scrollTop !== wasAt) box.parentNode.scrollTop = wasAt;
     slideRows(box, before, box.parentNode);
     fadeLeaving(box, leaving);
-    growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
       b.addEventListener("click", function () { togglePin(b.getAttribute("data-pin")); });
     });
