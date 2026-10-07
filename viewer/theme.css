@@ -2197,6 +2197,8 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 @media (min-width: 800px) { :root[data-skin="flat"] { --g-r: 6px; } }
 /* (the peek's head, on the page's own ground: lifted off the text under it by the flat glass's shadow, as the bar is) */
 :root[data-skin="flat"] .peek-head { box-shadow: var(--g-shadow); }
+/* (flat: no border, so that the edge's ring, drawn just inside the box, lies on the glass's very edge) */
+:root[data-skin="flat"] :is(.glass-top, .glass-bottom, .glass-round, .app-day.stuck) { border-width: 0; }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
 /* the settings (System, View): as tall as the screen lets them be, below the bar, so that what they hold shows whole */
