@@ -785,6 +785,24 @@
     });
     store("pins", pins);
   }
+  // archived papers: out of All (and Unfiled), still in their folder, and together under Archive; kept as the pins are
+  var archived = store("archived") || {};
+  function isArchived(k) { return !!(archived[k] && archived[k].on); }
+  function toggleArchive(k, quiet) {
+    archived[k] = {on: !isArchived(k), at: Date.now()};
+    store("archived", archived);
+    readingDirty = true;
+    clearTimeout(readingTimer);
+    readingTimer = setTimeout(pushReading, 1500);
+    if (isPage(current)) renderLibrary();
+    if (!quiet) toastAct(isArchived(k) ? "Archived." : "Back from the archive.", "Undo", function () { toggleArchive(k, true); }, 6000);
+  }
+  function mergeArchived(remote) {
+    Object.keys(remote || {}).forEach(function (k) {
+      if (!archived[k] || (remote[k].at || 0) > (archived[k].at || 0)) archived[k] = remote[k];
+    });
+    store("archived", archived);
+  }
   // Folders: the reader's own, each paper in at most one (kept as a list, so tags could come later). Kept with the
   // reading places and pins (reading.json), synced the same way: per folder and per paper, the latest change wins; a
   // folder deleted stays as a mark ("gone"), so the deletion reaches the other devices. Its papers are then unfiled.
@@ -827,7 +845,8 @@
   // the folder shown in the library: its address says (?f=<folder>, ?f=none for Unfiled); not remembered, not synced.
   // From All a folder is a step (back returns to All before anything else); from one folder to another, the same step.
   function urlFolder() { return new URLSearchParams(location.search).get("f") || "all"; }
-  var libView = urlFolder(), libChipsView = null;       // (the chip shown chosen, for the fade to the next)
+  // (opened on the library's plain address: the folder it was last on, on this device)
+  var libView = location.search ? urlFolder() : store("libView") || "all", libChipsView = null;       // (the chip shown chosen, for the fade to the next)
   function showFolder(id) {
     if (id === libView) return;
     var st = history.state || {};
@@ -872,7 +891,7 @@
     store("folders", folders);
     store("placed", placed);
   }
-  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins) + JSON.stringify(folders) + JSON.stringify(placed) + JSON.stringify(markCounts); }
+  function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins) + JSON.stringify(archived) + JSON.stringify(folders) + JSON.stringify(placed) + JSON.stringify(markCounts); }
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
   // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
   // every device and at any moment, whatever is laid out yet
@@ -939,14 +958,14 @@
   }
   function pullReading() {
     if (!src || !src.readWithSha) return Promise.resolve();
-    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
+    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeArchived((r.data || {}).archived); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
                                                 function () {});
   }
   var readingSent = "";                        // what was last written: the same again is not written
   function pushReading(keepalive) {
     if (!readingDirty || !src || !src.putJSON) return;
     readingDirty = false;
-    var data = {papers: reading, pins: pins, folders: folders, placed: placed, marks: markCounts}, text = JSON.stringify(data);
+    var data = {papers: reading, pins: pins, archived: archived, folders: folders, placed: placed, marks: markCounts}, text = JSON.stringify(data);
     if (text === readingSent) return;
     readingSent = text;
     src.putJSON("reading.json", data, readingSha, "Reading places", keepalive).then(function (sha) {
@@ -1963,19 +1982,30 @@
     });
     // the folders (once there is one): chips over the list, All, each folder, Unfiled; the one chosen shows its papers
     var flist = folderList(), view = libView;
-    if (!flist.length || (view !== "all" && view !== "none" && !(folders[view] && !folders[view].gone))) view = "all";
-    function inView(k) { var f = folderOf(k); return view === "all" || (view === "none" ? !f : f === view); }
-    var counts = {all: papers.length, none: 0};
-    papers.forEach(function (x) { var f = folderOf(keyOf(x)); if (f) counts[f] = (counts[f] || 0) + 1; else counts.none++; });
+    var counts = {all: 0, none: 0, archive: 0};
+    papers.forEach(function (x) {
+      var k = keyOf(x), f = folderOf(k), a = isArchived(k);
+      if (f) counts[f] = (counts[f] || 0) + 1;
+      if (a) counts.archive++; else { counts.all++; if (!f) counts.none++; }
+    });
+    var chipsOn = flist.length || counts.archive;
+    if (!chipsOn || (view !== "all" && view !== (flist.length ? "none" : "") && view !== "archive" && !(folders[view] && !folders[view].gone))) view = "all";
+    // (an archived paper: in its folder, under Archive, not in All or Unfiled)
+    if (lib && lib.papers && lib.papers.length) store("libView", view);       // (not before the papers are known)
+    function inView(k) {
+      var f = folderOf(k), a = isArchived(k);
+      return view === "archive" ? a : view === "all" ? !a : view === "none" ? !f && !a : f === view;
+    }
     // (drawn first as they were chosen, then the choice moved: the chips fade between the two)
     var shownView = chipsWere && libChipsView != null ? libChipsView : view;
     function chip(id, name, isFolder) {
       return '<button type="button" class="app-chip lib-folder" role="tab" aria-selected="' + (shownView === id) + '" data-view="' + esc(id) + '"' +
         (isFolder ? " data-folder-chip" : "") + ">" + esc(name) + " <span>" + (counts[id] || 0) + "</span></button>";
     }
-    var chips = flist.length ? '<div class="lib-folders" role="tablist" aria-label="Folders">' + chip("all", "All") +
-      flist.map(function (f) { return chip(f.id, f.name, true); }).join("") + chip("none", "Unfiled") +
-      '<button type="button" class="app-chip lib-folder lib-folder-add" data-folder-add aria-label="New folder">+</button></div>' : "";
+    var chips = chipsOn ? '<div class="lib-folders" role="tablist" aria-label="Folders">' + chip("all", "All") +
+      flist.map(function (f) { return chip(f.id, f.name, true); }).join("") + (flist.length ? chip("none", "Unfiled") : "") +
+      '<button type="button" class="app-chip lib-folder lib-folder-add" data-folder-add aria-label="New folder">+</button>' +
+      chip("archive", "Archive") + "</div>" : "";
     papers = papers.filter(function (x) { return inView(keyOf(x)); });
     waiting = waiting.filter(inView);
     function row(x) {
@@ -1995,6 +2025,8 @@
       var acts = '<span class="lib-acts">' +
         (x.status !== "failed" ? '<button type="button" class="bar-btn app-pin" data-pin="' + esc(k) + '" aria-pressed="' + isPinned(k) +
           '" aria-label="' + (isPinned(k) ? "Pinned; tap to unpin" : "Pin to the top") + '">' + (isPinned(k) ? I.pinned || I.pin || "&#9733;" : I.pin || "&#9734;") + "</button>" : "") +
+        '<button type="button" class="bar-btn app-archive" data-archive="' + esc(k) + '" aria-pressed="' + isArchived(k) +
+          '" aria-label="' + (isArchived(k) ? "Archived; tap to bring it back" : "Archive") + '">' + (isArchived(k) ? I.unarchive || "&uarr;" : I.archive || "&darr;") + "</button>" +
         (window.caches && x.status !== "failed" ? '<button type="button" class="bar-btn app-offline" data-offline="' + esc(k) + '" aria-pressed="' + !!off[k] +
           '" aria-label="' + (off[k] ? "Saved on this device; tap to remove the copy" : "Keep offline") + '">' + (off[k] ? I.offlineDone || "&#10003;" : I.offline || "&darr;") + "</button>" : "") +
         (src && (src.run || src.putJSON) ? '<button type="button" class="bar-btn app-more" data-more="' + esc(k) + '" aria-label="Folder' + (src.run ? ", or remove" : "") + '">' + (I.more || "&hellip;") + "</button>" : "") +
@@ -2030,7 +2062,7 @@
       (rest ? '<p class="app-day lib-head" data-k="h:rest">Recent</p><ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>" : "") :
       '<ol class="l2m-library lib-rows" id="lib-list">' + rest + "</ol>";
     box.innerHTML = chips + (papers.length || converting ? lists : view !== "all" ?
-                       '<p class="app-note">' + (view === "none" ? "Every paper is in a folder." : "Nothing here yet; move papers in with &hellip; beside them.") + "</p>" :
+                       '<p class="app-note">' + (view === "none" ? "Every paper is in a folder." : view === "archive" ? "Nothing archived." : "Nothing here yet; move papers in with &hellip; beside them.") + "</p>" :
                        '<p class="app-note">No papers yet.' + (src && src.run ? ' Find some in <a href="?v=new" data-go="new">New</a>.' : "") + "</p>");
     Array.prototype.forEach.call(box.querySelectorAll("[data-view]"), function (b) {
       b.addEventListener("click", function () {
@@ -2056,6 +2088,9 @@
     growReading(box);
     Array.prototype.forEach.call(box.querySelectorAll("[data-pin]"), function (b) {
       b.addEventListener("click", function () { togglePin(b.getAttribute("data-pin")); });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll("[data-archive]"), function (b) {
+      b.addEventListener("click", function () { toggleArchive(b.getAttribute("data-archive")); });
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-more]"), function (b) {
       b.addEventListener("click", function () { paperSheet(b.getAttribute("data-more")); });

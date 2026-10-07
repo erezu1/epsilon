@@ -1268,6 +1268,9 @@ html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875p
 .app-pin { color: var(--muted); opacity: 0.75; }
 .app-pin[aria-pressed="true"] { color: var(--link); opacity: 1; }
 @media (hover: hover) { .app-pin:hover { opacity: 1; } }
+.app-archive { color: var(--muted); opacity: 0.75; }
+.app-archive[aria-pressed="true"] { color: var(--link); opacity: 1; }
+@media (hover: hover) { .app-archive:hover { opacity: 1; } }
 .app-pane-in > .lib-head:first-child { margin-top: 0.2em; }
 .lib-head + .lib-rows > li:first-child { border-top: 0; }
 .lib-rows .app-lib-row > .bar-btn { width: 40px; }
