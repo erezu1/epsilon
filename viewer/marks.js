@@ -453,7 +453,52 @@ window.L2M_marks = function (host) {
     if (r) { lastRange = r.cloneRange(); if (!sheetOpen && !mouseDown) showDock(); }
     else hideDock();
   }
-  on(document, "selectionchange", function () { clearTimeout(selT); selT = setTimeout(checkSel, 160); });
+  on(document, "selectionchange", function () { wholeAtEdges(); clearTimeout(selT); selT = setTimeout(checkSel, 160); });
+  // A formula that begins a line: a selection drawn back past it (to the line's start, or further left) stops just
+  // after it, the browser having no place before it to give (one before it is a place on the line above). So: an end
+  // of the selection just after such a formula, the pointer left of it on its line (with a finger, the place unknown:
+  // at the start of the selection), is moved to before it.
+  var downAt = null, moveAt = null;
+  on(document, "pointerdown", function (e) { downAt = moveAt = {x: e.clientX, y: e.clientY}; }, true);
+  on(document, "pointermove", function (e) {        // (past the line's start the selection no longer changes: here too)
+    if (!e.buttons) return;
+    moveAt = {x: e.clientX, y: e.clientY};
+    if (mouseDown) wholeAtEdges();
+  }, true);
+  function formulaBefore(node, at) {           // the formula just before a place in the text, if any
+    var n = node.nodeType === 3 ? (at === 0 ? node.previousSibling : null) : node.childNodes[at - 1];
+    while (n && n.nodeType === 3 && !n.data.trim()) n = n.previousSibling;
+    return n && n.nodeType === 1 && n.matches(FORMULA) ? n : null;
+  }
+  function leftOf(f, p) {
+    var r = f.getClientRects()[0];
+    return !!(r && p && p.x < r.left && p.y > r.top - 8 && p.y < r.bottom + 8);
+  }
+  function startsLine(f) {
+    var r = f.getClientRects()[0], b = f.parentNode.closest("p, li, dd, dt, td, th, div, blockquote, figcaption");
+    if (!r || !b) return false;
+    var br = b.getBoundingClientRect(), cs = getComputedStyle(b);
+    return r.left - (br.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth)) < 2;
+  }
+  function wholeAtEdges() {
+    var s = getSelection();
+    if (!s.rangeCount || s.isCollapsed || !main.contains(s.anchorNode)) return;
+    var touch = pointer !== "mouse", f;
+    function before(f) { return [f.parentNode, Array.prototype.indexOf.call(f.parentNode.childNodes, f)]; }
+    if (touch) {
+      var r = s.getRangeAt(0);
+      f = formulaBefore(r.startContainer, r.startOffset);
+      if (!f || !startsLine(f)) return;
+      var p = before(f), fwd = s.anchorNode === r.startContainer && s.anchorOffset === r.startOffset;
+      if (fwd) s.setBaseAndExtent(p[0], p[1], s.focusNode, s.focusOffset); else s.setBaseAndExtent(s.anchorNode, s.anchorOffset, p[0], p[1]);
+      return;
+    }
+    if (!mouseDown) return;
+    f = formulaBefore(s.focusNode, s.focusOffset);
+    if (f && startsLine(f) && leftOf(f, moveAt)) { var q = before(f); s.setBaseAndExtent(s.anchorNode, s.anchorOffset, q[0], q[1]); }
+    f = formulaBefore(s.anchorNode, s.anchorOffset);
+    if (f && startsLine(f) && leftOf(f, downAt)) { var q2 = before(f); s.setBaseAndExtent(q2[0], q2[1], s.focusNode, s.focusOffset); }
+  }
   // a tap on a displayed formula selects it, as one in the text is (the browser does that one itself; in the
   // displayed one's box, which scrolls sideways, it does not)
   on(document, "click", function (e) {

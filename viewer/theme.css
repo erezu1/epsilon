@@ -2207,9 +2207,12 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
    soft, wide shadow (all round, as the glass's) to lift it off the page; its panels, sheets and boxes square. */
 :root[data-skin="flat"] {
   --g-fill: var(--ground); --g-fill-solid: var(--ground); --g-blur: none;
-  --g-line: var(--rule);
-  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 22%, transparent);
-  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent);
+  /* its edge: a faint line the same all round, round corners and all, inside it (a ring drawn within the glass, not a
+     border on one side) */
+  --g-line: transparent;
+  --g-bevel: inset 0 0 0 1px color-mix(in srgb, var(--rule) 70%, transparent);
+  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 22%, transparent), var(--g-bevel);
+  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 26%, transparent), var(--g-bevel);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
   --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
