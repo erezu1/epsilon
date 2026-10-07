@@ -766,6 +766,19 @@ window.L2M_marks = function (host) {
   note.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing && keyboard()) { e.preventDefault(); closeSheet("hand"); }
   });
+  // "$" typed over a selection in the note: the selection made a formula, $...$ round it (kept selected; undo takes it
+  // back). (beforeinput: a phone's keyboard as well as a real one)
+  note.addEventListener("beforeinput", function (e) {
+    var a = note.selectionStart, b = note.selectionEnd;
+    if (e.inputType !== "insertText" || e.data !== "$" || a === b) return;
+    e.preventDefault();
+    var str = note.value.slice(a, b);
+    if (!document.execCommand || !document.execCommand("insertText", false, "$" + str + "$")) {
+      note.setRangeText("$" + str + "$", a, b, "end");
+      note.dispatchEvent(new Event("input", {bubbles: true}));
+    }
+    note.setSelectionRange(a + 1, a + 1 + str.length);
+  });
   // with a keyboard, something selected (the bar up): Left and Right ring the next colour, as if chosen; Enter marks in
   // it, with no note (the bar goes with the selection)
   on(document, "keydown", function (e) {
