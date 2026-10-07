@@ -1064,7 +1064,9 @@ window.L2M_marks = function (host) {
     if (aside) { e.preventDefault(); e.stopPropagation(); openSheet(aside.getAttribute("data-id")); return; }
     var own = el.closest("a[href], button, input, textarea, select, summary, label, [role='button'], img, .fig-open");
     var sel = window.getSelection && window.getSelection(), id = null;
-    if (!own && !e.defaultPrevented && !(sel && !sel.isCollapsed)) {
+    // (a formula is selected whole by the click on it itself: under a mark, the click is the mark's)
+    var f = el.closest(FORMULA), byClick = !!(f && sel && sel.rangeCount && !sel.isCollapsed && sel.getRangeAt(0).intersectsNode(f) && !String(sel).trim());
+    if (!own && !e.defaultPrevented && (!(sel && !sel.isCollapsed) || byClick)) {
       if (P && peekShown && P.root.contains(el)) {
         var pr = P.root.getBoundingClientRect();
         id = hit(peekBoxes, e.clientX - pr.left, e.clientY - pr.top);
@@ -1075,6 +1077,7 @@ window.L2M_marks = function (host) {
     if (id) {
       e.preventDefault();
       e.stopPropagation();
+      if (byClick) sel.removeAllRanges();
       // with a mouse, a moment's wait: a double click selects a word in the mark (and opens nothing)
       clearTimeout(tapT);
       if (pointer !== "mouse") openSheet(id);
