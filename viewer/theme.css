@@ -683,6 +683,8 @@ l2m-math { display: inline; }
 @media (hover: hover) { .l2m-library > li > a:hover .lib-title, a.lib-title:hover { color: var(--link); text-decoration: none; } }
 .lib-title { display: block; font-weight: 600; line-height: 1.35; }
 .lib-authors { display: block; margin-top: 0.2rem; color: var(--muted); font-size: 0.88em; line-height: 1.4; }
+/* (in the lists: the authors on one line, cut short with an ellipsis; the details on the line under them) */
+.l2m-app-lists .lib-authors { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* a bar that is always shown: the page starts below it */
 .l2m-bar-always body { padding-top: calc(var(--l2m-bar-h, 49px) + 20px); }
@@ -908,7 +910,7 @@ a.lib-title { color: var(--ink); }
 /* archived (seen in its folder, or Archive): its title and byline one paler shade, the muted ink taken a quarter of the way to the
    ground (so each theme and tone its own) */
 .lib-rows > li[data-archived] { --archived-ink: color-mix(in srgb, var(--muted) 75%, var(--ground)); }
-.lib-rows > li[data-archived] :is(.lib-title, .lib-byline, .lib-meta) { color: var(--archived-ink); }
+.lib-rows > li[data-archived] :is(.lib-title, .lib-authors, .lib-meta) { color: var(--archived-ink); }
 @media (hover: hover) { .lib-rows > li[data-archived] a.lib-title:hover { color: var(--link); } }
 @media (hover: hover) { .app-lib-text:hover .lib-title { color: var(--link); } }
 .app-ext { color: var(--link); text-decoration: none; }
@@ -1922,8 +1924,6 @@ main.l2m-fading { opacity: 0; transition: opacity 140ms ease; }
 .lib-rows .lib-foot > .app-toggle { margin: 0; }
 .lib-rows .lib-foot > .lib-acts { display: flex; margin-left: auto; }
 .lib-rows .lib-foot > .lib-acts > .bar-btn { width: 40px; height: 40px; border-radius: var(--r-round); margin: -5px 0; }   /* (tap areas whole) */
-/* the authors and the rest on one line: the details as a quieter tail of it */
-.lib-rows .lib-flow .lib-byline > .lib-meta { display: inline; }
 .lib-title > .app-new-tag { font-size: 0.72em; vertical-align: 2px; }
 
 /* the page's width on a wide screen (Page width, in the view settings): narrow by default; papers and the lists alike

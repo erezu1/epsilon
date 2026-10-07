@@ -2019,9 +2019,9 @@
         '<div class="app-lib-text" data-p="' + esc(k) + '">' +
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") +
         (x.titleHtml || esc(x.title || k)) + "</a>" +
-        // the authors and the rest (arXiv number, category, INSPIRE, note) on one line, to keep the row short
-        '<span class="lib-authors lib-byline">' + esc(authorsLine(x.authors)) +
-        (meta.length ? '<span class="lib-meta">' + ((x.authors || []).length ? " &middot; " : "") + meta.join(" &middot; ") + "</span>" : "") + "</span></div>" +
+        // the authors on one line (cut short with an ellipsis), the rest (arXiv number, category, INSPIRE, marks) under them
+        ((x.authors || []).length ? '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" : "") +
+        (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
         '</div><div class="lib-foot">' + acts + "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
         '<div class="app-confirm" aria-hidden="true"><div class="app-confirm-in"><span class="app-confirm-q">Remove it from the library?</span>' +
         '<span class="app-confirm-acts"><button type="button" class="app-pill" data-remove-no tabindex="-1">Keep</button>' +
