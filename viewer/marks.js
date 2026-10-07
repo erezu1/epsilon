@@ -835,6 +835,15 @@ window.L2M_marks = function (host) {
     e.preventDefault();
     recolour(m, ORDER[(Math.max(0, i) + (e.key === "ArrowRight" ? 1 : n - 1)) % n]);
   });
+  // and Delete (or a Mac's delete, Backspace) removes it, as its bin does, when nothing is being written in
+  on(document, "keydown", function (e) {
+    if (dead || !sheetOpen || (e.key !== "Delete" && e.key !== "Backspace") || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing) return;
+    var t = e.target, m = openId && store.all()[openId];
+    if (!live(m) || (t && t.closest && t.closest("input, textarea, select, [contenteditable]"))) return;
+    e.preventDefault();
+    closeSheet("hand");
+    remove(m.id);
+  });
   sheet.addEventListener("click", function (e) {
     var b = e.target.closest("button");
     var m = openId && store.all()[openId];

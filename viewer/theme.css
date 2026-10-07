@@ -2206,7 +2206,7 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 /* (the peek's head, on the page's own ground: lifted off the text under it by the flat glass's shadow, as the bar is) */
 :root[data-skin="flat"] .peek-head { box-shadow: var(--g-shadow), inset 0 0 0 0.5px var(--g-hair); border-radius: var(--g-r) var(--g-r) 0 0; }   /* (its edge line all round) */
 /* (flat: no border, so that the edge's ring, drawn just inside the box, lies on the glass's very edge) */
-:root[data-skin="flat"] :is(.glass-top, .glass-bottom, .glass-round, .app-day.stuck) { border-width: 0; }
+:root[data-skin="flat"] :is(.glass-top, .glass-bottom, .glass-round, .app-day.stuck, .peek-head) { border-width: 0; }
 /* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */
 .l2m-note-tex.display { display: block; overflow-x: auto; overflow-y: hidden; text-align: center; margin: 0.3em 0; }
 .l2m-note-tex mjx-container[jax="SVG"] { margin: 0 !important; }
