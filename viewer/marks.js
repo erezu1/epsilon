@@ -1053,6 +1053,29 @@ window.L2M_marks = function (host) {
   }
 
   // ---------------------------------------------------------------- taps
+  function markAt(el, e) {                         // the mark under a pointer (in the peek, or on the page), if any
+    if (P && peekShown && P.root.contains(el)) {
+      var pr = P.root.getBoundingClientRect();
+      return hit(peekBoxes, e.clientX - pr.left, e.clientY - pr.top);
+    }
+    if (el.closest(".l2m-bar, .l2m-menu, .l2m-fnsheet, .l2m-peek, .l2m-viewer, .app-toast")) return null;
+    return hit(boxes, e.clientX + window.pageXOffset, e.clientY + window.pageYOffset);
+  }
+  // A press on a formula under a mark: the browser selects the formula at once (it is selected whole); a tap there is
+  // the mark's, so while it might be one, that selection is not shown (theme.css: l2m-mk-press). Moved on (a selection
+  // being drawn), it shows as ever
+  var press = null, html = document.documentElement;
+  function unpress() { press = null; html.classList.remove("l2m-mk-press"); }
+  on(document, "pointerdown", function (e) {
+    var el = e.target.nodeType === 1 ? e.target : e.target.parentNode;
+    unpress();
+    if (dead || e.button !== 0 || !el || !el.closest || !el.closest(FORMULA) || !markAt(el, e)) return;
+    press = {x: e.clientX, y: e.clientY};
+    html.classList.add("l2m-mk-press");
+  }, true);
+  on(document, "pointermove", function (e) { if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 8) unpress(); }, true);
+  on(document, "pointercancel", unpress, true);
+  on(document, "pointerup", function () { if (press) setTimeout(unpress, 400); }, true);    // (the click comes first)
   // A tap on a mark opens its sheet (not on a link or a button: those keep their own), and so does one on a note in
   // the margin. Caught before the paper's own taps, so that a footnote's sheet open is closed as this one opens, not
   // by a step back of its own
@@ -1066,14 +1089,7 @@ window.L2M_marks = function (host) {
     var sel = window.getSelection && window.getSelection(), id = null;
     // (a formula is selected whole by the click on it itself: under a mark, the click is the mark's)
     var f = el.closest(FORMULA), byClick = !!(f && sel && sel.rangeCount && !sel.isCollapsed && sel.getRangeAt(0).intersectsNode(f) && !String(sel).trim());
-    if (!own && !e.defaultPrevented && (!(sel && !sel.isCollapsed) || byClick)) {
-      if (P && peekShown && P.root.contains(el)) {
-        var pr = P.root.getBoundingClientRect();
-        id = hit(peekBoxes, e.clientX - pr.left, e.clientY - pr.top);
-      } else if (!el.closest(".l2m-bar, .l2m-menu, .l2m-fnsheet, .l2m-peek, .l2m-viewer, .app-toast")) {
-        id = hit(boxes, e.clientX + window.pageXOffset, e.clientY + window.pageYOffset);
-      }
-    }
+    if (!own && !e.defaultPrevented && (!(sel && !sel.isCollapsed) || byClick)) id = markAt(el, e);
     if (id) {
       e.preventDefault();
       e.stopPropagation();
