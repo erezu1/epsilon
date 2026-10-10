@@ -886,7 +886,6 @@ a.lib-title { color: var(--ink); }
 /* a paper's bar: the title close to the back button, the other buttons packed at the right */
 .l2m-bar:not(.app-bar) .bar-inner { gap: 0; }
 .l2m-bar:not(.app-bar) .bar-title { padding-left: 2px; gap: 8px; margin-right: 4px; }
-.l2m-bar:not(.app-bar) { padding-right: max(4px, env(safe-area-inset-right, 0px)); }
 
 /* New: the date stays at the top while its papers scroll under it */
 .app-pane .app-day {
@@ -1649,7 +1648,7 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
    thin line as the other icons), a whole 44px to tap (never cut by the screen's edge); the title starts where the
    Library tab's word does */
 .l2m-bar:not(.app-bar) .ico-back svg { width: 40px; height: 40px; }
-.l2m-bar:not(.app-bar) .bar-btn.swap { margin-left: 1px; padding: 0; }
+.l2m-bar:not(.app-bar) .bar-btn.swap { padding: 0; }
 .l2m-bar:not(.app-bar) .bar-title { margin-left: -5px; }
 
 /* the flip's soft edges only while it runs: at rest nothing is masked (the close button's shadow and pressed circle
@@ -2212,6 +2211,34 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 .l2m-note-tex.display { display: block; overflow-x: auto; overflow-y: hidden; text-align: center; margin: 0.3em 0; }
 .l2m-note-tex mjx-container[jax="SVG"] { margin: 0 !important; }
 .l2m-note-tex mjx-container[jax="SVG"]:not([display]) > svg { max-width: none; }
+/* A bar's row is the text's column: as wide as the page's text and where it is (the page's 18px sides on a phone, its
+   column on a wide screen), so that what a bar holds lines up with the text under it. Its outermost buttons reach out
+   of the row by the empty space beside their icons (half of the button's width less the icon's), so that the icons'
+   strokes stand on the text's two edges: in a paper's bar, the library's, the search's, and the bars shown while they
+   load */
+.l2m-bar { padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.bar-inner { max-width: var(--page-w); }
+.l2m-bar:not(.app-bar) .bar-inner > .bar-btn:first-child { margin-left: -16.25px; }    /* the arrow: 11.5px of 44px */
+.l2m-bar:not(.app-bar) .bar-inner > .bar-btn:last-of-type { margin-right: -12.25px; }  /* the sliders: 17.5px of 42px */
+.bar-find > .bar-btn:last-child { margin-right: -13.25px; }                             /* the cross: 13.5px of 40px */
+.app-bar .app-logo { margin-left: -2.9px; }                                            /* the ε: its picture's first 2.9px */
+.app-bar .app-lead .app-close { justify-self: start; margin-left: -13.25px; }          /* the cross: 13.5px of 40px */
+.app-bar .bar-inner > .bar-btn:last-of-type { margin-right: -14.25px; }                /* the gear: 19.5px of 48px */
+.app-bar .app-searchbar > .bar-btn:last-child { margin-right: -17.25px; }               /* the search's cross: 13.5px of 48px */
+/* Where the glass floats, wider than the text by a margin each side (on a wide screen), the outermost buttons sit in
+   the middle of that margin, between the glass's edge and the end of the reading line under the text; what follows
+   them (a paper's section title, the library's tabs) then starts on the text's edge. (--bar-mid: the middle of the
+   margin, from the text's edge; each button out of the row by that and half its width) */
+@media (min-width: 800px) {
+  :root { --bar-mid: calc((var(--chrome-w) - var(--page-w)) / 4); }
+  .l2m-bar:not(.app-bar) .bar-inner > .bar-btn:first-child { margin-left: calc(-1 * var(--bar-mid) - 22px); }    /* 44px */
+  .l2m-bar:not(.app-bar) .bar-inner > .bar-btn:last-of-type { margin-right: calc(-1 * var(--bar-mid) - 21px); }  /* 42px */
+  .bar-find > .bar-btn:last-child { margin-right: calc(-1 * var(--bar-mid) - 20px); }                             /* 40px */
+  .app-bar .app-logo { margin-left: calc(-1 * var(--bar-mid) - 11px); }                                           /* 22px */
+  .app-bar .app-lead .app-close { margin-left: calc(-1 * var(--bar-mid) - 20px); }                                /* 40px */
+  .app-bar .bar-inner > .bar-btn:last-of-type { margin-right: calc(-1 * var(--bar-mid) - 24px); }                 /* 48px */
+  .app-bar .app-searchbar > .bar-btn:last-child { margin-right: calc(-1 * var(--bar-mid) - 24px); }               /* 48px */
+}
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
 /* the settings (System, View): as tall as the screen lets them be, below the bar, so that what they hold shows whole */
