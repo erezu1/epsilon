@@ -2136,8 +2136,12 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 
 /* Searching (the library's search, a paper's): the bar's first icon gives way to the cross that closes the search, as
    it does for a panel. In the library, the same flip as for the settings: the ε down and out, the cross down from
-   above, through the soft edge (app.js: flap), and back up as the search closes */
+   above, through the soft edge (app.js: flap), and back up as the search closes; each stays seen while it moves (the
+   flip's own timings, which outweigh any other). The bar keeps its height: the row as tall as with its tabs. And one
+   cross only: the field's own clearing cross (the browser's, in a search field) is not shown, as in a paper */
 .app-bar.searching .app-lead > .app-logo { transform: translateY(56px); visibility: hidden;
-  transition: transform 440ms cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0s linear 440ms; }
+  transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), visibility 0s linear 440ms !important; }
 .app-bar.searching .app-lead > .app-close { transform: translateY(0); visibility: visible;
-  transition: transform 440ms cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0s; }
+  transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), visibility 0s !important; }
+.app-bar .bar-inner { min-height: 48px; }
+.app-searchbar .app-field::-webkit-search-cancel-button { display: none; }
