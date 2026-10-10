@@ -613,7 +613,7 @@ window.L2M_nav = function (opts) {
     if (!HAS_FONT.test(q)) t = t.replace(FONTED, "$2");
     if (!HAS_ACC.test(q)) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, "$2");
     if (!/'|\\prime/.test(q)) t = t.replace(PRIMED, "");
-    return t;
+    return t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");     // (^{\sf F}, the font gone: ^F, as texNorm has it)
   }
   // ? in a query: any one symbol, or (as {?}) anything in braces: Z_? is any Z with something under it
   var GROUP = "\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\}", TOKEN = "(?:\\\\[A-Za-z]+|" + GROUP + "|[^{}\\\\])";
@@ -770,6 +770,10 @@ window.L2M_nav = function (opts) {
     return out + t.slice(i);
   }
   var normed = {}, normedN = 0;
+  // the old font switches, {\sf F}, {\rm d}, and \textsf{F} and the like: as \mathsf{F}, \mathrm{d}
+  var OLDF = {rm: "mathrm", bf: "mathbf", it: "mathit", sf: "mathsf", tt: "mathtt", cal: "mathcal",
+    textrm: "mathrm", textbf: "mathbf", textit: "mathit", textsf: "mathsf", texttt: "mathtt"};
+  var OLDFONT = /\{\s*\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*([^{}]*)\}|\\(?:(textrm|textbf|textit|textsf|texttt))\{([^{}]*)\}/g;
   function texNorm(t) {
     t = t || "";
     if (normed.hasOwnProperty(t)) return normed[t];
@@ -777,6 +781,7 @@ window.L2M_nav = function (opts) {
     t = uniTeX(expand(t)).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
     t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"));
+    t = t.replace(OLDFONT, function (x, f, a, g, b) { return "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}"; });
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
     t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
     if (++normedN > 20000) { normed = {}; normedN = 0; }
