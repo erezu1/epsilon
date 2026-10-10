@@ -2224,6 +2224,10 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 .app-bar .app-logo { margin-left: -2.9px; }                                            /* the ε: its picture's first 2.9px */
 .app-bar .app-lead .app-close { justify-self: start; margin-left: -13.25px; }          /* the cross: 13.5px of 40px */
 .app-bar .bar-inner > .bar-btn:last-of-type { margin-right: -14.25px; }                /* the gear: 19.5px of 48px */
+/* Searching: the field starts where the bar's text did, a paper's section title or the library's tabs (on a phone the
+   cross stands on the text's edge, where the reading line starts) */
+.bar-find .find-box { margin-left: 5px; }                                              /* the title's: -5px, then 10px */
+.app-searchbar .find-box { margin-left: 2px; }                                         /* the tabs' 2px */
 /* Where the glass floats, wider than the text by a margin each side (on a wide screen), the outermost buttons sit in
    the middle of that margin, between the glass's edge and the end of the reading line under the text; what follows
    them (a paper's section title, the library's tabs) then starts on the text's edge. (--bar-mid: the middle of the
@@ -2236,6 +2240,9 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   .app-bar .app-logo { margin-left: calc(-1 * var(--bar-mid) - 11px); }                                           /* 22px */
   .app-bar .app-lead .app-close { margin-left: calc(-1 * var(--bar-mid) - 20px); }                                /* 40px */
   .app-bar .bar-inner > .bar-btn:last-of-type { margin-right: calc(-1 * var(--bar-mid) - 24px); }                 /* 48px */
+  /* (searching: the field on the text's edge, where the reading line starts) */
+  .bar-find .find-box { margin-left: calc(var(--bar-mid) - 22px); }                                               /* after the cross's 44px */
+  .app-searchbar .find-box { margin-left: calc(var(--bar-mid) - 25px); }                                          /* after the ε's 22px and 14px */
 }
 /* refreshing is a turn: its button and the pull to refresh round in every skin */
 .app-pull, .app-refresh { border-radius: 50%; }
