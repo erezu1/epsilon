@@ -1104,7 +1104,7 @@ html.l2m-vt::view-transition-group(l2m-bar) { animation-duration: 300ms; animati
 .l2m-vt .l2m-bar.show { background-color: var(--g-fill-solid); }
 /* a paper's bar is as tall with a one-line section title as with a two-line one (it never jumps between them) */
 .l2m-bar:not(.app-bar) .bar-title { box-sizing: border-box; }
-.skel-bar .skel-bar-title { width: 62%; height: 0.95em; margin: 0; }
+.skel-bar-title { width: 62%; height: 0.95em; margin: 0; }      /* (a paper's title not known yet: nav.js too) */
 /* while a paper comes from the network, the stand-in bar's reading line fills as far as it has come (moved from
    app.js, not by the scroll) */
 .l2m-bar.skel-bar .bar-progress > i > b { animation: none; transform: translateX(-100%); transition: transform 200ms ease-out; }
@@ -1695,8 +1695,8 @@ html.l2m-selecting main a[href^="#"], html.l2m-selecting .l2m-fnsheet a[href^="#
 
 /* the stand-ins pulse together: one animation on their block (one layer for the graphics card), not one per bar */
 .skel { animation: none; }
-.skel-paper, .skel-list, .skel-bar .bar-title-inner { animation: l2m-pulse 1.5s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .skel-paper, .skel-list, .skel-bar .bar-title-inner { animation: none; } }
+.skel-paper, .skel-list, .skel-bar .bar-title-inner, .bar-title-inner.waiting { animation: l2m-pulse 1.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .skel-paper, .skel-list, .skel-bar .bar-title-inner, .bar-title-inner.waiting { animation: none; } }
 
 /* a paper asked for offline that is not on this device: said so in the middle of the page, with the way back */
 .app-unsaved { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 16px; }
@@ -2162,3 +2162,8 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 @media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-inner { min-height: 48px; } }
 .l2m-bar .bar-progress { height: 2px; bottom: 0; }
 .l2m-bar .bar-progress > i { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--progress) 30%, transparent)); }
+/* the search's count inside its field, over the end of its line: the line runs on to the arrows (no empty room kept
+   for the count at its side) */
+.bar-find .find-count { position: absolute; right: 0; top: 50%; transform: translateY(-50%); min-width: 0; padding: 0; pointer-events: none; }
+.bar-find .find-box .app-field { padding-right: 56px; }
+

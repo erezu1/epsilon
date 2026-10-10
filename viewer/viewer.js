@@ -129,8 +129,7 @@
       (theme.bar || ["back", "title", "top", "settings"]).map(function (b) { return buttons[b] || ""; }).join("") +
       ((theme.bar || []).indexOf("search") >= 0 ?
         '<div class="bar-find" role="search"><span class="find-box"><input class="app-field" type="search" enterkeyhint="search" placeholder="Search, \\phi, or x_?" ' +
-        'aria-label="Search this paper, words or TeX" autocomplete="off" autocapitalize="off" spellcheck="false"></span>' +
-        '<span class="find-count" aria-live="polite"></span>' +
+        'aria-label="Search this paper, words or TeX" autocomplete="off" autocapitalize="off" spellcheck="false"><span class="find-count" aria-live="polite"></span></span>' +
         '<button type="button" class="bar-btn find-prev" data-act="find-prev" aria-label="Previous match">' + (I.chevron || "") + "</button>" +
         '<button type="button" class="bar-btn find-next" data-act="find-next" aria-label="Next match">' + (I.chevron || "") + "</button></div>" : "") +
       "</div></header>\n";
@@ -459,7 +458,7 @@
         idle(next);
       })();
     });
-    nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving,
+    nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving, lands: o.lands,
                           tex: function (n) { var it = m.items[+n]; return it ? it.tex : ""; }, macros: m.macros || {},
                           ready: Promise.all([ready, imagesIn]), textReady: ready, marks: o.marks});
     if (svg) done();

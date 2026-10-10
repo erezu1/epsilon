@@ -937,7 +937,10 @@
   }
   function restorePlace(p) {
     var list = anchors();
-    if (!p || !(p.n >= 0) || p.of || !list[p.n]) return;     // (a place kept by the earlier count, "of", is not this one)
+    if (!p || !(p.n >= 0) || p.of || !list[p.n]) {           // (a place kept by the earlier count, "of", is not this one)
+      if (view && view.land) view.land(function () { return null; });   // (nowhere to land: the bar's title now)
+      return;
+    }
     function want() { return window.pageYOffset + list[p.n].getBoundingClientRect().top + span(list, p.n) * (p.frac || 0) - barBottom() - 4; }
     window.scrollTo(0, want());
     // held there while the page around it is laid out (its blocks' heights were estimates till then: nav.js)
@@ -2519,7 +2522,8 @@
             });
           },
           mathjax: (lib && lib.mathjax) || theme.mathjaxApp, onLibrary: backToLists, libraryHref: "./", actions: actions,
-          leaving: function () { return leavingPaper === key; }, marks: marksFor(key, entry)});
+          leaving: function () { return leavingPaper === key; }, marks: marksFor(key, entry),
+          lands: fresh && !!reading[key] && !location.hash});     // (its place restored here: the bar's title waits for it)
         var v = view;
         main.classList.remove("l2m-arrive"); void main.offsetWidth; main.classList.add("l2m-arrive");
         // opened afresh (not by back or forward): the place it was left, on this device or another

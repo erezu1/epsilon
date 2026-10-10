@@ -63,6 +63,12 @@ window.L2M_nav = function (opts) {
   var backBtn = part('[data-act="back"]');
   var topBtn = part('[data-act="top"]');
   var docTitle = titleInner.innerHTML;
+  // while the paper comes in and its place is found, the title's stand-in (as in the bar shown while it loads); then the
+  // section the reader is at, at once: no title in between (the paper's own, then the top section's)
+  var titleReady = false, hostLands = !!opts.lands;       // (lands: the host lands the paper on its own place, land())
+  function titled() { if (titleReady) return; titleReady = true; update(); }   // (the title once it has landed)
+  titleInner.innerHTML = '<span class="skel skel-bar-title"></span>';
+  titleInner.classList.add("waiting");
   var trigger = document.querySelector(".titleblock") || document.querySelector("main h2, main h3");
   var heads = Array.prototype.filter.call(
     document.querySelectorAll("main h2[id], main h3[id]"),
@@ -121,9 +127,9 @@ window.L2M_nav = function (opts) {
     var t = e.target;                               // search's Enter, that made the jump)
     if (/^(Arrow(Up|Down)|Page(Up|Down)|Home|End| )$/.test(e.key) && !(t && t.closest && t.closest("input, textarea, select, [contenteditable]"))) moving();
   });
-  function landOn(where, box) {         // where(): the scroll the target wants now (null: none); box: its scroller
-    var t0 = Date.now(), done = false, frames = 0, ro = null;
-    function end() { done = true; if (ro) ro.disconnect(); }
+  function landOn(where, box, then) {   // where(): the scroll the target wants now (null: none); box: its scroller;
+    var t0 = Date.now(), done = false, frames = 0, ro = null;   // then: told once it has landed
+    function end() { if (done) return; done = true; if (ro) ro.disconnect(); if (then) then(); }
     function hold() {
       if (done) return;
       if (dead || touched > t0 || Date.now() - t0 > 1500) { end(); return; }
@@ -2109,7 +2115,8 @@ window.L2M_nav = function (opts) {
   var fadeTimer = null, pendingTitle = null;
   function swapTitle(h) {
     pendingTitle = h;
-    if (!shown) {                     // bar hidden: switch without animation
+    if (!shown || titleInner.classList.contains("waiting")) {     // bar hidden, or the first title: without animation
+      titleInner.classList.remove("waiting");
       clearTimeout(fadeTimer);
       fadeTimer = null;
       titleInner.innerHTML = h;
@@ -2175,7 +2182,7 @@ window.L2M_nav = function (opts) {
       else break;
     }
     var cid = cur ? cur.id : "";
-    if (titleInner.getAttribute("data-cur") !== cid) {
+    if (titleReady && titleInner.getAttribute("data-cur") !== cid) {
       titleInner.setAttribute("data-cur", cid);
       swapTitle(cur ? cur.innerHTML : docTitle);
       for (var m = 0; m < menuLinks.length; m++) {
@@ -2212,20 +2219,21 @@ window.L2M_nav = function (opts) {
   function start() {
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
     placeProgress();
-    var st = state();
+    var st = state(), landing = false;
     if (typeof st.l2mY === "number" && st.l2mPaper === KEY) {
       scrollToY(yAt(st));
-      landOn(function () { return yAt(st); });
+      landOn(function () { return yAt(st); }, null, titled); landing = true;
     } else if (marks && /^#mark-/.test(location.hash)) {
       marks.reveal(decodeURIComponent(location.hash.slice(6)));      // (once the marks are in)
     } else if (location.hash.length > 1) {
       var el = linked(location.hash);
-      if (el) { scrollToY(yOf(el)); flash(el); landOn(function () { return yOf(el); }); }
+      if (el) { scrollToY(yOf(el)); flash(el); landOn(function () { return yOf(el); }, null, titled); landing = true; }
     }
-    update();
+    if (landing || hostLands) update(); else titled();
+    if (hostLands) setTimeout(function () { if (!dead) titled(); }, 2000);    // (should the host's landing not come)
   }
   // the saved place is found once the formulas and images are in (opts.ready)
-  Promise.resolve(opts.ready).then(function () { if (!dead) start(); });
+  Promise.resolve(opts.ready).then(function () { if (!dead) start(); }, function () { if (!dead) { titleReady = true; update(); } });
   // the peek made ready ahead, in the background: a while after the paper is in, when the page is idle (and not while
   // the reader scrolls), so its first opening is quick and the paper's own opening no slower
   Promise.resolve(opts.ready).then(function () {
@@ -2268,7 +2276,7 @@ window.L2M_nav = function (opts) {
   update();
 
   return {
-    land: landOn,                         // (the host's own jumps, its reading place: held as they land)
+    land: function (where) { landOn(where, null, titled); },   // (the host's own jumps, its reading place: held as they land)
     destroy: function (save) {
       if (dead) return;
       if (save !== false) saveHere();
