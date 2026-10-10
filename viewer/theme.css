@@ -2042,6 +2042,11 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 .glass-bottom.open > .l2m-film > i { transform: none; }
 .glass-bottom.grow:not(.open) > .l2m-film > i { transform: translateY(calc(var(--from-h, 0px) - 100%)); }
 .glass-bottom.l2m-now > .l2m-film > i { transition: none !important; }
+/* from one footer to another (nav.js, L2M_footer): one piece of glass, the taller footer's; the other's contents
+   fading over it, without glass of their own */
+.glass-bottom.l2m-ghost { z-index: 71; background-color: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: none !important; border-color: transparent !important; }
+.glass-bottom.l2m-ghost > .l2m-film { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .glass-bottom > .l2m-film > i { transition-duration: 0.01s; } }
 body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }   /* (the page scrolls on as far) */
 

@@ -38,9 +38,60 @@ window.L2M_footer = function (el, open) {
     el.style.setProperty("--film-x", -el.offsetLeft + "px");
     el.style.setProperty("--film-y", -el.offsetTop + "px");
   }
+  if (open && el.classList.contains("glass") && !el.classList.contains("open") && !el.classList.contains("grow")) {
+    // another footer giving way to it this very moment (a mark's sheet to its message): one glass from it (a footer
+    // left open, a sheet under a message, stays as it is)
+    var now = performance.now(), from = Array.prototype.filter.call(document.querySelectorAll(".glass-bottom.glass"), function (f) {
+      return f !== el && !f.classList.contains("open") && now - (f.l2mClosedAt || -1e9) < 100;
+    })[0];
+    if (from) { footerSwitch(from, el); return; }
+  }
+  if (!open) el.l2mClosedAt = performance.now();
   el.classList.toggle("open", !!open);
   if (el.getAttribute("role") !== "status") el.setAttribute("aria-hidden", open ? "false" : "true");
 };
+// From one footer to another, as from one panel to another (prefs.js, L2M_panelSwitch): one piece of glass, the taller
+// footer's, its top edge going from the one's to the other's (what is in it, its film too, held where it is); the other,
+// its glass off, shows only its contents over it, fading out (the one left) or in (the one opened), in place
+var footerDone = null;
+function footerSwitch(from, to) {
+  if (footerDone) footerDone();
+  from.classList.add("l2m-now"); from.classList.add("open"); getComputedStyle(from).transform; from.classList.remove("l2m-now");
+  var hf = from.offsetHeight, ht = to.offsetHeight, grow = ht >= hf, carrier = grow ? to : from, ghost = grow ? from : to;
+  var d = Math.abs(ht - hf), moved = [], fades = [];
+  function fade(el, inward) {        // its contents (words on their own wrapped, to fade with the rest)
+    Array.prototype.forEach.call(el.childNodes, function (n) {
+      if (n.nodeType === 3 && n.data.trim()) { var w = document.createElement("span"); n.parentNode.replaceChild(w, n); w.appendChild(n); }
+    });
+    Array.prototype.forEach.call(el.querySelectorAll(":scope > :not(.l2m-film)"), function (c) {
+      if (c.animate) fades.push(c.animate(inward ? [{opacity: 0}, {opacity: 1}] : [{opacity: 1}, {opacity: 0}], {duration: 200, easing: "ease", fill: "forwards"}));
+    });
+  }
+  function move(el, y, now) {          // the glass by y, what is in it (and its film) back by as much
+    if (now) el.classList.add("l2m-now");
+    el.style.transform = y ? "translateY(" + y + "px)" : "none";
+    Array.prototype.forEach.call(el.querySelectorAll(":scope > :not(.l2m-film), :scope > .l2m-film > i"), function (c) {
+      c.style.transform = y ? "translateY(" + -y + "px)" : ""; c.style.transition = now ? "none" : "transform var(--g-move)"; moved.push(c);
+    });
+    if (now) { getComputedStyle(el).transform; el.classList.remove("l2m-now"); }
+  }
+  to.classList.add("l2m-now", "open"); getComputedStyle(to).opacity; to.classList.remove("l2m-now");
+  carrier.classList.add("l2m-carrier"); ghost.classList.add("l2m-ghost");
+  if (grow) { move(to, d, true); requestAnimationFrame(function () { move(to, 0); }); }
+  else { move(from, 0, true); requestAnimationFrame(function () { move(from, d); }); }
+  fade(to, true); fade(from, false);
+  from.setAttribute("aria-hidden", "true");
+  if (to.getAttribute("role") !== "status") to.setAttribute("aria-hidden", "false");
+  var t = setTimeout(function () { footerDone(); }, 340);
+  footerDone = function () {
+    clearTimeout(t); footerDone = null;
+    from.classList.add("l2m-now"); from.classList.remove("open"); from.l2mClosedAt = performance.now();
+    [from, to].forEach(function (el) { el.style.transform = ""; el.classList.remove("l2m-ghost", "l2m-carrier"); });
+    fades.forEach(function (a) { a.cancel(); });
+    moved.forEach(function (c) { c.style.transform = ""; c.style.transition = ""; });
+    getComputedStyle(from).transform; from.classList.remove("l2m-now");
+  };
+}
 window.L2M_nav = function (opts) {
   "use strict";
   opts = opts || {};
