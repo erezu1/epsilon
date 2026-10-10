@@ -1176,8 +1176,7 @@
       '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="true" tabindex="-1"><span>View</span></button></div></span>' +
       '<span class="app-spacer"></span>' +
       '<div class="app-searchbar"><span class="find-box"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
-      'autocomplete="off" autocapitalize="off" spellcheck="false"></span><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
-      (I.close || "&times;") + "</button></div>" +
+      'autocomplete="off" autocapitalize="off" spellcheck="false"></span></div>' +
       // search (Library) and opening every abstract (Explore) share a place, each shown on its own tab
       '<span class="app-slot"><button type="button" class="bar-btn" id="app-search" aria-label="Search your library">' + (I.search || "?") + "</button>" +
       '<button type="button" class="bar-btn app-away" id="app-fold" aria-label="Expand all abstracts" tabindex="-1">' + (I.unfoldAll || "+") + "</button></span>" +
@@ -1201,7 +1200,10 @@
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     holder.querySelector("#app-search").addEventListener("click", function () { searching(true); });
     holder.querySelector("#app-fold").addEventListener("click", function () { foldAll(); });
-    holder.querySelector("#app-close").addEventListener("click", function (e) { e.stopPropagation(); closePanel(); });
+    holder.querySelector("#app-close").addEventListener("click", function (e) {      // the settings' cross, or the search's
+      e.stopPropagation();
+      if (shell.querySelector("#app-bar").classList.contains("searching")) searching(false); else closePanel();
+    });
     // the app's icon: to the top of the library, and the lists fetched afresh
     var logo = holder.querySelector(".app-logo");
     logo.setAttribute("role", "button"); logo.setAttribute("tabindex", "0"); logo.setAttribute("aria-label", "Library, from the top");
@@ -1215,7 +1217,6 @@
       });
     });
     logo.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); home(); } });
-    holder.querySelector("#search-close").addEventListener("click", function () { searching(false); });
     holder.querySelector("#lib-q").addEventListener("input", filterLibrary);
     return holder;
   }
@@ -1273,8 +1274,11 @@
     if (!shell) return;
     if (!on && !shell.querySelector("#app-bar").classList.contains("searching")) return;
     closePanel();
-    shell.querySelector("#app-bar").classList.toggle("searching", on);
-    var f = shell.querySelector("#lib-q"), bar = shell.querySelector("#app-bar");
+    var f = shell.querySelector("#lib-q"), bar = shell.querySelector("#app-bar"), x = shell.querySelector("#app-close");
+    flap(bar);                                    // (the ε flips to the cross that closes the search, as for the settings)
+    bar.classList.toggle("searching", on);
+    x.tabIndex = on ? 0 : -1;
+    x.setAttribute("aria-label", on ? "Close the search" : "Close the settings");
     bar.classList.remove("search-in", "search-out");
     void bar.offsetWidth;
     if (on) {
@@ -1392,15 +1396,16 @@
   }
   // settings open: the bar is the settings' bar (the icon a close button, the tabs the settings' tabs; search and
   // add step aside), and back again as they close
+  function flap(bar) {                        // while the bar's tabs and first icon flip, their edges fade softly
+    bar.classList.add("flapping", "flap-on");   // the soft edges fade in, and out again as the new ones settle
+    clearTimeout(flap.t); clearTimeout(flap.u);
+    flap.t = setTimeout(function () { bar.classList.remove("flap-on"); }, 240);     // (most of the way there)
+    flap.u = setTimeout(function () { bar.classList.remove("flapping"); }, 540);
+  }
   function setMode(on) {
     if (!shell) return;
     var bar = shell.querySelector("#app-bar");
-    if (bar.classList.contains("set-mode") !== on) {        // while the tabs flip, their edges fade softly
-      bar.classList.add("flapping", "flap-on");   // the soft edges fade in, and out again as the new tabs settle
-      clearTimeout(setMode.t); clearTimeout(setMode.u);
-      setMode.t = setTimeout(function () { bar.classList.remove("flap-on"); }, 240);     // (most of the way there)
-      setMode.u = setTimeout(function () { bar.classList.remove("flapping"); }, 540);
-    }
+    if (bar.classList.contains("set-mode") !== on) flap(bar);
     bar.classList.toggle("set-mode", on);
     placeSwapInd();
     shell.querySelector("#set-tabs").setAttribute("aria-hidden", on ? "false" : "true");

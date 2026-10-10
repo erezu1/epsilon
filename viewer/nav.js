@@ -995,6 +995,7 @@ window.L2M_nav = function (opts) {
     if (useHistory) { try { if (!state().l2mFind) { stepIn({l2mFind: true}); findAt = here(); } } catch (e) {} }
     bar.classList.remove("find-in", "find-out"); void bar.offsetWidth;
     bar.classList.add("finding", "find-in");
+    backBtn.setAttribute("aria-label", "Close the search");     // (the arrow, turned into a cross, closes it)
     update();
     setTimeout(function () { findField.focus(); findField.select(); }, 40);
     if (findField.value.trim()) findRun();
@@ -1024,6 +1025,7 @@ window.L2M_nav = function (opts) {
     findField.blur();
     bar.classList.remove("finding", "find-in"); void bar.offsetWidth;
     bar.classList.add("find-out");
+    backBtn.setAttribute("aria-label", opts.onLibrary ? "Library" : "Back to where you were");
     setTimeout(function () { bar.classList.remove("find-out"); }, 300);
     update();
   }
@@ -1041,7 +1043,6 @@ window.L2M_nav = function (opts) {
     });
     findBar.querySelector(".find-prev").addEventListener("click", function () { findStep(-1); });
     findBar.querySelector(".find-next").addEventListener("click", function () { findStep(1); });
-    findBar.querySelector('[data-act="find-close"]').addEventListener("click", function () { closeFind(); });
     on(document, "keydown", function (e) {           // Ctrl/Cmd+F: this search, not the browser's (which cannot read formulas)
       if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
         e.preventDefault();
@@ -2064,6 +2065,7 @@ window.L2M_nav = function (opts) {
   });
   backBtn.addEventListener("click", function () {
     if (panel) { closeMenu(); return; }
+    if (finding) { closeFind(); return; }                     // (the search's cross)
     // the bar's back button always leads to the library, past any jumps inside the paper
     // (the phone's own back button still steps back through them)
     if (opts.onLibrary) {                        // (past the steps of an open peek, sheet or viewer too)
@@ -2168,7 +2170,7 @@ window.L2M_nav = function (opts) {
         menuLinks[m].classList.toggle("current", !!cid && menuLinks[m].getAttribute("href") === "#" + cid);
       }
     }
-    backBtn.disabled = !(panel || opts.onLibrary || (useHistory ? idx > 0 : mem.length > 0));
+    backBtn.disabled = !(panel || finding || opts.onLibrary || (useHistory ? idx > 0 : mem.length > 0));
   }
 
   // a wide formula, table or code scrolled sideways shows its thin scroll bar until it has been still a moment

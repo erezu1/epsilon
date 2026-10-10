@@ -132,8 +132,7 @@
         'aria-label="Search this paper, words or TeX" autocomplete="off" autocapitalize="off" spellcheck="false"></span>' +
         '<span class="find-count" aria-live="polite"></span>' +
         '<button type="button" class="bar-btn find-prev" data-act="find-prev" aria-label="Previous match">' + (I.chevron || "") + "</button>" +
-        '<button type="button" class="bar-btn find-next" data-act="find-next" aria-label="Next match">' + (I.chevron || "") + "</button>" +
-        '<button type="button" class="bar-btn" data-act="find-close" aria-label="Close the search">' + (I.close || "") + "</button></div>" : "") +
+        '<button type="button" class="bar-btn find-next" data-act="find-next" aria-label="Next match">' + (I.chevron || "") + "</button></div>" : "") +
       "</div></header>\n";
     var menu = '<nav class="l2m-menu glass glass-top" id="l2m-menu" aria-label="Contents" aria-hidden="true"><div class="menu-inner">' +
       '<p class="menu-head">Contents</p><ol></ol></div></nav>\n';
