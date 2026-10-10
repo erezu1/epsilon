@@ -915,7 +915,9 @@ class Converter:
             except FileNotFoundError:
                 sys.exit("epsilon_convert: %s not found; is TeX installed and on PATH?" % cmd[0])
 
-        latex = [engine, "-interaction=nonstopmode", "-file-line-error", stem + ".tex"]
+        # no PDF written (only the labels file is read): the run neither reads the figures nor writes the pages
+        latex = [engine, "-no-pdf" if engine == "xelatex" else "-draftmode", "-interaction=nonstopmode", "-file-line-error",
+                 stem + ".tex"]
         shipped = self.srcdir / (self.src.stem + ".bbl")
         if not shipped.exists():
             found = list(self.srcdir.glob("*.bbl"))
@@ -2516,7 +2518,16 @@ class Converter:
                 subprocess.run(["pdftocairo", "-svg", "-f", str(k + 1), "-l", str(k + 1), str(pdf), str(f)],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
                 if f.exists():
-                    uri = "data:image/svg+xml;base64," + base64.b64encode(f.read_bytes()).decode()
+                    data, kind = f.read_bytes(), "svg+xml"
+                    # a picture holding plots drawn point by point, or images, can run to megabytes as SVG: then it
+                    # is drawn at 300 dpi instead (its ground clear, as the SVG's), if that is smaller
+                    if len(data) > 250000:
+                        p = self.build / ("pic-%d" % k)
+                        subprocess.run(["pdftocairo", "-png", "-transp", "-r", "300", "-f", str(k + 1), "-l", str(k + 1),
+                                        "-singlefile", str(pdf), str(p)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+                        if p.with_suffix(".png").exists() and p.with_suffix(".png").stat().st_size < len(data):
+                            data, kind = p.with_suffix(".png").read_bytes(), "png"
+                    uri = "data:image/%s;base64,%s" % (kind, base64.b64encode(data).decode())
             elif shutil.which("pdftoppm"):
                 f = self.build / ("pic-%d" % k)
                 subprocess.run(["pdftoppm", "-png", "-r", "300", "-f", str(k + 1), "-l", str(k + 1), "-singlefile", str(pdf), str(f)],
@@ -2784,7 +2795,7 @@ class Converter:
         # aliases of definition commands, e.g. \let\newc\newcommand or \def\nc{\newcommand}
         defcmds = {"\\newcommand", "\\renewcommand", "\\providecommand", "\\def", "\\DeclareMathOperator"}
         aliases = {k: d["body"].strip() for k, d in self.macros.items() if d["body"].strip() in defcmds}
-        pre_c, body_c = pre, body      # what LaTeX compiles: the author's source, untouched apart from labels
+        pre_c, body_c = pre, body      # what LaTeX compiles: the author's source, untouched apart from labels (and pictures)
         if aliases:
             pat = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(map(re.escape, aliases)))
             self.parse_preamble(pat.sub(lambda m: aliases[m.group(1)], pre))
@@ -2793,6 +2804,9 @@ class Converter:
         self.scan_definitions(body)
         body = self.add_auto_labels(self.expand_env_shortcuts(body))
         body_c = self.add_auto_labels(self.expand_env_shortcuts(body_c))
+        # the pictures, empty boxes in what LaTeX compiles for the numbers (they are drawn on their own, draw_pictures;
+        # TikZ and pgfplots took most of the run): but for one holding a label, which keeps its place in the numbering
+        body_c = self.each_picture(body_c, self.PIC_ENV_RE, lambda src, env: src if "\\label" in src else "\\mbox{}")
         tmp = None
         if self.args.keep_build:
             self.build = Path(self.args.keep_build).resolve()

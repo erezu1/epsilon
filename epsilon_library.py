@@ -86,7 +86,7 @@ class Library:
         lib = self.index()
         lib["papers"] = [p for p in lib["papers"] if p["key"] != entry["key"]] + [entry]
         lib["papers"].sort(key=lambda p: p.get("added", ""), reverse=True)
-        self.write("library.json", draw_list(lib, self.root))
+        self.write("library.json", draw_list(lib, self.root, only=entry["key"]))     # (the others as they were drawn)
 
     def entry(self, key):
         return next((p for p in self.index()["papers"] if p["key"] == key), None)
@@ -380,11 +380,18 @@ def tex_abstract(tex):
     return re.sub(r"\s+", " ", body).strip()
 
 
-def draw_list(idx, root=None):
+def draw_list(idx, root=None, only=None):
     """Titles and abstracts of the library, with their math drawn (each paper with its own macros), and each
-    paper's size, for the app's list. The glyphs the drawings share are kept once, in idx["math"]."""
+    paper's size, for the app's list. The glyphs the drawings share are kept once, in idx["math"]. With ONLY (a
+    paper's key), that paper alone is drawn: the others keep their drawings, and the glyphs kept stay, its own added."""
     defs, css = {}, ""
+    if only:
+        css = (idx.get("math") or {}).get("css") or ""
+        for m in re.finditer(r'<path id="([^"]+)"[^>]*></path>', (idx.get("math") or {}).get("cache") or ""):
+            defs.setdefault(m.group(1), m.group(0))
     for p in idx.get("papers", []):
+        if only and p["key"] != only:
+            continue
         macros = {}
         if root:
             # the paper's size as the app downloads it (its document and its formulas), for the line that fills as it does
@@ -701,7 +708,7 @@ def remove(lib, keys):
         if len(idx["papers"]) < before:
             gone.append(key)
         say("%s: %s" % (key, "removed" if key in gone else "not in the library"))
-    lib.write("library.json", draw_list(idx, lib.root))
+    lib.write("library.json", idx)          # (the others' titles and abstracts as they were drawn: nothing to draw)
     return gone
 
 

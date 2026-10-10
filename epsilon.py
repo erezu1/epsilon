@@ -41,6 +41,9 @@ import epsilon_library as L  # noqa: E402
 
 REPO = os.environ.get("L2M_REPO", "erezu1/epsilon-library")
 APP = os.environ.get("L2M_APP", "https://erezu1.github.io/epsilon/")
+# the end of a commit's message when its push leaves GitHub nothing to convert (a note converted here, a note taken
+# out): the library's convert workflow is not started for it (GitHub's own rule for this line)
+NOTHING_TO_CONVERT = "\n\nskip-checks: true"
 
 PREAMBLE = r"""\documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
@@ -231,7 +234,7 @@ def main():
         if not d.exists() and not lib.entry(a.remove):
             die("no note %s" % a.remove)
         L.remove(lib, [a.remove])
-        L.push(lib, "Remove note " + a.remove)
+        L.push(lib, "Remove note " + a.remove + NOTHING_TO_CONVERT)
         print("removed", a.remove)
         return
 
@@ -259,7 +262,7 @@ def main():
     since = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
     if a.here:
         e = L.convert_draft(lib, a.id)
-        L.push(lib, "Note " + a.id)
+        L.push(lib, "Note " + a.id + NOTHING_TO_CONVERT)
         print(("ok: " if e.get("status") == "ok" else "failed: ") + APP + "?p=" + a.id)
         if e.get("status") != "ok":
             print(e.get("error", ""), file=sys.stderr)
