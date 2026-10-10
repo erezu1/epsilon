@@ -1168,7 +1168,7 @@ html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens:
 #boot-paper-bar, .boot-paper { display: none; }
 html.l2m-boot-paper #boot-chrome, html.l2m-boot-paper main .app-track { display: none; }
 html.l2m-boot-paper #boot-paper-bar, html.l2m-boot-paper .boot-paper { display: block; }
-html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 70.1875px); }
+html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 65px); }   /* (one line: as the library's bar) */
 
 /* the pin button (filled while pinned), and Library's section headers (as New's days) */
 .app-pin { color: var(--muted); opacity: 0.75; }
@@ -1230,7 +1230,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
    corners on wide screens), with a soft glow into the glass */
 /* wide screens: the paper bar's title grows with the text (the bar keeps room for two lines of it) */
 @media (min-width: 720px) {
-  html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 76px); }
+  html.l2m-boot-paper { --l2m-bar-h: calc(env(safe-area-inset-top, 0px) + 65px); }
 }
 
 /* the reading progress: an underline under the section title, just above the bar's edge, with a faint track;
@@ -2154,3 +2154,11 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), visibility 0s !important; }
 .app-bar .bar-inner { min-height: 48px; }
 .app-searchbar .app-field::-webkit-search-cancel-button { display: none; }
+
+/* A paper's bar, one line, as tall as the library's: the section title cut with an ellipsis when it is long. The
+   reading line thin, a little up inside the glass (at the foot of the title's row), its glow faint */
+.l2m-bar:not(.app-bar) .bar-title-inner { display: block; white-space: nowrap; text-overflow: ellipsis; -webkit-line-clamp: none; line-clamp: none; }
+.l2m-bar:not(.app-bar) .bar-inner { min-height: 48px; }
+@media (min-width: 720px) { .l2m-bar:not(.app-bar) .bar-inner { min-height: 48px; } }
+.l2m-bar .bar-progress { height: 2px; bottom: 0; }
+.l2m-bar .bar-progress > i { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--progress) 30%, transparent)); }
