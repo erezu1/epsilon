@@ -804,12 +804,13 @@
     readingTimer = setTimeout(pushReading, 1500);
     if (isPage(current)) renderLibrary();
   }
-  function mergePins(remote) {
-    Object.keys(remote || {}).forEach(function (k) {
-      if (!pins[k] || (remote[k].at || 0) > (pins[k].at || 0)) pins[k] = remote[k];
-    });
-    store("pins", pins);
+  // what reading.json keeps for the devices (pins, archived papers, folders and their papers, mark counts, reading
+  // places) is merged by one rule: for each key, the latest change wins ("at")
+  function latest(mine, theirs) {
+    Object.keys(theirs || {}).forEach(function (k) { if (!mine[k] || (theirs[k].at || 0) > (mine[k].at || 0)) mine[k] = theirs[k]; });
+    return mine;
   }
+  function mergePins(remote) { store("pins", latest(pins, remote)); }
   // archived papers: out of All (and Unfiled), still in their folder, and together under Archive; kept as the pins are
   var archived = store("archived") || {};
   function isArchived(k) { return !!(archived[k] && archived[k].on); }
@@ -822,12 +823,7 @@
     if (isPage(current)) renderLibrary();
     if (!quiet) toastAct(isArchived(k) ? "Archived." : "Back from the archive.", "Undo", function () { toggleArchive(k, true); }, 6000);
   }
-  function mergeArchived(remote) {
-    Object.keys(remote || {}).forEach(function (k) {
-      if (!archived[k] || (remote[k].at || 0) > (archived[k].at || 0)) archived[k] = remote[k];
-    });
-    store("archived", archived);
-  }
+  function mergeArchived(remote) { store("archived", latest(archived, remote)); }
   // Folders: the reader's own, each paper in at most one (kept as a list, so tags could come later). Kept with the
   // reading places and pins (reading.json), synced the same way: per folder and per paper, the latest change wins; a
   // folder deleted stays as a mark ("gone"), so the deletion reaches the other devices. Its papers are then unfiled.
@@ -835,10 +831,7 @@
   // how many marks (and notes) each paper has, for the library's rows: kept beside the reading places, so another
   // device knows them before it opens the paper ({key: {n, w (with a note), at}}; the latest wins)
   var markCounts = store("markCounts") || {};
-  function mergeMarkCounts(remote) {
-    Object.keys(remote || {}).forEach(function (k) { if (!markCounts[k] || (remote[k].at || 0) > (markCounts[k].at || 0)) markCounts[k] = remote[k]; });
-    store("markCounts", markCounts);
-  }
+  function mergeMarkCounts(remote) { store("markCounts", latest(markCounts, remote)); }
   // their order: the reader's (dragged), a position each; folders from before it (none) by name, ahead
   function folderList() {
     return Object.keys(folders).filter(function (id) { return !folders[id].gone; })
@@ -910,12 +903,7 @@
     orgChanged();
     if (libView === id) showFolder("all");
   }
-  function mergeOrg(rf, rp) {
-    Object.keys(rf || {}).forEach(function (id) { if (!folders[id] || (rf[id].at || 0) > (folders[id].at || 0)) folders[id] = rf[id]; });
-    Object.keys(rp || {}).forEach(function (k) { if (!placed[k] || (rp[k].at || 0) > (placed[k].at || 0)) placed[k] = rp[k]; });
-    store("folders", folders);
-    store("placed", placed);
-  }
+  function mergeOrg(rf, rp) { store("folders", latest(folders, rf)); store("placed", latest(placed, rp)); }
   function listState() { return JSON.stringify(store("opened") || {}) + JSON.stringify(pins) + JSON.stringify(archived) + JSON.stringify(folders) + JSON.stringify(placed) + JSON.stringify(markCounts); }
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
   // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
@@ -973,10 +961,7 @@
     if (document.visibilityState === "visible" && current && !isPage(current)) savePlace(current, true);
   }, 600000);
   function mergeReading(remote) {
-    Object.keys(remote || {}).forEach(function (k) {
-      if (!reading[k] || (remote[k].at || 0) > (reading[k].at || 0)) reading[k] = remote[k];
-    });
-    store("reading", reading);
+    store("reading", latest(reading, remote));
     var opened = store("opened") || {};                 // the library's reading order follows too
     Object.keys(reading).forEach(function (k) { opened[k] = Math.max(opened[k] || 0, reading[k].at || 0); });
     store("opened", opened);
