@@ -542,8 +542,9 @@
       opts.headers = Object.assign({"Authorization": "Bearer " + token, "X-GitHub-Api-Version": "2022-11-28",
                                     "Accept": "application/vnd.github+json"}, opts.headers || {});
       // reading: always checked with GitHub, but an unchanged file is not sent again (it answers "not modified", and the
-      // copy the browser keeps is used; such answers do not count against GitHub's limit); writing: never kept
-      opts.cache = opts.method && opts.method !== "GET" ? "no-store" : "no-cache";
+      // copy the browser keeps is used; such answers do not count against GitHub's limit); writing: never kept. (A blob,
+      // which never changes, is taken from the browser's copy without asking)
+      opts.cache = opts.cache || (opts.method && opts.method !== "GET" ? "no-store" : "no-cache");
       return fetch(api + path, opts).then(function (r) {
         if (!r.ok) {
           var why = r.status === 401 ? "the token was not accepted" : r.status === 404 ? "not found (check the repo name and the token's access)" :
@@ -556,11 +557,39 @@
     function raw(path) {
       return call("/contents/" + path.split("/").map(encodeURIComponent).join("/"), {headers: {"Accept": "application/vnd.github.raw+json"}});
     }
+    // A file is read as its blob (git/blobs/<sha>), which GitHub sends compressed (the contents API never does: a
+    // paper's formulas come in a tenth of the bytes); its sha from the listing of its folder (git/trees; a paper's
+    // folder at once, its images in it), asked afresh for each read, once for the files asked together. A blob never
+    // changes: the browser's copy serves until it is gone. Should any of it fail, the file as before
+    var trees = {};
+    function shaOf(path) {
+      var paper = /^papers\/[^/]+(?=\/)/.exec(path), dir = paper ? paper[0] : path.slice(0, Math.max(0, path.lastIndexOf("/")));
+      var t = trees[dir];
+      if (!t || Date.now() - t.at > 3000) {
+        t = trees[dir] = {at: Date.now(), list: call("/git/trees/" + encodeURI("main" + (dir ? ":" + dir : "")) + (paper ? "?recursive=1" : ""))
+          .then(function (r) { return r.json(); }).then(function (j) {
+            var m = {};
+            (j.tree || []).forEach(function (e) { if (e.type === "blob") m[e.path] = e.sha; });
+            return m;
+          })};
+        t.list.catch(function () { if (trees[dir] === t) delete trees[dir]; });
+      }
+      return t.list.then(function (m) {
+        var sha = m[dir ? path.slice(dir.length + 1) : path];
+        if (!sha) throw new Error("not listed");
+        return sha;
+      });
+    }
+    function read(path) {
+      return shaOf(path).then(function (sha) {
+        return call("/git/blobs/" + sha, {headers: {"Accept": "application/vnd.github.raw+json"}, cache: "force-cache"});
+      }).catch(function () { return raw(path); });
+    }
     function b64(s) { return btoa(unescape(encodeURIComponent(s))); }
     return {
       kind: "github", repo: repo,
-      json: function (p) { return raw(p).then(function (r) { return r.json(); }); },
-      blob: function (p, onBytes) { return raw(p).then(function (r) { return bodyOf(r, onBytes); }); },
+      json: function (p) { return read(p).then(function (r) { return r.json(); }); },
+      blob: function (p, onBytes) { return read(p).then(function (r) { return bodyOf(r, onBytes); }); },
       run: function (workflow, inputs) {
         return call("/actions/workflows/" + workflow + "/dispatches", {method: "POST",
           headers: {"Content-Type": "application/json"}, body: JSON.stringify({ref: "main", inputs: inputs || {}})});
