@@ -674,6 +674,18 @@ window.L2M_nav = function (opts) {
           } else fontTo = i + 1;
           continue;
         }
+        if (name === "sqrt") {                       // a root is drawn with what is under it first, then the sign (then its index)
+          var idx = "", body;
+          if (q.charAt(i) === "[") { var cl = q.indexOf("]", i); if (cl < 0) return null; idx = q.slice(i + 1, cl); i = cl + 1; }
+          if (q.charAt(i) === "{") {
+            for (var d2 = 0, e2 = i; e2 < q.length; e2++) { if (q.charAt(e2) === "{") d2++; else if (q.charAt(e2) === "}" && !--d2) break; }
+            body = q.slice(i + 1, e2); i = e2 + 1;
+          } else if ((m = /^(\\[A-Za-z]+|.)/.exec(q.slice(i)))) { body = m[1]; i += m[0].length; }
+          var bg = body ? glyphsOf(body) : [], ig = idx ? glyphsOf(idx) : [];
+          if (!bg || !ig) return null;
+          out.push.apply(out, bg); out.push(alts("sqrt")); out.push.apply(out, ig);
+          continue;
+        }
         if (GLYPH[name]) out.push(alts(name));
         else if (OPNAME.test(name)) { for (var o = 0; o < name.length; o++) out.push([hex(name.charCodeAt(o))]); }
         else if (OPS[name]) out.push(alts(name));
@@ -784,6 +796,7 @@ window.L2M_nav = function (opts) {
     t = t.replace(OLDFONT, function (x, f, a, g, b) { return "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}"; });
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
     t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
+    t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])?(\\[A-Za-z]+|[^{\\\s])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
     if (++normedN > 20000) { normed = {}; normedN = 0; }
     return (normed[was] = t);
   }
