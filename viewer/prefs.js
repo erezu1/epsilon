@@ -72,6 +72,7 @@
   // (fetched once the app is idle and no paper is open: fonts added have the whole page restyled and laid out again,
   // for a long paper a second or more on a phone; a paper open, they wait till it is left, or the font list opens)
   window.addEventListener("load", function () {
+    if (own()) { previews = 2; return; }      // (the app's own: nothing to fetch, nothing to wait for every 3 s)
     (function soon() {
       setTimeout(function () {
         (window.requestIdleCallback || setTimeout)(function () { if (window.L2M_current) soon(); else window.L2M_previewFonts(); });
