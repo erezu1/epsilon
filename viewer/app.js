@@ -1172,8 +1172,8 @@
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>Explore</span></button></div>' +
       '<div class="seg app-tabs set-tabs" id="set-tabs" role="tablist" aria-label="Settings" aria-hidden="true"><span class="sel-ind" aria-hidden="true"></span>' +
-      '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="true" tabindex="-1"><span>System</span></button>' +
-      '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="false" tabindex="-1"><span>View</span></button></div></span>' +
+      '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="false" tabindex="-1"><span>System</span></button>' +
+      '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="true" tabindex="-1"><span>View</span></button></div></span>' +
       '<span class="app-spacer"></span>' +
       '<div class="app-searchbar"><span class="find-box"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
       'autocomplete="off" autocapitalize="off" spellcheck="false"></span><button type="button" class="bar-btn" id="search-close" aria-label="Close the search">' +
@@ -1347,11 +1347,7 @@
       '<p class="menu-head">On this device</p><p class="app-help app-pad">' +
       (n ? n + " paper" + (n > 1 ? "s" : "") + " saved for reading offline, " + (mb / 1e6).toFixed(1) + " MB." :
            "No papers saved offline yet. In the library, tap the download button next to a paper.") + "</p>" +
-      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill app-danger" id="off-clear">Remove offline copies</button></p>' : "") +
-      // the look of the app's glass: its skin (theme.css)
-      '<p class="menu-head">Style</p><div class="seg app-skin" role="radiogroup" aria-label="Style"><span class="sel-ind" aria-hidden="true"></span>' +
-      '<button type="button" class="seg-btn" role="radio" data-skin-opt="glass"><span>Glass</span></button>' +
-      '<button type="button" class="seg-btn" role="radio" data-skin-opt="flat"><span>Flat</span></button></div>';
+      (n ? '<p class="app-row app-pad"><button type="button" class="app-pill app-danger" id="off-clear">Remove offline copies</button></p>' : "");
     return h;
   }
   var skipPop = false;       // the history step of a panel closed by hand: already handled
@@ -1375,7 +1371,7 @@
       });
     } else {
       // two tabs: System (the library, the feed, this device) and View (how papers and lists look)
-      var tab = "system";                        // always opens on System
+      var tab = "view";                          // always opens on View
       inner.innerHTML = '<div class="set-view"><div class="set-track"><div class="set-pane" data-set="system">' + panelHTML() + "</div>" +
         '<div class="set-pane l2m-settings" data-set="view">' + (window.L2M_readingSettings ? L2M_readingSettings(theme) : "") + "</div></div></div>";
       bindPanel(inner);

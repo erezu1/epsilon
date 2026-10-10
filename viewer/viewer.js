@@ -24,7 +24,7 @@
       function (m, pre, f, post) { return pre || post ? '<span class="mw">' + pre + f + post + "</span>" : f; });
   }
 
-  // the reading settings (font, text size, appearance, tone), also used by the app's own settings panel
+  // the reading settings (appearance, tone, style, text size, font, page width), also the app's own settings' View tab
   function readingSettings(theme) {
     var I = theme.icons || {};
     var D = theme.defaults || {};
@@ -45,6 +45,11 @@
     var tones = (theme.tones || []).map(function (t) {
       return '<button type="button" class="seg-btn" role="radio" aria-checked="' + checked(t.key, D.tone) + '" data-tone-opt="' + esc(t.key) + '">' +
         "<span>" + esc(t.label) + "</span></button>";
+    }).join("");
+    // the look of the glass: its skin (theme.css)
+    var skins = [["glass", "Glass"], ["flat", "Flat"]].map(function (k) {
+      return '<button type="button" class="seg-btn" role="radio" aria-checked="' + checked(k[0], theme.skin || "glass") + '" data-skin-opt="' + k[0] + '">' +
+        "<span>" + k[1] + "</span></button>";
     }).join("");
     function group(head, cls, inner) {
       return inner ? '<p class="menu-head">' + head + '</p><div class="' + cls + '" role="radiogroup" aria-label="' + head + '">' +
@@ -67,7 +72,7 @@
       return '<button type="button" class="seg-btn" role="radio" aria-checked="' + checked(m[0], "narrow") + '" data-width-opt="' + m[0] + '">' +
         (I[m[2]] || "") + "<span>" + m[1] + "</span></button>";
     }).join("");
-    return group("Appearance", "seg", looks) + group("Tone", "seg", tones) + group("Text size", "seg", sizes) + fontPick +
+    return group("Appearance", "seg", looks) + group("Tone", "seg", tones) + group("Style", "seg", skins) + group("Text size", "seg", sizes) + fontPick +
       '<div class="set-wide-only">' + group("Page width", "seg", widths) + "</div>" + group("Full screen while reading", "seg", full);
   }
   window.L2M_readingSettings = readingSettings;

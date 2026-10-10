@@ -1192,7 +1192,7 @@ window.L2M_nav = function (opts) {
       curBtn.setAttribute("aria-label", "Font: " + f0.name + ", tap to choose another");
     }
     var want = {"data-theme-opt": look, "data-size-opt": session.size || DEF.size, "data-tone-opt": session.tone || DEF.tone,
-                "data-width-opt": session.width || "narrow",
+                "data-width-opt": session.width || "narrow", "data-skin-opt": session.skin || theme.skin || "glass",
                 "data-full-opt": session.full === "on" ? "on" : "off"};
     for (var attr in want) {
       var segs = el.querySelectorAll("[" + attr + "]");
@@ -1276,11 +1276,11 @@ window.L2M_nav = function (opts) {
         if (session.full === "on") fullEnter(); else fullLeave();
         return;
       }
-      var b = e.target.closest("[data-font], [data-theme-opt], [data-size-opt], [data-tone-opt], [data-width-opt]");
+      var b = e.target.closest("[data-font], [data-theme-opt], [data-size-opt], [data-tone-opt], [data-width-opt], [data-skin-opt]");
       if (!b) return;
       if (b.hasAttribute("data-font")) setTimeout(function () { openFonts(false); }, 260);   // chosen: the list folds away
       var f = b.getAttribute("data-font"), t = b.getAttribute("data-theme-opt");
-      var z = b.getAttribute("data-size-opt"), tone = b.getAttribute("data-tone-opt"), mg = b.getAttribute("data-width-opt");
+      var z = b.getAttribute("data-size-opt"), tone = b.getAttribute("data-tone-opt"), mg = b.getAttribute("data-width-opt"), sk = b.getAttribute("data-skin-opt");
       if (mg) {
         session.width = mg;
         window.L2M_changeWidth(mg, keepPlace);
@@ -1293,6 +1293,9 @@ window.L2M_nav = function (opts) {
       } else if (tone) {
         session.tone = tone;
         crossfade(function () { window.L2M_applyTone(tone); }, {tone: tone});
+      } else if (sk) {
+        session.skin = sk;
+        keepPlace(function () { window.L2M_applySkin(sk); });
       } else {
         session.theme = t;
         swapTheme(t);
@@ -1303,6 +1306,7 @@ window.L2M_nav = function (opts) {
       p.size = session.size;
       p.tone = session.tone;
       p.width = session.width;
+      if (session.skin) p.skin = session.skin;
       savePrefs(p);
       refreshSettings();
     });
