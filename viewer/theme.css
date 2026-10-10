@@ -2080,8 +2080,8 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --g-edge-top: inset 0 -0.5px 0 0 var(--g-hair);
   --g-edge-bottom: inset 0 0.5px 0 0 var(--g-hair);
   --g-edge-round: inset 0 0 0 0.5px var(--g-hair);
-  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 30%, transparent);
-  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 35%, transparent);
+  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 42%, transparent);
+  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 48%, transparent);
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
   --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
