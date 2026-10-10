@@ -1185,8 +1185,8 @@
       '<button type="button" class="seg-btn" role="tab" data-go="library" aria-checked="false"><span>Library</span></button>' +
       '<button type="button" class="seg-btn" role="tab" data-go="new" aria-checked="false"><span>Explore</span></button></div>' +
       '<div class="seg app-tabs set-tabs" id="set-tabs" role="tablist" aria-label="Settings" aria-hidden="true"><span class="sel-ind" aria-hidden="true"></span>' +
-      '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="false" tabindex="-1"><span>System</span></button>' +
-      '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="true" tabindex="-1"><span>View</span></button></div></span>' +
+      '<button type="button" class="seg-btn" role="tab" data-set-tab="view" aria-checked="true" tabindex="-1"><span>View</span></button>' +
+      '<button type="button" class="seg-btn" role="tab" data-set-tab="system" aria-checked="false" tabindex="-1"><span>System</span></button></div></span>' +
       '<span class="app-spacer"></span>' +
       '<div class="app-searchbar"><span class="find-box"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
       'autocomplete="off" autocapitalize="off" spellcheck="false"></span></div>' +
@@ -1387,10 +1387,10 @@
         convert(ids);
       });
     } else {
-      // two tabs: System (the library, the feed, this device) and View (how papers and lists look)
+      // two tabs: View (how papers and lists look), then System (the library, the feed, this device)
       var tab = "view";                          // always opens on View
-      inner.innerHTML = '<div class="set-view"><div class="set-track"><div class="set-pane" data-set="system">' + panelHTML() + "</div>" +
-        '<div class="set-pane l2m-settings" data-set="view">' + (window.L2M_readingSettings ? L2M_readingSettings(theme) : "") + "</div></div></div>";
+      inner.innerHTML = '<div class="set-view"><div class="set-track"><div class="set-pane l2m-settings" data-set="view">' + (window.L2M_readingSettings ? L2M_readingSettings(theme) : "") + "</div>" +
+        '<div class="set-pane" data-set="system">' + panelHTML() + "</div></div></div>";
       bindPanel(inner);
       bindSetTabs(inner, tab);
     }
@@ -1460,7 +1460,7 @@
   // the settings' tabs: the underline slides, the panes slide sideways (a swipe too), the panel takes each one's height
   function bindSetTabs(inner, tab) {
     var tabs = shell.querySelector("#set-tabs"), view = inner.querySelector(".set-view"), track = inner.querySelector(".set-track");
-    var panes = Array.prototype.slice.call(inner.querySelectorAll(".set-pane")), names = ["system", "view"];
+    var panes = Array.prototype.slice.call(inner.querySelectorAll(".set-pane")), names = ["view", "system"];
     function fit(animate) {
       var h = panes[names.indexOf(tab)].offsetHeight;
       if (!animate) view.style.transition = "none";

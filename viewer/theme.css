@@ -2176,6 +2176,9 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 /* the ε and the cross (the search's, the settings'): a shorter way than the tabs' (32px), through wider soft edges, so
    that each is seen all the way, the one fading out as it goes down, the other in as it comes down (with the tabs'
    56px through their narrow edges, both were out of sight halfway and the cross then seemed to pop in) */
+/* (their box reaching out to the left as far as they do, beyond the text's edge into the margin: the soft edges are
+   drawn only within it, and the icons, out of it, were not seen at all while they flipped; nothing moves) */
+.app-bar .app-lead, .app-bar.flapping .app-lead { padding-left: 64px; margin-left: -64px; }
 .app-bar:not(.set-mode):not(.searching) .app-lead > .app-close { transform: translateY(-32px); }
 .app-bar:is(.set-mode, .searching) .app-lead > .app-logo { transform: translateY(32px); }
 /* (and the one going fades out on its own: when the soft edges lift, at the end, it is not seen again where it went) */
