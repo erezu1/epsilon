@@ -1004,6 +1004,12 @@ a.lib-title { color: var(--ink); }
 .l2m-menu > :not(.l2m-film) { transition: opacity 180ms ease, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .l2m-menu.open > :not(.l2m-film) { transition: opacity 220ms ease 60ms, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .l2m-menu.l2m-still, .l2m-menu.l2m-still > *, .l2m-menu.l2m-still > .l2m-film > i { transition: none !important; }
+/* from one panel to another (prefs.js, L2M_panelSwitch): one piece of glass, the taller panel's, below; the other's
+   contents fading over it, without glass of their own */
+.l2m-menu.l2m-carrier { z-index: 39; }
+.l2m-menu.l2m-ghost { background-color: transparent !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  box-shadow: none !important; border-color: transparent !important; }
+.l2m-menu.l2m-ghost > .l2m-film { visibility: hidden; }
 /* (its film: the rim on the glass, the colours in it staying put, as the bar's do) */
 .l2m-menu:has(> .l2m-film)::before { content: none; }
 .l2m-film, .l2m-film > i { position: absolute; inset: 0; pointer-events: none; }

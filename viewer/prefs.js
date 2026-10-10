@@ -335,6 +335,32 @@
     el.style.setProperty("--l2m-panel-h", h);
     if (opening) { getComputedStyle(el).translate; if (el.lastElementChild) getComputedStyle(el.lastElementChild).translate; el.classList.remove("l2m-still"); }
   };
+  // From one open panel to another: one piece of glass, not two crossing (each with its shadow). The taller of the two
+  // carries the glass, its edge going from the one panel's to the other's (its lift given for the move); the other,
+  // its glass off, shows only its contents, over it: fading out (the one left) or in (the one opened), in place
+  var switching = null;
+  window.L2M_panelSwitch = function (from, to) {
+    if (switching) switching();
+    window.L2M_filmPace(to, true);
+    var hf = from.offsetTop + from.offsetHeight, ht = to.offsetTop + to.offsetHeight, grow = ht >= hf;
+    var carrier = grow ? to : from, ghost = grow ? from : to;
+    function jump(el, lift) { el.classList.add("l2m-still"); el.style.setProperty("--l2m-lift", lift); getComputedStyle(el).translate; el.classList.remove("l2m-still"); }
+    carrier.classList.add("l2m-carrier"); ghost.classList.add("l2m-ghost");
+    if (grow) jump(to, (hf - ht) + "px");                       // (opened from the old edge, down to its own)
+    else { jump(to, "0px"); from.style.setProperty("--l2m-lift", (ht - hf) + "px"); from.style.visibility = "visible"; }   // (left: up to the new edge)
+    from.classList.remove("open");
+    to.classList.add("open");
+    var t = setTimeout(function () { switching(); }, 320);
+    switching = function () {
+      clearTimeout(t); switching = null;
+      [from, to].forEach(function (el) {
+        el.classList.add("l2m-still");
+        el.classList.remove("l2m-ghost", "l2m-carrier");
+        el.style.removeProperty("--l2m-lift"); el.style.removeProperty("visibility");
+        getComputedStyle(el).translate; el.classList.remove("l2m-still");
+      });
+    };
+  };
   // reading in full screen (on a touch screen whose browser allows it; not an iPhone): on unless turned off
   window.L2M_canFull = function () {
     var d = document.documentElement;

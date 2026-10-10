@@ -319,14 +319,19 @@ window.L2M_nav = function (opts) {
     var el = panels[name];
     if (!el || panel === name) return;
     closeSheet();
-    if (panel) hidePanel(panel);
+    var from = panel ? panels[panel] : null;
+    if (from && !window.L2M_panelSwitch) { hidePanel(panel); from = null; }
+    else if (from) from.setAttribute("aria-hidden", "true");
     else if (useHistory) {
       try { if (!state().l2mPanel) stepIn({l2mPanel: true}); } catch (e) {}
     }
     panel = name;
     root.style.setProperty("--l2m-bar-h", barHeight() + "px");
-    if (window.L2M_filmPace) L2M_filmPace(el, true);
-    el.classList.add("open");
+    if (from) L2M_panelSwitch(from, el);           // (one glass from the one panel's shape to the other's)
+    else {
+      if (window.L2M_filmPace) L2M_filmPace(el, true);
+      el.classList.add("open");
+    }
     el.setAttribute("aria-hidden", "false");
     bar.classList.add("menu-open");
     root.classList.toggle("l2m-settings-open", name === "settings");

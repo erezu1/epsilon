@@ -1369,8 +1369,8 @@
   }
   var skipPop = false;       // the history step of a panel closed by hand: already handled
   function openPanel(which) {
-    var had = panelOpen;
-    closePanel(had ? "pop" : "jump");            // from one panel to the other: the same history step
+    var had = panelOpen, from = had ? shell.querySelector(had === "add" ? "#app-addp" : "#app-settings") : null;
+    closePanel(had ? "pop" : "jump", window.L2M_panelSwitch ? from : null);   // from one panel to the other: the same step
     if (!had) try { if (!(history.state || {}).l2mPanel) history.pushState(Object.assign({}, history.state || {}, {l2mPanel: true}), ""); } catch (e) {}
     var el = shell.querySelector(which === "add" ? "#app-addp" : "#app-settings"), inner = el.querySelector(".menu-inner");
     if (which === "add") {
@@ -1394,8 +1394,11 @@
       bindPanel(inner);
       bindSetTabs(inner, tab);
     }
-    if (window.L2M_filmPace) L2M_filmPace(el, true);
-    el.classList.add("open");
+    if (from && from !== el && window.L2M_panelSwitch) L2M_panelSwitch(from, el);   // (one glass, the one shape to the other)
+    else {
+      if (window.L2M_filmPace) L2M_filmPace(el, true);
+      el.classList.add("open");
+    }
     el.setAttribute("aria-hidden", "false");
     shell.querySelector("#app-bar").classList.add("menu-open");
     setMode(which === "settings");
@@ -1428,7 +1431,8 @@
     var fb = shell.querySelector("#app-fold");
     fb.tabIndex = !on && !fb.classList.contains("app-away") ? 0 : -1;
   }
-  function closePanel(how) {        // how: "pop" (closed by back), "jump" (something else follows at once)
+  function closePanel(how, keep) {  // how: "pop" (closed by back), "jump" (something else follows at once); keep: left
+                                    // open, for the panel opening next to take its glass over (L2M_panelSwitch)
     if (panelOpen && window.L2M_endFade) L2M_endFade();
     if (shell) setMode(false);
     if (!panelOpen || !shell) { panelOpen = false; return; }
@@ -1442,6 +1446,7 @@
     } catch (e) {}
     ["#app-settings", "#app-addp"].forEach(function (id) {
       var el = shell.querySelector(id);
+      if (el === keep) { el.setAttribute("aria-hidden", "true"); return; }
       if (el.classList.contains("open") && window.L2M_filmPace) L2M_filmPace(el, false);
       el.classList.remove("open");
       el.setAttribute("aria-hidden", "true");
