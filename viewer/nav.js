@@ -598,6 +598,8 @@ window.L2M_nav = function (opts) {
     else if (/^[A-Za-z]{3,}$/.test(q) && (OPS[q] || OPNAME.test(q))) w.tex = "\\" + q;   // "sum", "log": the word, and the command
     if (!w.text && !w.tex && !w.glyph) return null;              // (too short to look for yet)
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
+    var cm = /^\[\s*([0-9A-Za-z]+)\s*\]$/.exec(q);
+    if (cm) w.cite = cm[1];                 // "[66]": that reference cited anywhere, [34, 66, 78] too (and its entry)
     return w;
   }
   // a letter asked for plainly is found in any font, with any accent or prime (B in \mathcal{B} > 1, \bar{B} > 1 or
@@ -820,6 +822,22 @@ window.L2M_nav = function (opts) {
         try { var r = document.createRange(); r.setStart(a.node, a.off); r.setEnd(b.node, b.off); found.push({at: i, range: r}); } catch (e) {}
         mm = re.exec(low); i = mm ? mm.index : -1; len = mm ? mm[0].length : 0;
       }
+    }
+    if (what.cite) {
+      // a citation: the number in each bracket citing it (alone, the whole bracket, as found as text above; in a
+      // group, the number only), and the reference's own entry ([66] at its head, as text)
+      found = found.filter(function (h) { var c = h.range.startContainer.parentNode; return !(c && c.closest && c.closest(".cite")); });
+      Array.prototype.forEach.call(main.querySelectorAll(".cite"), function (c) {
+        var ls = c.querySelectorAll("a"), r;
+        Array.prototype.forEach.call(ls, function (a) {
+          if (a.textContent.trim() !== what.cite) return;
+          var tn = a.firstChild, k = nodes.indexOf(tn);
+          if (k < 0) return;
+          r = document.createRange();
+          if (ls.length === 1) r.selectNodeContents(c); else r.selectNodeContents(a);
+          found.push({at: starts[k], range: r});
+        });
+      });
     }
     if (what.glyph || what.tex) {
       var seq = what.glyph ? [what.glyph] : glyphsOf(texNorm(what.tex)), qn = what.tex ? texNorm(what.tex) : "";
