@@ -2937,17 +2937,16 @@
   }
   // The app's fonts are loaded before anything is shown (the loading screen stays the moment they take, at most two
   // seconds): a face that came later would have the whole page restyled and laid out again (a paper's letters are
-  // sized by the font's x-height, its formulas in ex), for a long paper a second or more on a phone. The reading font
-  // upright and italic and the app's own, for Latin, its accents and Greek, and the font list's previews (a kilobyte or
-  // two each); a paper's rarer letters come with the paper, before it is laid out (paperFonts)
+  // sized by the font's x-height, its formulas in ex), for a long paper a second or more on a phone. The app's own face
+  // (the lists'), for Latin, its accents and Greek, and the font list's previews (a kilobyte or two each); the reading
+  // font comes with a paper, upright and italic with all its letters, before it is laid out (paperFonts: waiting for
+  // it here held the lists back by up to 2 s, and some 460 KB, on a first visit)
   var fontsIn = Promise.resolve();
   function appFonts() {
     if (!document.fonts || !document.fonts.load) return Promise.resolve();
-    var cs = getComputedStyle(root), serif = cs.getPropertyValue("--serif").trim() || "serif", ui = cs.getPropertyValue("--ui").trim() || "sans-serif";
+    var ui = getComputedStyle(root).getPropertyValue("--ui").trim() || "sans-serif";
     var text = "AaQqZz019 \u00c0\u00e0\u00c9\u00e9\u00d6\u00f6\u00c7\u00e7 \u0100\u0101\u0118\u0119\u0141\u0142\u0160\u0161\u017d\u017e \u0391\u03b1\u0392\u03b2\u0393\u03b3\u03a9\u03c9";
-    var asks = ["16px " + serif, "italic 16px " + serif, "16px " + ui].map(function (f) {
-      return document.fonts.load(f, text).catch(function () {});
-    });
+    var asks = [document.fonts.load("16px " + ui, text).catch(function () {})];
     document.fonts.forEach(function (f) { if (/^["']?l2m-pv-/.test(f.family)) asks.push(f.load().catch(function () {})); });
     return Promise.race([Promise.all(asks), new Promise(function (r) { setTimeout(r, 2000); })]);
   }
