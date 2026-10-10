@@ -1064,14 +1064,14 @@ window.L2M_marks = function (host) {
   // A press on a formula under a mark: the browser selects the formula at once (it is selected whole); a tap there is
   // the mark's, so while it might be one, that selection is not shown (theme.css: l2m-mk-press). Moved on (a selection
   // being drawn), it shows as ever
-  var press = null, html = document.documentElement;
-  function unpress() { press = null; html.classList.remove("l2m-mk-press"); }
+  var press = null;
+  function unpress() { if (press && press.f) press.f.classList.remove("l2m-mk-press"); press = null; }
   on(document, "pointerdown", function (e) {
     var el = e.target.nodeType === 1 ? e.target : e.target.parentNode;
     unpress();
     if (dead || e.button !== 0 || !el || !el.closest || !el.closest(FORMULA) || !markAt(el, e)) return;
-    press = {x: e.clientX, y: e.clientY};
-    html.classList.add("l2m-mk-press");
+    press = {x: e.clientX, y: e.clientY, f: el.closest(FORMULA)};
+    press.f.classList.add("l2m-mk-press");
   }, true);
   on(document, "pointermove", function (e) { if (press && Math.abs(e.clientX - press.x) + Math.abs(e.clientY - press.y) > 8) unpress(); }, true);
   on(document, "pointercancel", unpress, true);

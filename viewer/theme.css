@@ -1786,7 +1786,7 @@ html.l2m-bar-always:not(.l2m-app-lists), html.l2m-bar-always:not(.l2m-app-lists)
    it), and it is copied whole, as its LaTeX */
 main mjx-container, .peek-main mjx-container { -webkit-user-select: all; user-select: all; }
 ::selection { background-color: var(--sel); }
-html.l2m-mk-press mjx-container::selection, html.l2m-mk-press mjx-container *::selection { background-color: transparent; }   /* (marks.js) */
+mjx-container.l2m-mk-press::selection, mjx-container.l2m-mk-press *::selection { background-color: transparent; }   /* (marks.js) */
 /* Under a formula, an unseen picture as wide as its drawing (viewer.js: a span the theme makes an empty picture of), the
    drawing set back over it. In a selection the browser shades a picture at its line's whole height, as the words round
    it: the drawing, which it would leave unshaded, sits on the band like a word. As wide as the drawing even where the

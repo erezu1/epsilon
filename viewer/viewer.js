@@ -248,19 +248,26 @@
       return li || b;
     }
     function watch(box, scroller) {       // the pictures in box drawn in within three screens, let go past eight
-      var all = [], tops = [], bots = [], reach = [], pos = new Map(), dirty = true, tick = 0, later2 = 0;
-      function measure() {                // (each by its block: its top and bottom)
-        all = Array.prototype.filter.call(box.querySelectorAll("mjx-container[data-n]"), function (el) {
-          return inner[+el.getAttribute("data-n")] != null && !el.closest(EAGER);
-        });
-        var base = scroller ? scroller.getBoundingClientRect().top - scroller.scrollTop : -window.pageYOffset, seen = new Map();
-        tops = []; bots = []; reach = []; pos = new Map();
+      var all = null, blocks = [], which = [], tops = [], bots = [], reach = [], pos = new Map(), dirty = true, tick = 0, later2 = 0;
+      function measure() {                // (each by its block: its top and bottom; the formulas and their blocks found once)
+        if (!all) {
+          all = Array.prototype.filter.call(box.querySelectorAll("mjx-container[data-n]"), function (el) {
+            return inner[+el.getAttribute("data-n")] != null && !el.closest(EAGER);
+          });
+          var seen = new Map();
+          all.forEach(function (el, i) {
+            var b = blockOf(el, box), j = seen.get(b);
+            if (j == null) { j = blocks.length; blocks.push(b); seen.set(b, j); }
+            which.push(j); pos.set(el, i);
+          });
+        }
+        var base = scroller ? scroller.getBoundingClientRect().top - scroller.scrollTop : -window.pageYOffset, bt = [], bb = [];
+        blocks.forEach(function (b) { var r = b.getBoundingClientRect(); bt.push(r.top - base); bb.push(r.bottom - base); });
+        tops = []; bots = []; reach = [];
         all.forEach(function (el, i) {
-          var b = blockOf(el, box), r = seen.get(b);
-          if (!r) { r = b.getBoundingClientRect(); seen.set(b, r); }
-          tops.push(r.top - base); bots.push(r.bottom - base);
-          reach.push(Math.max(i ? reach[i - 1] : -Infinity, r.bottom - base));   // (in page order, never less)
-          pos.set(el, i);
+          var j = which[i];
+          tops.push(bt[j]); bots.push(bb[j]);
+          reach.push(Math.max(i ? reach[i - 1] : -Infinity, bb[j]));   // (in page order, never less)
         });
         dirty = false;
       }
@@ -268,7 +275,7 @@
         tick = 0;
         if (closed) return;
         if (dirty) measure();
-        if (!all.length) return;
+        if (!all || !all.length) return;
         var y = scroller ? scroller.scrollTop : window.pageYOffset, h = scroller ? scroller.clientHeight : window.innerHeight;
         var from = y - 3 * h, to = y + 4 * h, lo = 0, hi = reach.length;
         while (lo < hi) { var mid = (lo + hi) >> 1; if (reach[mid] < from) lo = mid + 1; else hi = mid; }
@@ -304,6 +311,18 @@
     // (theme.css: content-visibility), and skipping one clips what reaches outside it. So each block is looked at
     // once, as it first comes in sight: one whose contents reach outside it is left whole (.l2m-cv-off)
     function unclip(box, scroller) {
+      if (window.ContentVisibilityAutoStateChangeEvent) {      // (the browser's own news of a block coming near: no second
+        var checked = new WeakSet();                           // watcher of every block, which cost half of each scroll frame)
+        var onState = function (e) {
+          var b = e.target;
+          if (e.skipped || checked.has(b)) return;
+          checked.add(b);
+          if (b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1) b.classList.add("l2m-cv-off");
+        };
+        box.addEventListener("contentvisibilityautostatechange", onState, true);   // (capture: it does not bubble)
+        ios.push({disconnect: function () { box.removeEventListener("contentvisibilityautostatechange", onState, true); }});
+        return;
+      }
       if (!window.IntersectionObserver) return;
       var io = new IntersectionObserver(function (es) {
         es.forEach(function (e) {
@@ -321,7 +340,6 @@
     // for the reading view's own use (its second view, its search): draw one, look into one before drawing it
     var mathApi = {draw: drawIn, undraw: undraw, watch: watch, codes: codesOf, onDraw: null, onUndraw: null,
                    lazy: function (k) { return inner[+k] != null; }, eager: EAGER,
-                   has: function (k, code) { return inner[+k] != null && inner[+k].indexOf('data-c="' + code + '"') >= 0; },
                    // a piece of TeX not in the paper (a reader's note), drawn with the paper's own macros: a promise of it
                    tex: function (src, display) {
                      return mathJax(o.mathjax || theme.mathjax, m).then(function () { return MathJax.tex2svg(src, {display: !!display}); });

@@ -2270,6 +2270,8 @@ window.L2M_nav = function (opts) {
       clearTimeout(saveTimer);
       root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
       if (peek) { peek.remove(); peek = null; peekOpen = false; document.body.style.paddingBottom = ""; }
+      peekMain = peekScroll = peekHead = null;
+      if (findRO) findRO.disconnect();
       fullLeave();
       if (findLayer && findLayer.parentNode) findLayer.remove();
       if (window.CSS && CSS.highlights) { CSS.highlights.delete("l2m-find"); CSS.highlights.delete("l2m-find-now"); }

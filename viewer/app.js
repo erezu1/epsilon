@@ -501,10 +501,6 @@
   }
   function arxivKey(id) { return String(id).replace(/v\d+$/, "").replace("/", "_"); }
   function keyOf(p) { return p.key || String(p.path || "").replace(/^papers\//, ""); }
-  function day(iso) {
-    var d = new Date(iso + "T12:00:00Z");
-    return isNaN(d) ? iso : d.toLocaleDateString(undefined, {weekday: "short", day: "numeric", month: "short"});
-  }
   function authorsLine(a) {
     a = a || [];
     return a.length > 4 ? a.slice(0, 3).join(", ") + " et al." : a.join(", ");
@@ -686,7 +682,7 @@
   // a saved paper converted again: its new version is saved over the old copy (never left without one), as soon as
   // the library knows of it; meanwhile its download button in the list turns (as while it was first saved)
   var updating = {};
-  function staleOffline(x) { var o = offlineSet()[keyOf(x)]; return !!(o && x.converted && o.ver !== x.converted); }
+  function staleOffline(x, off) { var o = (off || offlineSet())[keyOf(x)]; return !!(o && x.converted && o.ver !== x.converted); }
   function paintOffline(key) {
     var I = theme.icons || {};
     Array.prototype.forEach.call(document.querySelectorAll('[data-offline="' + key + '"]'), function (b) {
@@ -965,7 +961,7 @@
   function savePlace(key, leaving) {
     if (!key || isPage(key) || !view) return;
     var p = capturePlace(), was = reading[key];
-    if (!was || was.n !== p.n || Math.abs((was.frac || 0) - p.frac) > 0.02 || was.progress !== p.progress || was.of) {
+    if (!was || was.n !== p.n || Math.abs((was.frac || 0) - p.frac) > 0.02 || Math.abs((was.progress || 0) - (p.progress || 0)) > 0.01 || was.of) {
       p.at = Date.now();
       reading[key] = p;
       store("reading", reading);
@@ -2111,7 +2107,7 @@
     });
     ((lib && lib.papers) || []).forEach(function (x) {       // saved papers with a newer version: saved again
       var k = keyOf(x);
-      if (updating[k]) paintOffline(k); else if (staleOffline(x)) refreshOffline(x, true);
+      if (updating[k]) paintOffline(k); else if (staleOffline(x, off)) refreshOffline(x, true);
     });
     Array.prototype.forEach.call(box.querySelectorAll("[data-offline]"), function (b) {
       b.addEventListener("click", function () {
@@ -2175,7 +2171,7 @@
     if (on) {
       var d = days[cur], h = d.offsetHeight;
       row.style.height = h + "px";              // the bar grows down to take the header in (animated)
-      root.style.setProperty("--l2m-join-h", h + "px");   // a panel closes onto the bar with its header
+      if (shell.style.getPropertyValue("--l2m-join-h") !== h + "px") shell.style.setProperty("--l2m-join-h", h + "px");   // a panel closes onto the bar with its header
       if (row.textContent !== d.textContent) row.innerHTML = "<span>" + esc(d.textContent) + "</span>";
       // the words exactly over where they stand in the list (whatever the phone's insets and widths)
       if (textX >= 0 && textX < 400) row.style.paddingLeft = textX.toFixed(2) + "px";
@@ -2193,7 +2189,7 @@
       clearTimeout(joinBar.t);
       bar.classList.remove("settled");
       row.style.height = "";                   // back to the bar alone; the header fades as it goes
-      root.style.setProperty("--l2m-join-h", "0px");
+      if (shell.style.getPropertyValue("--l2m-join-h") !== "0px") shell.style.setProperty("--l2m-join-h", "0px");
       row.style.paddingLeft = "";
       row.style.opacity = "";
       row.style.transform = "";
@@ -2328,9 +2324,12 @@
     }
     if (bar) { void bar.offsetWidth; bar.classList.add("on"); }
     var t0 = Date.now();
-    return refreshNow().then(function () {
-      setTimeout(function () { if (bar) bar.classList.remove("on"); }, Math.max(0, 700 - (Date.now() - t0)));
-    }, function () { if (bar) bar.classList.remove("on"); });
+    function off() {                          // (faded, then gone: its endless animation would run on unseen)
+      if (!bar) return;
+      bar.classList.remove("on");
+      setTimeout(function () { if (!bar.classList.contains("on")) bar.remove(); }, 260);
+    }
+    return refreshNow().then(function () { setTimeout(off, Math.max(0, 700 - (Date.now() - t0))); }, off);
   }
   function refreshNow() {
     var before = listText.join("\u0000"), order = listState();
@@ -2344,7 +2343,8 @@
     }, function () { checkApp(); });
   }
   function newVersions() {
-    ((lib && lib.papers) || []).forEach(function (x) { if (staleOffline(x)) refreshOffline(x, true); });   // saved copies
+    var off = offlineSet();
+    ((lib && lib.papers) || []).forEach(function (x) { if (staleOffline(x, off)) refreshOffline(x, true); });   // saved copies
     if (!current || isPage(current) || !openVer) return;
     var x = ((lib && lib.papers) || []).filter(function (e) { return keyOf(e) === current; })[0];
     if (!x || !x.converted || x.converted === openVer || x.status === "failed" || offeredVer[current] === x.converted) return;
@@ -2918,7 +2918,9 @@
   }
   function freshLists() {
     return Promise.all(LISTS.map(function (p, i) {
-      return src.blob(p).then(function (b) { remember(p, b); return b.text(); }, function () { return listText[i]; });
+      return src.blob(p).then(function (b) {
+        return b.text().then(function (t) { if (t !== listText[i]) remember(p, b); return t; });   // (kept anew only if changed)
+      }, function () { return listText[i]; });
     }));
   }
   function load() {                          // (also used when the settings change the library)

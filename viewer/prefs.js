@@ -339,7 +339,6 @@
     var d = document.documentElement;
     return !!(document.fullscreenEnabled && d.requestFullscreen && window.matchMedia && matchMedia("(pointer: coarse)").matches);
   };
-  window.L2M_fullOn = function () { return window.L2M_prefs().full === "on"; };
   var veilRaf = 0;
   function afterPaint(fn) {                    // fn once what is changed now is on the screen (two frames on)
     veilRaf = requestAnimationFrame(function () { veilRaf = requestAnimationFrame(function () { veilRaf = 0; fn(); }); });
