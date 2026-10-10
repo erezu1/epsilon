@@ -458,24 +458,30 @@ window.L2M_marks = function (host) {
   }
   function showDock() {
     if (store.toastAway) store.toastAway();         // (a new selection: the Undo of the last removal goes, the bar comes)
-    // (at the foot of the screen, as every bar and message is, over an open peek's foot: the peek has as much more
-    // room at its end meanwhile, so that none of it is out of reach under the bar)
-    document.documentElement.classList.add("l2m-docked");
     if (!dockOpen) picked = colourOf();            // (the colour last marked in, ringed: what Enter or a note takes)
     ring();
     if (dockOpen) return;
     dockOpen = true;
     if (window.L2M_footer) L2M_footer(dock, true);
-    document.documentElement.style.setProperty("--l2m-dock-h", dock.offsetHeight + "px");
+    peekDocked(true);
     if (host.selIn) host.selIn();                  // (a step in the history: back lets the selection go)
   }
   var picked = 0;
+  // (at the foot of the screen, as every bar and message is, over an open peek's foot: the peek has as much more room at
+  // its end meanwhile, so that none of it is out of reach under the bar; said to the peek alone: on the page's root it
+  // restyled the whole page)
+  function peekDocked(on) {
+    var p = document.querySelector(".l2m-peek");
+    if (!p) return;
+    p.classList.toggle("l2m-docked", on);
+    if (on) p.style.setProperty("--l2m-dock-h", dock.offsetHeight + "px");
+  }
   function ring() { dock.querySelectorAll(".mk-dot").forEach(function (b) { b.classList.toggle("last", +b.getAttribute("data-c") === picked); }); }
   function hideDock(keep) {                        // keep: its step, for what opens next (or gone already)
     if (!dockOpen) return;
     dockOpen = false;
     if (window.L2M_footer) L2M_footer(dock, false);
-    document.documentElement.classList.remove("l2m-docked");
+    peekDocked(false);
     if (!keep && host.selOut) host.selOut("hand");
   }
   function checkSel() {
