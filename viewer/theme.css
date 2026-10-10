@@ -377,8 +377,8 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 /* contents panel, glued under the bar (glass: .glass .glass-top; how it grows from the bar: further down) */
 .l2m-menu {
   position: fixed;
-  top: 0;
-  padding-top: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h, 0px));     /* (below the bar, and its pinned date) */
+  top: calc(-1 * var(--g-above));                                           /* (reaching on up out of sight, as the bar's shadow does) */
+  padding-top: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h, 0px) + var(--g-above));     /* (below the bar, and its pinned date) */
   display: flex;
   flex-direction: column;
   left: 0;
@@ -991,7 +991,7 @@ a.lib-title { color: var(--ink); }
    stays put on the screen: only the glass's edge travels, its shadow with it. Both moves are the compositor's.
    (--l2m-panel-h: the panel's height, prefs.js, as it opens or closes) */
 .l2m-menu {
-  --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h));
+  --l2m-close-h: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h) + var(--g-above));
   --l2m-lift: calc(var(--l2m-close-h) - var(--l2m-panel-h, 100vh));
   translate: 0 var(--l2m-lift);
   transition: translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms;
@@ -1017,6 +1017,7 @@ a.lib-title { color: var(--ink); }
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
 .l2m-film > i { background: var(--g-film) var(--glass-x) 0 / 900px 900px repeat; }
+.l2m-menu > .l2m-film > i, .l2m-menu.glass-top::before { background-position: var(--glass-x) var(--g-above); }   /* (from the screen's top, as the bar's) */
 @media (prefers-reduced-motion: reduce) { .l2m-menu, .l2m-menu.open, .l2m-menu > *, .l2m-film > i { transition-duration: 0.01s; } }
 .l2m-bar::before { transition: opacity 0s 300ms; }
 .l2m-bar.menu-open::before { opacity: 0; transition: opacity 0s; }
@@ -2020,6 +2021,13 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 
 /* at the top: the film laid from the screen's top (on wide screens its left edge too), the rim at the bottom edge */
 .glass-top { border-bottom: 1px solid var(--g-line); border-radius: 0 0 var(--g-r) var(--g-r); box-shadow: var(--g-shadow), var(--g-edge-top); }
+/* its shadow cast as by glass going on up out of sight, the same whether the bar casts it or a panel (whose top is out
+   of sight as it moves): else, the bar's ending at the screen's top, its sides' shadow faded there and the panel's not */
+:root { --g-above: 80px; }
+.l2m-bar.glass-top:not(.menu-open) { box-shadow: var(--g-edge-top); }
+.l2m-bar.glass-top::after { content: ""; position: absolute; inset: calc(-1 * var(--g-above)) 0 0 0; z-index: -1; pointer-events: none;
+  border-radius: inherit; box-shadow: var(--g-shadow); transition: opacity 0s 300ms; }
+.l2m-bar.glass-top.menu-open::after { opacity: 0; transition: opacity 0s; }
 .glass-top::before { inset: 0 0 auto 0; height: 100%; background-position: var(--glass-x) 0;
   -webkit-mask-image: var(--rim), var(--rim-sides); mask-image: var(--rim), var(--rim-sides); }
 
@@ -2165,6 +2173,20 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), visibility 0s !important; }
 .app-bar .bar-inner { min-height: 48px; }
 .app-searchbar .app-field::-webkit-search-cancel-button { display: none; }
+/* the ε and the cross (the search's, the settings'): a shorter way than the tabs' (32px), through wider soft edges, so
+   that each is seen all the way, the one fading out as it goes down, the other in as it comes down (with the tabs'
+   56px through their narrow edges, both were out of sight halfway and the cross then seemed to pop in) */
+.app-bar:not(.set-mode):not(.searching) .app-lead > .app-close { transform: translateY(-32px); }
+.app-bar:is(.set-mode, .searching) .app-lead > .app-logo { transform: translateY(32px); }
+/* (and the one going fades out on its own: when the soft edges lift, at the end, it is not seen again where it went) */
+.app-bar:is(.set-mode, .searching) .app-lead > .app-logo, .app-bar:not(.set-mode):not(.searching) .app-lead > .app-close {
+  opacity: 0 !important; transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), opacity 240ms ease, visibility 0s linear 440ms !important; }
+.app-bar:not(.set-mode):not(.searching) .app-lead > .app-logo, .app-bar:is(.set-mode, .searching) .app-lead > .app-close {
+  opacity: 1 !important; transition: transform 440ms cubic-bezier(0.3, 0.7, 0.25, 1), opacity 240ms ease, visibility 0s !important; }
+.app-bar.flapping .app-lead {
+  -webkit-mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 4px, #000 26px, #000 46px, transparent 68px) !important;
+  mask-image: linear-gradient(rgb(0 0 0 / calc(1 - var(--flap))), rgb(0 0 0 / calc(1 - var(--flap)))), linear-gradient(to bottom, transparent 4px, #000 26px, #000 46px, transparent 68px) !important;
+}
 
 /* A paper's bar, one line, as tall as the library's: the section title cut with an ellipsis when it is long. The
    reading line thin, a little up inside the glass (at the foot of the title's row), its glow faint */
