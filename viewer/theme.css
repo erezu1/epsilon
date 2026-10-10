@@ -2028,6 +2028,15 @@ html.l2m-thumbed .l2m-thumb:is(.on, :hover, .drag) { opacity: 1; transition-dura
 .glass-bottom.open { transform: none; opacity: 1; visibility: visible; pointer-events: auto; transition: transform var(--g-move), opacity 220ms ease, visibility 0s; }
 .glass-bottom::before, .glass-bottom .glass::before { background-position: var(--film-x, 0px) var(--film-y, 0px);
   -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides); }
+/* a footer's own film (nav.js, L2M_footer): in a frame of the glass's shape, with its rim, that moves with it; inside,
+   the film held still on the screen by the inverse of the glass's motion, at its pace (as a panel's) */
+.glass-bottom:has(> .l2m-film)::before { content: none; }
+.glass-bottom > .l2m-film { border-radius: inherit; -webkit-mask-image: var(--rim-down), var(--rim-sides); mask-image: var(--rim-down), var(--rim-sides); }
+.glass-bottom > .l2m-film > i { background-position: var(--film-x, 0px) var(--film-y, 0px); transform: translateY(calc(-100% - 12px)); transition: transform var(--g-move); }
+.glass-bottom.open > .l2m-film > i { transform: none; }
+.glass-bottom.grow:not(.open) > .l2m-film > i { transform: translateY(calc(var(--from-h, 0px) - 100%)); }
+.glass-bottom.l2m-now > .l2m-film > i { transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .glass-bottom > .l2m-film > i { transition-duration: 0.01s; } }
 body::after { content: ""; display: block; height: env(keyboard-inset-height, 0px); }   /* (the page scrolls on as far) */
 
 /* small and round: no film (too small for its colours) */

@@ -22,12 +22,24 @@ window.L2M_pinFilm = function (el, ms) {
 // A footer (glass at the foot of the screen, theme.css's .glass-bottom: a message, the marking bar, a note's or a
 // footnote's sheet, the library's sheet for a paper) comes and goes one way: open or not, said so to assistive
 // technology (a message is a live region: left as it is, so that it is read out), its film kept where it is on the
-// screen as it moves. Who opens it keeps its own place in the history (Back closes it).
+// screen as it moves. Who opens it keeps its own place in the history (Back closes it). The film, as a panel's: in a
+// frame of the glass's shape that moves with it (its rim), held still inside it by the inverse of the glass's motion,
+// at its pace (theme.css: the compositor's work, nothing done here frame by frame); laid from the screen's corner
+// once, from where the glass stands open (its place before any motion)
 window.L2M_footer = function (el, open) {
   if (!el) return;
+  if (el.classList.contains("glass")) {
+    if (!el.querySelector(":scope > .l2m-film")) {
+      var film = document.createElement("span");
+      film.className = "l2m-film"; film.setAttribute("aria-hidden", "true");
+      film.appendChild(document.createElement("i"));
+      el.insertBefore(film, el.firstChild);
+    }
+    el.style.setProperty("--film-x", -el.offsetLeft + "px");
+    el.style.setProperty("--film-y", -el.offsetTop + "px");
+  }
   el.classList.toggle("open", !!open);
   if (el.getAttribute("role") !== "status") el.setAttribute("aria-hidden", open ? "false" : "true");
-  window.L2M_pinFilm(el, 360);
 };
 window.L2M_nav = function (opts) {
   "use strict";
