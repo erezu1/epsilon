@@ -451,11 +451,12 @@
     artFilters();
     imagesIn.then(function () {            // the figures looked at in idle moments, one at a time
       var imgs = Array.prototype.filter.call(main.querySelectorAll("img"), function (img) { return !img.closest(".l2m-pic"); });
+      var idle = window.requestIdleCallback || function (f) { return setTimeout(f, 50); };   // (truly idle: not one after another)
       (function next() {
         if (closed || !imgs.length) return;
         var img = imgs.shift();
         if (img.naturalWidth) inkTest(img);
-        setTimeout(next, 0);
+        idle(next);
       })();
     });
     nav = window.L2M_nav({key: o.key || doc.source || "", theme: theme, onLibrary: o.onLibrary, leaving: o.leaving,
