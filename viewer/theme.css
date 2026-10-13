@@ -2203,3 +2203,12 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 .bar-find .find-count { position: absolute; right: 0; top: 50%; transform: translateY(-50%); min-width: 0; padding: 0; pointer-events: none; }
 .bar-find .find-box .app-field { padding-right: 56px; }
 
+
+/* A bar's buttons are tapped anywhere in the bar's height above and below them (round, 44-48px in a 65px bar, they
+   left strips above, below and at their corners that no tap reached), the first and the last out to the screen's
+   edge; the back button over the section title's first pixels (the title reaches back under it) */
+.l2m-bar .bar-btn { position: relative; }
+.l2m-bar .bar-btn::after { content: ""; position: absolute; inset: -12px 0; }
+.l2m-bar .bar-inner > .bar-btn:first-child::after { left: -24px; }
+.l2m-bar .bar-inner > .bar-btn:last-child::after { right: -24px; }
+.l2m-bar .bar-inner > .bar-btn[data-act="back"] { z-index: 1; }
