@@ -1314,6 +1314,7 @@
     var fb = shell.querySelector("#app-fold");
     fb.classList.toggle("app-away", name !== "new");
     fb.tabIndex = name === "new" ? 0 : -1;
+    if (name === "new") feedSeen();
     foldState();
     var dd = document.querySelector('[data-pane="app:' + name + '"] .app-day.stuck');
     shell.querySelector("#app-bar").classList.toggle("joined", !!dd);
@@ -2130,6 +2131,14 @@
   }
 
   var daysShown = 1, fetchingDay = null;      // New shows the latest day, and more on request
+  // and every day announced since Explore was last looked at on this device (back after two days: both of them)
+  var seenFrom = null, unseenIn = false;
+  function feedSeen() {
+    if (current !== "app:new" || !feed || !feed.items || !feed.items.length) return;
+    if (seenFrom === null) seenFrom = store("feedSeen") || "";      // (what was seen before, kept for this visit)
+    var newest = feed.items.reduce(function (m, i) { return i.announced > m ? i.announced : m; }, "");
+    if (newest && store("feedSeen") !== newest) store("feedSeen", newest);
+  }
   // a list's section header (a day in New; Pinned / Recent in Library) passing under the bar joins it: the bar
   // draws it, as one glass block with the shadow under it
   function listenJoin(k) {
@@ -2199,7 +2208,10 @@
     var byDay = {};
     ((feed && feed.items) || []).forEach(function (i) { (byDay[i.announced] = byDay[i.announced] || []).push(i); });
     var order = Object.keys(byDay).sort().reverse();
+    if (seenFrom === null && order.length) seenFrom = store("feedSeen") || "";   // (as the app opens: the days not seen here yet)
+    if (seenFrom && !unseenIn) { unseenIn = true; daysShown = Math.max(daysShown, order.filter(function (d) { return d > seenFrom; }).length); }
     var shown = Math.max(1, Math.min(daysShown, order.length));
+    feedSeen();
     var days = order.slice(0, shown).map(function (d) {
       var label = new Date(d + "T12:00:00Z").toLocaleDateString(undefined, {weekday: "long", day: "numeric", month: "long"});
       return '<p class="app-day" data-k="d:' + esc(d) + '">' + esc(label) + '</p><ol class="l2m-library app-feed">' + byDay[d].map(function (i) {
