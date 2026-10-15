@@ -147,6 +147,7 @@ body {
   padding-inline: 18px;
   padding-block: 24px 72px;
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;   /* the lighter text of the Conifer pages (a Mac renders it thinner than the default) */
   text-rendering: optimizeLegibility;
 }
 main { max-width: var(--page-w); margin-inline: auto; overflow-wrap: anywhere; }
