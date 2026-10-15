@@ -100,7 +100,7 @@ DECLS = {
 }
 SIZES = ("tiny", "scriptsize", "footnotesize", "small", "normalsize", "large", "Large", "LARGE",
          "huge", "Huge")
-IGNORE0 = ("begingroup", "endgroup", "long", "global", "EnsureStandardFontEncoding", "ClearShipoutPicture",
+IGNORE0 = ("begingroup", "endgroup", "ignorespacesafterend", "ignorespaces", "long", "global", "EnsureStandardFontEncoding", "ClearShipoutPicture",
            "sloppy", "raggedbottom", "flushbottom", "noindent", "bigbreak", "medbreak", "smallbreak",
            "medskip", "smallskip", "bigskip", "noindent", "indent", "centering", "raggedright",
            "raggedleft", "newpage", "clearpage", "cleardoublepage", "pagebreak", "nopagebreak",
@@ -111,7 +111,7 @@ IGNORE0 = ("begingroup", "endgroup", "long", "global", "EnsureStandardFontEncodi
            "onecolumn", "twocolumn", "balance", "normalcolor", "boldmath", "unboldmath", "hline",
            "endinput", "tableofcontents", "listoffigures", "listoftables", "printindex", "maketitle",
            "appendix", "notoc", "toccontinuoustrue", "fi", "else", "iffalse", "iftrue", "normalsize")
-IGNORE1 = ("vspace", "vspace*", "pagestyle", "thispagestyle", "index", "glossary", "hypersetup",
+IGNORE1 = ("vspace", "tikzsetnextfilename", "vspace*", "pagestyle", "thispagestyle", "index", "glossary", "hypersetup",
            "enlargethispage", "graphicspath", "setcitestyle", "captionsetup", "bibliographystyle", "nocite",
            "pagenumbering",
            "markboth", "markright", "linespread", "nomenclature", "addcontentsline", "phantom",
@@ -215,6 +215,34 @@ def read_group(s, i, newlines=True):
         return None, i
     k = match_brace(s, j)
     return s[j + 1:k - 1], k
+
+
+def tikz_end(s, i):
+    """The end of a \\tikz call whose options start at s[i]: \\tikz[...]{...}, or \\tikz[...] and one command up to
+    its ';' (brackets and braces in it counted)."""
+    o, i = read_opt(s, i)
+    j = skip_ws(s, i)
+    if j < len(s) and s[j] == "{":
+        try:
+            return match_brace(s, j)
+        except ParseError:
+            return None
+    depth = 0
+    while j < len(s):
+        c = s[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c in "{[":
+            depth += 1
+        elif c in "}]":
+            depth -= 1
+            if depth < 0:
+                return None
+        elif c == ";" and depth == 0:
+            return j + 1
+        j += 1
+    return None
 
 
 def find_env_end(s, env, i):
@@ -561,6 +589,40 @@ class Converter:
         return re.sub(r"\\(input|include)\s*(?:\{([^}]*)\}|(?<=\s)([^\s{}\\]+\.tex))", rep, text)
 
     # ------------------------------------------------------------------ definitions
+    # "if the argument is empty" in a macro's body, \ifx#1\empty A\else B\fi (or \ifx\empty#1, \if\relax\detokenize{#1}
+    # \relax): the one conditional a converter can decide, from the argument given; written as \l2mifempty{#1}{A}{B}
+    # and decided as the macro is expanded (the macro is then expandable: \es{label}{formula} and the like)
+    IFEMPTY = re.compile(r"\\ifx\s*(?:(#\d)\s*\\empty|\\empty\s*(#\d))(?![A-Za-z])|"
+                         r"\\if\\relax\\detokenize\{(#\d)\}\\relax")
+
+    def ifempty(self, body):
+        """BODY with each "if #n is empty" conditional (IFEMPTY) written as \\l2mifempty{#n}{then}{else}."""
+        out, i = [], 0
+        while True:
+            m = self.IFEMPTY.search(body, i)
+            if not m:
+                return "".join(out) + body[i:]
+            arg = m.group(1) or m.group(2) or m.group(3)
+            # its two branches, up to the matching \else and \fi (conditionals inside counted)
+            depth, j, k, els, end = 0, m.end(), m.end(), None, None
+            for t in re.finditer(r"\\(if[a-zA-Z]*|else|fi)(?![A-Za-z])", body[m.end():]):
+                w = t.group(1)
+                if w.startswith("if"):
+                    depth += 1
+                elif w == "else" and depth == 0 and els is None:
+                    els = (m.end() + t.start(), m.end() + t.end())
+                elif w == "fi":
+                    if depth == 0:
+                        end = (m.end() + t.start(), m.end() + t.end())
+                        break
+                    depth -= 1
+            if end is None:
+                return body
+            yes = body[j:els[0]] if els else body[j:end[0]]
+            no = body[els[1]:end[0]] if els else ""
+            out.append(body[i:m.start()] + "\\l2mifempty{%s}{%s}{%s}" % (arg, yes, no))
+            i = end[1]
+
     def parse_definition(self, s, m):
         """m matched a definition command at its start; register it and return the end index."""
         cmd, star = m.group(1), m.group(2)
@@ -589,10 +651,13 @@ class Converter:
                 if body is None:
                     return j
                 if not (cmd == "providecommand" and name in self.macros):
-                    self.macros[name] = dict(nargs=nargs, default=default, body=body, math_only=False)
+                    self.macros[name] = dict(nargs=nargs, default=default, body=self.ifempty(body), math_only=False)
                 return j
             if cmd == "DeclareMathOperator":
                 g, j = read_group(s, i)
+                if g is None:                                  # (\DeclareMathOperator\PSL{PSL}: the name unbraced)
+                    mm = re.match(r"\s*(\\[A-Za-z@]+)", s[i:])
+                    g, j = mm.group(1), i + mm.end()
                 name = g.strip().lstrip("\\")
                 body, j = read_group(s, j)
                 op = "\\operatorname*" if star else "\\operatorname"
@@ -606,7 +671,7 @@ class Converter:
                 params = s[j:k]
                 body, j = read_group(s, k)
                 nargs = len(re.findall(r"#\d", params))
-                self.macros[name] = dict(nargs=nargs, default=None, body=body, math_only=False)
+                self.macros[name] = dict(nargs=nargs, default=None, body=self.ifempty(body), math_only=False)
                 return j
             if cmd == "let":
                 mm = re.match(r"\s*\\([A-Za-z@]+)\s*=?\s*(\\[A-Za-z@]+|.)", s[i:])
@@ -663,8 +728,43 @@ class Converter:
         while True:
             m = self.DEF_RE.search(s, i)
             if not m:
-                return
+                break
             i = max(self.parse_definition(s, m), m.end())
+        self.unroll_alphabets(s)
+
+    # macros made in a loop over a list, a style file's alphabets: \clist_map_inline:nn{A,B,...}{
+    # \expandafter\def\csname c#1\endcsname{\mathcal{#1}} ...} (and \@for, \foreach), \cA to \cZ each \mathcal{A}...
+    LOOP_RE = re.compile(r"\\(?:clist_map_inline:nn|foreach\s*\\(\w+)\s*in|@for\s*\\(\w+)\s*:=)\s*")
+    CSDEF_RE = re.compile(r"\\expandafter\s*\\[gex]?def\s*\\csname\s*([^\\{}]*?)(#1|\\(\w+))([^\\{}]*?)\s*\\endcsname\s*")
+
+    def unroll_alphabets(self, s):
+        for m in self.LOOP_RE.finditer(s):
+            var = m.group(1) or m.group(2)
+            j = m.end()
+            if s[j:j + 1] == "{":
+                items, j = read_group(s, j)
+            else:                                              # (\@for\x:=a,b,c\do{...})
+                k = s.find("\\do", j)
+                if k < 0:
+                    continue
+                items, j = s[j:k], k + 3
+            body, j = read_group(s, j)
+            if items is None or body is None:
+                continue
+            names = [x.strip() for x in items.split(",") if x.strip()]
+            if not names or not all(re.fullmatch(r"[A-Za-z0-9]+", x) for x in names):
+                continue
+            for d in self.CSDEF_RE.finditer(body):
+                if d.group(3) and d.group(3) != var:
+                    continue
+                mac, k = read_group(body, d.end())
+                if mac is None:
+                    continue
+                param = "#1" if not var else "\\" + var
+                for x in names:
+                    name = d.group(1) + x + d.group(4)
+                    if re.fullmatch(r"[A-Za-z]+", name) and name not in self.macros:
+                        self.macros[name] = dict(nargs=0, default=None, body=mac.replace(param, x), math_only=False)
 
     def parse_preamble(self, pre):
         self.scan_definitions(pre)
@@ -762,15 +862,41 @@ class Converter:
         """Expand argument-free macros such as \\be -> \\begin{equation}, so environments are visible."""
         short = {k: d["body"] for k, d in self.macros.items() if d["nargs"] == 0 and self.expandable(k) and
                  k not in self.picture_macros() and re.search(r"\\(begin|end)\s*\{", d["body"])}
-        if not short:
+        if short:
+            pat = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(sorted(map(re.escape, short), key=len, reverse=True)))
+            for _ in range(5):
+                new = pat.sub(lambda m: short[m.group(1)], body)
+                if new == body:
+                    break
+                body = new
+        return self.expand_display_shortcuts(body)
+
+    DISPLAY_BEGIN = re.compile(r"\\begin\s*\{(equation|align|gather|multline|eqnarray|flalign|alignat)\*?\}")
+
+    def expand_display_shortcuts(self, body):
+        """Expand what writes a displayed formula through a definition of the paper's, so that it is one as an
+        equation environment is (a block of its own, numbered, labelled): a macro with arguments, \\es{label}{formula},
+        and an environment of the paper's own, \\begin{calign} ... \\end{calign}, whose code holds equation and the like."""
+        envs = {k: d for k, d in self.env_defs.items() if not d["nargs"] and self.DISPLAY_BEGIN.search(d["begin"] or "")}
+        for k, d in envs.items():
+            body = re.sub(r"\\begin\s*\{%s\}" % re.escape(k), lambda m: d["begin"], body)
+            body = re.sub(r"\\end\s*\{%s\}" % re.escape(k), lambda m: d["end"] or "", body)
+        macs = [k for k, d in self.macros.items() if d["nargs"] and self.expandable(k) and k not in self.picture_macros()
+                and re.fullmatch(r"[A-Za-z]+", k) and self.DISPLAY_BEGIN.search(d["body"])]
+        if not macs:
             return body
-        pat = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(sorted(map(re.escape, short), key=len, reverse=True)))
-        for _ in range(5):
-            new = pat.sub(lambda m: short[m.group(1)], body)
-            if new == body:
-                break
-            body = new
-        return body
+        pat = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(sorted(map(re.escape, macs), key=len, reverse=True)))
+        out, i = [], 0
+        for m in pat.finditer(body):
+            if m.start() < i:
+                continue
+            try:
+                text, j = self.expand_macro(m.group(1), body, m.end())
+            except ParseError:
+                continue
+            out.append(body[i:m.start()] + text)
+            i = j
+        return "".join(out) + body[i:]
 
     NATIVE = {"section", "subsection", "subsubsection", "paragraph", "subparagraph", "chapter", "part",
               "maketitle", "title", "author", "date", "caption", "label", "ref", "eqref", "cite", "footnote",
@@ -1132,7 +1258,19 @@ class Converter:
 
     def mathjax_config(self):
         macros = {}
+        # a command redefined through a copy of itself, \let\originalleft\left \renewcommand{\left}{...\originalleft}
+        # (spacing tricks for LaTeX's own commands): for MathJax a loop (the copy is the new command), so both are
+        # left out and MathJax's own command stays
+        copies = {k: d["body"].strip()[1:] for k, d in self.macros.items()
+                  if re.fullmatch(r"\\[A-Za-z]+", d["body"].strip()) and d["nargs"] == 0}
+        looped = set()
+        for k, target in copies.items():
+            d = self.macros.get(target)
+            if d and re.search(r"\\%s(?![A-Za-z])" % re.escape(k), d["body"]):
+                looped |= {k, target}
         for name, d in self.macros.items():
+            if name in looped:
+                continue
             if not (re.fullmatch(r"[A-Za-z]+", name) or re.fullmatch(r"[^A-Za-z\s{}\\%#$&^_~]", name)):
                 continue
             if name in self.NATIVE or name in self.picture_macros() or "@" in d["body"] or re.search(r"\\(csname|expandafter|futurelet|ifx|ifdim|ifnum)", d["body"]):
@@ -1154,7 +1292,8 @@ class Converter:
                   "tr": "\\operatorname{tr}", "widecheck": ["\\check{#1}", 1], "tcboxmath": ["\\boxed{#1}", 1],
                   "footnote": ["", 1], "footnotesize": "", "small": "", "toprule": "\\hline", "midrule": "\\hline",
                   "bottomrule": "\\hline", "href": ["#2", 2], "relax": "", "ensuremath": ["#1", 1],
-                  "bbone": "\\mathbb{1}", "one": "\\mathbb{1}"}
+                  "bbone": "\\mathbb{1}", "one": "\\mathbb{1}", "tikzsetnextfilename": ["", 1],
+                  "raisebox": ["\\raise{#1}{#2}", 2]}
         for k, v in extras.items():
             macros.setdefault(k, v)
         pk = ["base", "ams", "newcommand", "configmacros", "textmacros", "boldsymbol", "upgreek", "noundefined"]
@@ -1185,6 +1324,14 @@ class Converter:
         body = d["body"]
         for n in range(len(args), 0, -1):
             body = body.replace("#%d" % n, args[n - 1])
+        while "\\l2mifempty{" in body:                     # (decided now, the argument known)
+            at = body.index("\\l2mifempty{")
+            a, j = read_group(body, at + 11)
+            yes, j = read_group(body, j)
+            no, j = read_group(body, j)
+            if a is None or yes is None or no is None:
+                break
+            body = body[:at] + (yes if not a.strip() else no) + body[j:]
         self.expansions += 1
         if self.expansions > 200000:
             raise ParseError("macro expansion does not terminate (\\%s)" % name)
@@ -1246,6 +1393,12 @@ class Converter:
                     out.append("\x00PICI%d\x00" % self.add_picture(s[m.start():k], False, "picture"))
                     i = k
                     continue
+                if name == "tikz":                           # (TikZ's short form, \tikz[...]{...}: a picture)
+                    k = tikz_end(s, i)
+                    if k is not None:
+                        out.append("\x00PICI%d\x00" % self.add_picture(s[m.start():k], False, "tikzpicture"))
+                        i = k
+                        continue
                 if self.expandable(name):
                     exp, k = self.expand_macro(name, s, i)
                     s = exp + s[k:]
@@ -2409,6 +2562,8 @@ class Converter:
 
     # ------------------------------------------------------------------ pictures
     PIC_ENV_RE = re.compile(r"\\begin\s*\{(%s)\}" % "|".join(re.escape(e) for e in PICTURES))
+    # and TikZ's short form, \tikz[options]{...} or \tikz[options] \draw ...; (a picture as much as the environment)
+    PIC_RE = re.compile(PIC_ENV_RE.pattern + r"|(?P<tikz>\\tikz(?![A-Za-z@]))")
 
     def picture_macros(self):
         """The paper's macros that draw a picture: a picture environment in their body, or a call of another such
@@ -2422,7 +2577,7 @@ class Converter:
                 for k, d in self.macros.items():
                     if k in found or k in self.NATIVE or d["math_only"] or d.get("from_sty"):
                         continue
-                    rest = self.each_picture(d["body"], self.PIC_ENV_RE, lambda src, env: "\x01")
+                    rest = self.each_picture(d["body"], self.PIC_RE, lambda src, env: "\x01")
                     if ("\x01" in rest or (call and call.search(rest))) and not BEGIN_ANY.search(rest):
                         new.add(k)
                 if not new:
@@ -2430,7 +2585,7 @@ class Converter:
                 found |= new
                 call = re.compile(r"\\(%s)(?![A-Za-z@])" % "|".join(sorted(map(re.escape, found), key=len, reverse=True)))
             self._picmacros = found
-            self._picre = re.compile(self.PIC_ENV_RE.pattern + ("|" + call.pattern if call else ""))
+            self._picre = re.compile(self.PIC_RE.pattern + ("|" + call.pattern if call else ""))
         return self._picmacros
 
     def each_picture(self, tex, pat, put):
@@ -2441,10 +2596,12 @@ class Converter:
             m = pat.search(tex, i)
             if not m:
                 break
-            end = find_env_end(tex, m.group(1), m.end()) if m.group(1) else self.call_end(m.group(2), tex, m.end())
+            tikz = m.groupdict().get("tikz")
+            end = (find_env_end(tex, m.group(1), m.end()) if m.group(1) else tikz_end(tex, m.end()) if tikz
+                   else self.call_end(m.group(m.lastindex), tex, m.end()))
             if end is None:
                 break
-            out.append(tex[i:m.start()] + put(tex[m.start():end], m.group(1) or "picture"))
+            out.append(tex[i:m.start()] + put(tex[m.start():end], m.group(1) or ("tikzpicture" if tikz else "picture")))
             i = end
         return "".join(out) + tex[i:]
 
