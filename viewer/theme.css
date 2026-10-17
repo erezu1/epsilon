@@ -397,6 +397,8 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
   mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent 100%); }
 .menu-inner.fade-top, .mk-pane.fade-top { --fade-top: 36px; }
 .menu-inner.fade-bottom, .mk-pane.fade-bottom { --fade-bottom: 28px; }
+/* (no fade at either end: no mask at all, which would only cost the browser a layer and a pass for nothing) */
+.menu-inner:not(.fade-top):not(.fade-bottom), .mk-pane:not(.fade-top):not(.fade-bottom) { -webkit-mask-image: none; mask-image: none; }
 .menu-head { margin: 0; padding: 6px 10px; text-transform: uppercase; color: var(--muted); }
 .l2m-menu ol { list-style: none; margin: 0; padding: 0; }
 .l2m-menu li { margin: 0; }
@@ -909,7 +911,6 @@ a.lib-title { color: var(--ink); }
    inside a scrolling list only in part) */
 .app-pane .app-day { background-color: var(--ground); -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* one day's date gives way to the next with a quick fade */
-@media (prefers-reduced-motion: reduce) { .app-bar-day {} }
 
 .app-tappable { cursor: pointer; }
 /* the search button fades in and out with the Library tab (it keeps its place, so nothing else moves) */
@@ -1135,7 +1136,20 @@ html:not(.l2m-app-lists) main { font-size-adjust: ex-height 0.48; }
    skipping would change their margins), their entries not. A figure is skipped too (it would be restyled whole at
    every change of colours, near or far): the margins of what begins and ends it are trimmed, as they no longer meet
    its own (theirs the smaller, so nothing moves). */
-html:not(.l2m-app-lists) main > :is(p, div, h2, h3, h4, h5, h6, ol, ul, dl, table, blockquote, pre, figure):not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > p:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > div:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > h2:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > h3:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > h4:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > h5:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > h6:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > ol:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > ul:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > dl:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > table:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > blockquote:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > pre:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
+html:not(.l2m-app-lists) main > figure:not(.l2m-mk-layer, .l2m-mk-side-layer, .l2m-cv-off),
 html:not(.l2m-app-lists) main > section > ol > li:not(.l2m-cv-off) {
   content-visibility: auto; contain-intrinsic-block-size: auto 200px;
 }
@@ -1149,13 +1163,14 @@ html:not(.l2m-app-lists) main > figure > :last-child > :last-child > :last-child
 /* a paper's running text is set justified, as in print, with the words hyphenated (a phone's short lines would
    leave wide gaps otherwise) and the breaks chosen over the whole paragraph where the browser can. Captions,
    centred and right-set text, tables, the references and footnotes keep a ragged right. */
-html:not(.l2m-app-lists) main :is(p, li) {
+html:not(.l2m-app-lists) main p, html:not(.l2m-app-lists) main li {
   text-align: justify; -webkit-hyphens: auto; hyphens: auto;
   hyphenate-limit-chars: 6 3 2;            /* words of 6 letters or more, at least 3 before the break and 2 after */
   text-wrap: pretty;
 }
-html:not(.l2m-app-lists) main :is(.center, .flushright, figcaption, td, th, ol.refs, .omitted, .skel-paper) :is(p, li),
-html:not(.l2m-app-lists) main :is(p, li):is(.center, .flushright, .omitted),
+html:not(.l2m-app-lists) main :is(.center, .flushright, figcaption, td, th, ol.refs, .omitted, .skel-paper) p,
+html:not(.l2m-app-lists) main :is(.center, .flushright, figcaption, td, th, ol.refs, .omitted, .skel-paper) li,
+html:not(.l2m-app-lists) main p:is(.center, .flushright, .omitted), html:not(.l2m-app-lists) main li:is(.center, .flushright, .omitted),
 html:not(.l2m-app-lists) main ol.refs li { text-align: inherit; -webkit-hyphens: manual; hyphens: manual; }
 
 /* New's first line: what is followed and when it was fetched, and the round refresh button (its arrow turns while
@@ -1609,8 +1624,6 @@ html.l2m-boot-paper body, html.l2m-skel-page body { height: 100dvh; overflow: hi
 ::highlight(l2m-find) { background-color: var(--find-mark); }
 ::highlight(l2m-find-now) { background-color: var(--find-mark-now); }
 .l2m-find-g { stroke: none; }
-mjx-container.l2m-find-f { background-color: var(--find-mark); box-shadow: 0 0 0 3px var(--find-mark); }
-mjx-container.l2m-find-f.l2m-find-now { background-color: var(--find-mark-now); box-shadow: 0 0 0 3px var(--find-mark-now); }
 
 /* the search fields sit in a box of their own (their thin underline as before) */
 .find-box { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; align-self: stretch; }
@@ -1629,7 +1642,6 @@ html.l2m-marker ::highlight(l2m-find) { background-color: transparent; text-deco
   text-decoration-thickness: 0.68em; text-underline-offset: -0.5em; text-decoration-skip-ink: none; }
 html.l2m-marker ::highlight(l2m-find-now) { background-color: transparent; text-decoration: underline var(--find-band-now);
   text-decoration-thickness: 0.68em; text-underline-offset: -0.5em; text-decoration-skip-ink: none; }
-mjx-container.l2m-find-f { border-radius: 0.35em 0.6em 0.4em 0.7em / 0.6em 0.35em 0.7em 0.4em; }
 
 /* the marker's stroke (nav.js lays one over each found word): a band with slanted ends and slightly uneven edges,
    laid over the page and multiplied into it on light grounds (screened on dark), so the letters stay crisp */
@@ -1736,6 +1748,8 @@ html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
   transition: max-height 340ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms ease, margin-top 340ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 340ms;
 }
 .app-abs.open, .l2m-app-lists .app-abs.open { opacity: 1; margin-top: 0.3em; visibility: visible; transition-delay: 0s; }
+/* (a closed one, once it has closed: not laid out at all, its words and formulas not set, however long the list) */
+.app-abs.shut:not(.open) { content-visibility: hidden; }
 .app-toggle { margin-top: 4px; }
 
 .l2m-peek.expanding .peek-scroll { opacity: 0; transition: opacity 140ms ease; }
@@ -2112,6 +2126,9 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --g-edge-bottom: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 0.5px 0 0 var(--g-hair); } }
 /* (the peek's head, on the page's own ground: lifted off the text under it by the flat glass's shadow, as the bar is) */
 :root[data-skin="flat"] .peek-head { box-shadow: var(--g-shadow), inset 0 0 0 0.5px var(--g-hair); border-radius: var(--g-r) var(--g-r) 0 0; }   /* (its edge line all round) */
+/* (flat: no film, so none made: unseen, it was still drawn and moved with every panel and footer) */
+:root[data-skin="flat"] .l2m-film { display: none; }
+:root[data-skin="flat"] .glass::before { content: none; }
 /* (flat: no border, so that the edge's ring, drawn just inside the box, lies on the glass's very edge) */
 :root[data-skin="flat"] :is(.glass-top, .glass-bottom, .glass-round, .app-day.stuck, .peek-head) { border-width: 0; }
 /* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */

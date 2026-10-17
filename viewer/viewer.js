@@ -183,7 +183,9 @@
     function drawn(k) { return hl(svg[+k].replace(/^<mjx-container/, '<mjx-container data-n="' + k + '"')); }
     function shell(k) {
       var s = svg[+k], a = s.indexOf(">", s.indexOf("<svg")) + 1, b = s.lastIndexOf("</svg>");
-      if (a <= 0 || b - a < 300) return drawn(k);          // (a small one: as it is)
+      // (a small one: as it is. A drawing slimmed by the converter, without its namespaces and node kinds, is about
+      // three quarters as long: the same ones count as small)
+      if (a <= 0 || b - a < (s.indexOf(' xmlns="', 0) < 0 ? 230 : 300)) return drawn(k);
       inner[+k] = s.slice(a, b);
       return hl(s.slice(0, a).replace(/^<mjx-container/, '<mjx-container data-n="' + k + '" data-lazy=""') + s.slice(b));
     }
@@ -208,14 +210,15 @@
       while ((m = re.exec(inner[k] || ""))) out.push(m[1]);
       return (codeCache[k] = out);
     }
-    var ios = [], queue = [], pumping = false;
+    var ios = [], queue = [], queued = new Set(), pumping = false;
     // drawn in the browser's idle moments, a few milliseconds at a time (scrolling stays smooth), well before they come
     // in sight; one already in sight is drawn at once
     function pump(dl) {
       pumping = false;
+      if (closed) { queue.length = 0; queued.clear(); return; }
       var t0 = performance.now(), budget = dl && dl.timeRemaining ? Math.min(4, dl.timeRemaining() - 1) : 4;
       // never more than a few milliseconds before the next frame
-      while (queue.length && performance.now() - t0 < budget) drawIn(queue.shift());
+      while (queue.length && performance.now() - t0 < budget) { var q = queue.shift(); queued.delete(q); drawIn(q); }
       if (queue.length) later();
     }
     function later() {
@@ -247,7 +250,7 @@
       return li || b;
     }
     function watch(box, scroller) {       // the pictures in box drawn in within three screens, let go past eight
-      var all = null, blocks = [], which = [], tops = [], bots = [], reach = [], pos = new Map(), dirty = true, tick = 0, later2 = 0;
+      var all = null, blocks = [], which = [], tops = [], bots = [], reach = [], pos = new Map(), dirty = true, tick = 0, later2 = 0, stopped = false;
       function measure() {                // (each by its block: its top and bottom; the formulas and their blocks found once)
         if (!all) {
           all = Array.prototype.filter.call(box.querySelectorAll("mjx-container[data-n]"), function (el) {
@@ -272,7 +275,10 @@
       }
       function look() {
         tick = 0;
-        if (closed) return;
+        if (closed || stopped) return;
+        // (a box set aside, the peek closed: not measured, which would have the browser lay all of it out; measured
+        // when it is shown again)
+        if (scroller && scroller.style.contentVisibility === "hidden") return;
         if (dirty) measure();
         if (!all || !all.length) return;
         var y = scroller ? scroller.scrollTop : window.pageYOffset, h = scroller ? scroller.clientHeight : window.innerHeight;
@@ -281,7 +287,7 @@
         for (var i = lo; i < all.length && tops[i] <= to; i++) {
           var el = all[i];
           if (!el.hasAttribute("data-lazy")) continue;
-          if (bots[i] > y - 200 && tops[i] < y + h + 200) drawIn(el); else if (queue.indexOf(el) < 0) queue.push(el);
+          if (bots[i] > y - 200 && tops[i] < y + h + 200) drawIn(el); else if (!queued.has(el)) { queued.add(el); queue.push(el); }
         }
         // far away (its block wholly past eight screens), unless marked by a search: let go
         drawnSet.forEach(function (el) {
@@ -299,12 +305,22 @@
       window.addEventListener("resize", resized);
       var ro = window.ResizeObserver ? new ResizeObserver(resized) : null;
       if (ro) ro.observe(box);
-      unclip(box, scroller);
-      ios.push({disconnect: function () {
+      var clip = unclip(box, scroller);
+      // (let go: its listeners, and what it holds of its box, so that a copy made again does not keep the one before)
+      var handle = {wake: soon, disconnect: function () {
+        stopped = true;
         target.removeEventListener("scroll", soon); window.removeEventListener("resize", resized);
         if (ro) ro.disconnect(); if (tick) cancelAnimationFrame(tick); clearTimeout(later2);
-      }});
+        if (clip) clip.disconnect();
+        if (all) {
+          all.forEach(function (el) { drawnSet.delete(el); });
+          queue = queue.filter(function (el) { if (pos.has(el)) { queued.delete(el); return false; } return true; });
+        }
+        all = null; blocks = []; which = []; pos = new Map();
+      }};
+      ios.push(handle);
       soon();
+      return handle;
     }
     // A long paper is laid out and drawn only near the view: the browser skips each of its blocks while far from it
     // (theme.css: content-visibility), and skipping one clips what reaches outside it. So each block is looked at
@@ -319,10 +335,11 @@
           if (b.scrollWidth > b.clientWidth + 1 || b.scrollHeight > b.clientHeight + 1) b.classList.add("l2m-cv-off");
         };
         box.addEventListener("contentvisibilityautostatechange", onState, true);   // (capture: it does not bubble)
-        ios.push({disconnect: function () { box.removeEventListener("contentvisibilityautostatechange", onState, true); }});
-        return;
+        var off = {disconnect: function () { box.removeEventListener("contentvisibilityautostatechange", onState, true); }};
+        ios.push(off);
+        return off;
       }
-      if (!window.IntersectionObserver) return;
+      if (!window.IntersectionObserver) return null;
       var io = new IntersectionObserver(function (es) {
         es.forEach(function (e) {
           if (!e.isIntersecting) return;
@@ -335,6 +352,7 @@
         if (!b.classList.contains("l2m-cv-off")) io.observe(b);
       });
       ios.push(io);
+      return io;
     }
     // for the reading view's own use (its second view, its search): draw one, look into one before drawing it
     var mathApi = {draw: drawIn, undraw: undraw, watch: watch, codes: codesOf, onDraw: null, onUndraw: null,

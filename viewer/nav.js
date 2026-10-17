@@ -525,14 +525,13 @@ window.L2M_nav = function (opts) {
   }
   on(window, "resize", relay);
   if (window.ResizeObserver) { var findRO = new ResizeObserver(relay); findRO.observe(document.querySelector("main")); }
+  var findPaths = [];                  // the marks put into formulas (markPlace), to take out again
   function findClear() {
     if (window.CSS && CSS.highlights) { CSS.highlights.delete("l2m-find"); CSS.highlights.delete("l2m-find-now"); }
     if (findLayer) findLayer.textContent = "";
-    Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-g"), function (r) { r.remove(); });
-    Array.prototype.forEach.call(document.querySelectorAll("main .l2m-find-f, main .l2m-find-now"), function (e) {
-      e.classList.remove("l2m-find-f", "l2m-find-now");
-    });
-    hits = []; hitAt = -1;
+    findPaths.forEach(function (p) { p.remove(); });
+    findPaths = [];
+    hits = []; hitAt = -1; hitsIn = null;
   }
   // one symbol spelled in several ways (\varepsilon and \epsilon, \le and \leq and <=, ...): all one, both in what is
   // asked and in the formulas' TeX (SAME: each spelling's one), and as drawn (alts: the drawings of each)
@@ -609,11 +608,19 @@ window.L2M_nav = function (opts) {
   var FONTED = new RegExp("\\\\(" + FONTS + ")\\{([^{}]*)\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{([^{}]*)\\}", "g");
   var HAS_FONT = new RegExp("\\\\(" + FONTS + ")\\{"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")\\{");
   var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
+  var plainMemo = [];                  // (by how the query reads: with or without fonts, accents, primes)
   function plainly(t, q) {             // the formula's TeX as a plain query reads it
-    if (!HAS_FONT.test(q)) t = t.replace(FONTED, "$2");
-    if (!HAS_ACC.test(q)) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, "$2");
-    if (!/'|\\prime/.test(q)) t = t.replace(PRIMED, "");
-    return t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");     // (^{\sf F}, the font gone: ^F, as texNorm has it)
+    var font = HAS_FONT.test(q), acc = HAS_ACC.test(q), prime = /'|\\prime/.test(q);
+    var memo = plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] || (plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] = new Map());
+    var was = memo.get(t);
+    if (was !== undefined) return was;
+    var t0 = t;
+    if (!font) t = t.replace(FONTED, "$2");
+    if (!acc) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, "$2");
+    if (!prime) t = t.replace(PRIMED, "");
+    t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");     // (^{\sf F}, the font gone: ^F, as texNorm has it)
+    memo.set(t0, t);
+    return t;
   }
   // ? in a query: any one symbol, or (as {?}) anything in braces: Z_? is any Z with something under it
   var GROUP = "\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\}", TOKEN = "(?:\\\\[A-Za-z]+|" + GROUP + "|[^{}\\\\])";
@@ -734,6 +741,7 @@ window.L2M_nav = function (opts) {
     p.setAttribute("d", g.d);
     p.setAttribute("transform", g.tf);
     g.svg.insertBefore(p, g.svg.firstChild);
+    findPaths.push(p);
     return p;
   }
   // the marks of the found places in drawn formulas (a formula drawn later gets its own when it is drawn)
@@ -742,15 +750,15 @@ window.L2M_nav = function (opts) {
     todo.forEach(function (h) {
       if (h.span && !h.glyphs) h.glyphs = Array.prototype.slice.call(h.el.querySelectorAll("[data-c]"), h.span[0], h.span[1]);
     });
-    var geoms = todo.map(function (h) { return markGeom(h.el, h.glyphs, hits.indexOf(h)); });
+    var geoms = todo.map(function (h) { return markGeom(h.el, h.glyphs, h.i != null ? h.i : hits.indexOf(h)); });
     todo.forEach(function (h, i) { h.mark = markPlace(geoms[i]); if (h.mark && hits[hitAt] === h) h.mark.classList.add("now"); });
   }
   if (window.L2M_math) {
     L2M_math.onDraw = function (el) {
-      if (finding && hits.length) markFormulas(hits.filter(function (h) { return h.el === el; }));
+      if (finding && hits.length) markFormulas(hitsIn ? hitsIn.get(el) || [] : hits.filter(function (h) { return h.el === el; }));
     };
     L2M_math.onUndraw = function (el) {
-      hits.forEach(function (h) { if (h.el === el) { h.mark = null; if (h.span) h.glyphs = null; } });
+      (hitsIn ? hitsIn.get(el) || [] : hits).forEach(function (h) { if (h.el === el) { h.mark = null; if (h.span) h.glyphs = null; } });
     };
   }
   var MACROS = opts.macros || {}, expanded = {};
@@ -893,13 +901,13 @@ window.L2M_nav = function (opts) {
           }
         }
         if (!got && (!what.glyph || texHas(tex, what.tex))) {                                // the formula as a whole
-          if (lazy) L2M_math.draw(f.el);
-          found.push({at: f.at, el: f.el});
+          found.push({at: f.at, el: f.el});      // (marked as it is drawn in, near the view; the one gone to, at once)
         }
       });
     }
     found.sort(function (x, y) { return x.at - y.at; });
     hits = found;
+    indexHits();
     var ranges = [];
     hits.forEach(function (h) { if (h.range) ranges.push(h.range); });
     markFormulas(hits);
@@ -959,6 +967,7 @@ window.L2M_nav = function (opts) {
       found.push({at: i, range: whole, bits: bits});
     }
     hits = found;
+    indexHits();
     if (hits.length) strokes();
     var top = barHeight() + 4, k0 = 0;
     for (var q = 0; q < hits.length; q++) { if (hitRect(hits[q]).top >= top) { k0 = q; break; } }
@@ -972,6 +981,14 @@ window.L2M_nav = function (opts) {
       else Array.prototype.forEach.call(b.getClientRects(), function (r) { if (r.width >= 1) out.push(r); });
     });
     return out;
+  }
+  var hitsIn = null;                   // the hits in each formula (and each hit its number)
+  function indexHits() {
+    hitsIn = new Map();
+    hits.forEach(function (h, i) {
+      h.i = i;
+      if (h.el) { var l = hitsIn.get(h.el); if (l) l.push(h); else hitsIn.set(h.el, [h]); }
+    });
   }
   function hitRect(h) {
     var el = h.range || h.mark || h.el;
@@ -1797,7 +1814,6 @@ window.L2M_nav = function (opts) {
     all("[id]").forEach(function (n) { n.setAttribute("data-pid", n.id); n.removeAttribute("id"); });
     all(".fnref.active").forEach(function (n) { n.classList.remove("active"); });
     all(".l2m-find-g").forEach(function (n) { n.remove(); });
-    all(".l2m-find-f, .l2m-find-now").forEach(function (n) { n.classList.remove("l2m-find-f", "l2m-find-now"); });
     if (window.L2M_math) {
       all("mjx-container[data-n]:not([data-lazy])").forEach(function (m) {
         var pic = m.querySelector(":scope > svg");
@@ -1816,6 +1832,7 @@ window.L2M_nav = function (opts) {
     });
     peekMain.l2mBuilding = null;
     peekMain.l2mFilled = true;
+    peekMain.l2mLeft = peekMain.getElementsByTagName("l2m-math").length;
   }
   function peekFill() {                     // all at once (the peek wanted now)
     peekMain.l2mBuilding = null;
@@ -1855,7 +1872,7 @@ window.L2M_nav = function (opts) {
   // the page draws its formulas after it opens (nearest first): a copy made meanwhile keeps some undrawn, so it
   // is made again once the page has drawn more, keeping in place what the peek shows
   function peekStale(all) {           // all: only once the page has drawn every formula (while scrolling the peek)
-    var left = peekMain && peekMain.l2mFilled ? peekMain.getElementsByTagName("l2m-math").length : 0;
+    var left = peekMain && peekMain.l2mFilled ? peekMain.l2mLeft || 0 : 0;
     var page = left ? document.querySelector("main").getElementsByTagName("l2m-math").length : 0;
     return left > 0 && (all ? page === 0 : page < left);
   }
@@ -1941,12 +1958,14 @@ window.L2M_nav = function (opts) {
   function peekAside(on) {
     if (!peekScroll) return;
     peekScroll.style.contentVisibility = on ? "hidden" : "";
-    if (!on && peekMain && peekMain.l2mFilled) peekWatch();
+    if (!on && peekMain && peekMain.l2mFilled) { peekWatch(); if (peekWatcher) peekWatcher.wake(); }   // (its watch rests while set aside)
   }
+  var peekWatcher = null;
   function peekWatch() {                    // the copy's formulas drawn in as they come in sight (once a copy)
     if (!window.L2M_math || !peekMain || peekMain.l2mWatched === peekMain.l2mGen) return;
     peekMain.l2mWatched = peekMain.l2mGen;
-    L2M_math.watch(peekMain, peekScroll);
+    if (peekWatcher) peekWatcher.disconnect();              // (the copy before: let go)
+    peekWatcher = L2M_math.watch(peekMain, peekScroll) || null;
   }
   function openPeek(id, from) {
     peekBuild();
@@ -2281,7 +2300,8 @@ window.L2M_nav = function (opts) {
         menuLinks[m].classList.toggle("current", !!cid && menuLinks[m].getAttribute("href") === "#" + cid);
       }
     }
-    backBtn.disabled = !(panel || finding || opts.onLibrary || (useHistory ? idx > 0 : mem.length > 0));
+    var dis = !(panel || finding || opts.onLibrary || (useHistory ? idx > 0 : mem.length > 0));
+    if (backBtn.disabled !== dis) backBtn.disabled = dis;      // (written only when it changes: not at every frame)
   }
 
   // a wide formula, table or code scrolled sideways shows its thin scroll bar until it has been still a moment
@@ -2380,6 +2400,11 @@ window.L2M_nav = function (opts) {
       offs = [];
       clearTimeout(fadeTimer);
       clearTimeout(saveTimer);
+      // (a search typed just before, a long press held, a jump being kept in sight: not run on the next page)
+      clearTimeout(findTimer); clearTimeout(sightT);
+      if (findLaying) { cancelAnimationFrame(findLaying); findLaying = 0; }
+      if (lp && lp.t) clearTimeout(lp.t);
+      lp = null; finding = false; hits = []; hitsIn = null;
       root.classList.remove("l2m-noscroll", "l2m-settings-open", "l2m-peeking");
       if (peek) { peek.remove(); peek = null; peekOpen = false; document.body.style.paddingBottom = ""; }
       peekMain = peekScroll = peekHead = null;

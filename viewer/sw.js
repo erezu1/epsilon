@@ -134,7 +134,8 @@ self.addEventListener("fetch", function (e) {
       var done = false;
       function give(r) { if (!done && r) { done = true; resolve(r); } }
       function fallback() { return saved.then(function (c) { return c.match(PAGE); }); }
-      var timer = setTimeout(function () { fallback().then(give); }, 2500);
+      // (the page is a few KB: on any usable network it is in well within this; past it, the saved one, as before)
+      var timer = setTimeout(function () { fallback().then(give); }, 1200);
       net.then(function (r) {
         clearTimeout(timer);
         if (r.ok) give(r); else fallback().then(function (s) { give(s || r); });

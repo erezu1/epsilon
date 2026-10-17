@@ -1174,7 +1174,7 @@ window.L2M_marks = function (host) {
       if (dead) return;
       saveNote();
       dead = true;
-      clearTimeout(selT); clearTimeout(tapT); clearTimeout(noteT);
+      clearTimeout(selT); clearTimeout(tapT); clearTimeout(noteT); clearTimeout(sightT);
       if (laying) cancelAnimationFrame(laying);
       if (ro) ro.disconnect();
       if (sizer) sizer.disconnect();

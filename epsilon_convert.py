@@ -3073,8 +3073,22 @@ def draw_math(doc, warn=None, info=None):
     svg = out["out"]
     if m.get("pictures"):
         svg = [put_pictures(x, m["pictures"]) for x in svg]
+    svg = [slim_svg(x) for x in svg]
     return {"format": "l2m-math", "version": 1, "key": m.get("key"), "mathjax": mathjax_version(),
             "svg": svg, "cache": out["cache"], "css": out["css"]}
+
+
+# What MathJax writes into a drawing that nothing reads once it is in a page: the namespaces (a drawing set into HTML
+# has them anyway), the old spelling of a glyph's link (xlink:href, now href), and the kind of each node, except
+# those MathJax's own styles look for (an error, a table, an action). A tenth less to send; the same on the screen.
+SLIM_KEEP = ("merror", "mtable", "maction")
+
+
+def slim_svg(svg):
+    svg = svg.replace(' xmlns="http://www.w3.org/2000/svg"', "").replace(' xmlns:xlink="http://www.w3.org/1999/xlink"', "")
+    svg = svg.replace(" xlink:href=", " href=")
+    svg = re.sub(r' data-mjx-texclass="[^"]*"', "", svg)
+    return re.sub(r' data-mml-node="([^"]*)"', lambda m: m.group(0) if m.group(1) in SLIM_KEEP else "", svg)
 
 
 def put_pictures(svg, pictures):

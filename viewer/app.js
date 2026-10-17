@@ -578,14 +578,15 @@
     }
     function read(path) {
       return shaOf(path).then(function (sha) {
-        return call("/git/blobs/" + sha, {headers: {"Accept": "application/vnd.github.raw+json"}, cache: "force-cache"});
+        return call("/git/blobs/" + sha, {headers: {"Accept": "application/vnd.github.raw+json"}, cache: "force-cache"})
+          .then(function (r) { r.l2mSha = sha; return r; });           // (which version it is: kept, getJSON)
       }).catch(function () { return raw(path); });
     }
     function b64(s) { return btoa(unescape(encodeURIComponent(s))); }
     return {
       kind: "github", repo: repo,
       json: function (p) { return read(p).then(function (r) { return r.json(); }); },
-      blob: function (p, onBytes) { return read(p).then(function (r) { return bodyOf(r, onBytes); }); },
+      blob: function (p, onBytes) { return read(p).then(function (r) { return bodyOf(r, onBytes).then(function (b) { b.l2mSha = r.l2mSha; return b; }); }); },
       run: function (workflow, inputs) {
         return call("/actions/workflows/" + workflow + "/dispatches", {method: "POST",
           headers: {"Content-Type": "application/json"}, body: JSON.stringify({ref: "main", inputs: inputs || {}})});
@@ -623,9 +624,10 @@
     });
   }
   // network first, the saved copy when offline; lists are remembered for next time
-  function getJSON(path, keep) {
+  var kept = {};                     // the version of each list saved on the device this time (a poll every few seconds
+  function getJSON(path, keep) {     // while waiting for GitHub writes the same megabytes again otherwise)
     return src.blob(path).then(function (b) {
-      if (keep) remember(path, b);
+      if (keep && !(b.l2mSha && kept[path] === b.l2mSha)) { remember(path, b); kept[path] = b.l2mSha; }
       return b.text().then(JSON.parse);
     }, function (e) {
       return fromCache(path).then(function (r) { return r.json(); }, function () { throw e; });
@@ -908,10 +910,11 @@
   function barBottom() { var b = document.getElementById("l2m-bar"); return b ? b.getBoundingClientRect().bottom : 0; }
   // the paper's blocks (paragraphs, list items, headings, figures, tables) in the order of its text: the same on
   // every device and at any moment, whatever is laid out yet
+  var NOT_TEXT = ".l2m-chrome, .l2m-bar, .l2m-panel, .skel-paper";
   function anchors() {
-    return Array.prototype.filter.call(main.querySelectorAll("p, li, h1, h2, h3, h4, h5, figure, table"), function (e) {
-      return !e.closest(".l2m-chrome, .l2m-bar, .l2m-panel, .skel-paper");
-    });
+    var all = main.querySelectorAll("p, li, h1, h2, h3, h4, h5, figure, table");
+    if (!main.querySelector(NOT_TEXT)) return Array.prototype.slice.call(all);   // (as usual, nothing to leave out: no test a block)
+    return Array.prototype.filter.call(all, function (e) { return !e.closest(NOT_TEXT); });
   }
   function shown(e) { return e.getClientRects().length > 0; }
   function span(list, k) {                  // from a block's top to the next shown one's (or its own bottom)
@@ -927,9 +930,14 @@
   function spot() {                         // the block at the top of the screen, and how far into it
     var top = barBottom() + 4, list = anchors(), k = -1;
     if (window.pageYOffset < 40 || !list.length) return {n: -1, frac: 0};
-    for (var i = 0; i < list.length; i++) {
-      if (!shown(list[i])) continue;
-      if (list[i].getBoundingClientRect().top <= top) k = i; else break;
+    // the blocks are in page order, each no higher than the one before: halved down to the last one at or above the
+    // line (a few steps), not every block above the reader asked where it is (thousands, deep into a long paper)
+    var lo = 0, hi = list.length;
+    while (lo < hi) {
+      var mid = (lo + hi) >> 1, j = mid;
+      while (j < hi && !shown(list[j])) j++;
+      if (j === hi) { hi = mid; continue; }
+      if (list[j].getBoundingClientRect().top <= top) { k = j; lo = j + 1; } else hi = mid;
     }
     if (k < 0) return {n: -1, frac: 0};
     var a = list[k].getBoundingClientRect().top, h = span(list, k);
@@ -969,9 +977,9 @@
     Object.keys(reading).forEach(function (k) { opened[k] = Math.max(opened[k] || 0, reading[k].at || 0); });
     store("opened", opened);
   }
-  function pullReading() {
+  function pullReading(asked) {               // (asked: already on its way)
     if (!src || !src.readWithSha) return Promise.resolve();
-    return src.readWithSha("reading.json").then(function (r) { readingSha = r.sha; readingRest = r.data || {}; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeArchived((r.data || {}).archived); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
+    return (asked || src.readWithSha("reading.json")).then(function (r) { readingSha = r.sha; readingRest = r.data || {}; mergeReading((r.data || {}).papers); mergePins((r.data || {}).pins); mergeArchived((r.data || {}).archived); mergeOrg((r.data || {}).folders, (r.data || {}).placed); mergeMarkCounts((r.data || {}).marks); },
                                                 function () {});
   }
   var readingSent = "";                        // what was last written: the same again is not written
@@ -1701,7 +1709,7 @@
     else searching(true);
   });
 
-  var mathIn = false, libMathIn = null;
+  var feedMathIn = null, libMathIn = null;
   function addMath(m) {                  // the glyphs and styles of formulas drawn into feed.json or library.json
     if (!m || !m.cache) return;
     var st = document.createElement("style");
@@ -1712,7 +1720,8 @@
     if (d.firstChild) document.body.appendChild(d.firstChild);
   }
   function feedMath() {
-    if (!mathIn && feed && feed.math && feed.math.cache) { mathIn = true; addMath(feed.math); }
+    // (added again only when the formulas are new: a refresh with the same list adds no second copy of their styles)
+    if (feed && feed.math && feed.math.cache && feedMathIn !== feed.math.cache) { feedMathIn = feed.math.cache; addMath(feed.math); }
     if (lib && lib.math && libMathIn !== lib.math.cache) { libMathIn = lib.math.cache; addMath(lib.math); }
   }
   // abstracts: out of sight until asked for; "Abstract" (its chevron turning) slides one open under it, and closes it
@@ -1730,6 +1739,7 @@
   function foldAbstracts(box, keepOpen) {
     var ps = Array.prototype.slice.call(box.querySelectorAll(".app-abs"));
     ps.forEach(function (p, i) {
+      p.classList.add("shut");                                // (closed: not laid out at all, theme.css)
       var b = document.createElement("button");
       b.type = "button";
       b.className = "app-toggle";
@@ -1738,8 +1748,10 @@
       function toggle(want, instant) {
         var open = want === undefined ? !p.classList.contains("open") : want;
         if (open === p.classList.contains("open")) return;
+        if (open) p.classList.remove("shut");                  // (laid out again before its height is asked)
         if (instant) {                                         // (out of sight: no slide to watch)
           p.classList.toggle("open", open);
+          p.classList.toggle("shut", !open);
           p.style.maxHeight = open ? "none" : "";
           b.setAttribute("aria-expanded", open ? "true" : "false");
           return;
@@ -1756,6 +1768,11 @@
           void p.offsetHeight;                                 // ...back to its first lines
           p.classList.remove("open");
           p.style.maxHeight = "";
+          p.addEventListener("transitionend", function shut(e) {   // (closed and faded: no longer laid out)
+            if (e.propertyName !== "visibility" && e.propertyName !== "max-height") return;
+            p.removeEventListener("transitionend", shut);
+            if (!p.classList.contains("open")) p.classList.add("shut");
+          });
         }
         b.setAttribute("aria-expanded", open ? "true" : "false");
         foldState();
@@ -1840,8 +1857,11 @@
     setTab(k.slice(4));
     document.title = k === "app:new" ? "Explore" : (lib && lib.name) || "Epsilon";
     if (!had || !animate) {
-      if (src) { renderLibrary(); renderNew(); } else showConnect();
+      // (the list not shown drawn in the next idle moment, not before this one is on the screen; and at once, should it
+      // be wanted first: its tab, a swipe)
+      if (src) { renderLibrary(); if (k === "app:new") renderNew(); else renderNewSoon(); } else showConnect();
     }
+    if (k === "app:new") ensureNew();
     place(k, animate && had);
     if (animate && had) follow(340);        // the pinned date comes and goes with the slide
     else pinned.apply();
@@ -1871,7 +1891,7 @@
   }
   function fadeLeaving(box, was) {
     if (!was) return;
-    var now = box.getBoundingClientRect(), dy = was.top - now.top;
+    var now = box.getBoundingClientRect(), dy = was.top - now.top, ghosts = [], stat = null;
     Object.keys(was.rows).forEach(function (k) {
       var q = '[data-k="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]';
       if (box.querySelector(".lib-rows > li" + q + ", .lib-head" + q)) return;
@@ -1881,18 +1901,20 @@
       ol.style.cssText = "position:absolute;margin:0;pointer-events:none;z-index:0;top:" + (r.top + dy) + "px;left:" + (r.left - now.left) +
         "px;width:" + r.width + "px;transition:opacity 200ms ease;";
       ol.appendChild(r.el);
-      if (getComputedStyle(box).position === "static") box.style.position = "relative";
+      if (stat === null) { stat = getComputedStyle(box).position === "static"; if (stat) box.style.position = "relative"; }
       box.appendChild(ol);
-      void ol.offsetWidth;
-      ol.style.opacity = "0";
-      setTimeout(function () { ol.remove(); }, 240);
+      ghosts.push(ol);
     });
+    if (!ghosts.length) return;
+    void box.offsetWidth;                           // (all in at once, then all fading: one layout, not one a row)
+    ghosts.forEach(function (ol) { ol.style.opacity = "0"; setTimeout(function () { ol.remove(); }, 240); });
   }
   function slideRows(box, before, scroller) {
     if (!before || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
     var top = box.getBoundingClientRect().top, rows = [];
     Array.prototype.forEach.call(box.querySelectorAll("[data-k]"), function (el) {
-      rows.push({el: el, was: before[el.getAttribute("data-k")], now: el.getBoundingClientRect().top - top});
+      rows.push({el: el, was: before[el.getAttribute("data-k")], now: el.getBoundingClientRect().top - top,
+                 stat: getComputedStyle(el).position === "static"});      // (read all first, then written: no restyle a row)
     });
     // scrolled down a list: what is on the screen stays there (rows arriving above come in out of sight)
     var shift = 0;
@@ -1912,7 +1934,7 @@
       if (Math.abs(d) < 1) return;
       r.el.style.transition = "none";
       r.el.style.transform = "translateY(" + d + "px)";
-      if (getComputedStyle(r.el).position === "static") r.el.style.position = "relative";
+      if (r.stat) r.el.style.position = "relative";
       r.el.style.zIndex = d > 0 ? "1" : "";          // one rising passes over the others
       moved.push(r.el);
     });
@@ -2197,7 +2219,16 @@
       row.style.transform = "";
     }
   }
+  var newStale = false, newIdle = 0;
+  function renderNewSoon() {
+    newStale = true;
+    if (newIdle) return;
+    var run = function () { newIdle = 0; if (newStale && isPage(current) && shell) renderNew(); };
+    newIdle = window.requestIdleCallback ? requestIdleCallback(run, {timeout: 1000}) : setTimeout(run, 200);
+  }
+  function ensureNew() { if (newStale && shell) renderNew(); }
   function renderNew() {
+    newStale = false;
     var box = pane("app:new");
     var wasOpen = openAbstracts(box), wasAt = box.parentNode.scrollTop;
     var before = measureRows(box);
@@ -2263,7 +2294,7 @@
             if (got || ++tries > 20) {
               clearInterval(t);
               fetchingDay = null;
-              if (got) { feed = f; mathIn = false; feedMath(); daysShown = shown + 1; }
+              if (got) { feed = f; feedMath(); daysShown = shown + 1; }
               else toast("The day before could not be fetched; try again later.");
               if (isPage(current)) renderNew();
             }
@@ -2429,7 +2460,7 @@
       return !old[i.id];
     }).length;
     if (newest) daysShown += Object.keys(added).length;
-    feed = f; mathIn = false; feedMath();
+    feed = f; feedMath();
     return n;
   }
 
@@ -2446,8 +2477,9 @@
   // second at a time on a phone for a long paper. Those its own letters need: the reading font, upright and italic
   function paperFonts(doc) {
     if (!document.fonts || !document.fonts.load) return Promise.resolve();
-    var fam = getComputedStyle(root).getPropertyValue("--serif").trim() || "serif", body = String(doc.body || ""), seen = {}, chars = "";
-    for (var i = 0; i < body.length; i++) { var c = body.charAt(i); if (!seen[c] && c > " ") { seen[c] = 1; chars += c; } }
+    var fam = getComputedStyle(root).getPropertyValue("--serif").trim() || "serif", body = String(doc.body || ""), seen = new Uint8Array(65536), codes = [], chars = "";
+    for (var i = 0; i < body.length; i++) { var c = body.charCodeAt(i); if (c > 32 && !seen[c]) { seen[c] = 1; codes.push(c); } }
+    for (var j = 0; j < codes.length; j += 4096) chars += String.fromCharCode.apply(null, codes.slice(j, j + 4096));
     var load = Promise.all(["16px ", "italic 16px "].map(function (s) {
       return document.fonts.load(s + fam, chars).catch(function () {});
     }));
@@ -2754,7 +2786,10 @@
   function swipeMove(e) {
     if (!sw) return;
     var dx = e.touches[0].clientX - sw.x, dy = e.touches[0].clientY - sw.y;
-    if (!sw.dir && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) sw.dir = Math.abs(dx) > 1.2 * Math.abs(dy) ? "x" : "y";
+    if (!sw.dir && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      sw.dir = Math.abs(dx) > 1.2 * Math.abs(dy) ? "x" : "y";
+      if (sw.dir === "x") ensureNew();                        // (Explore about to come in sight: drawn now if not yet)
+    }
     if (sw.dir !== "x") return;
     e.preventDefault();
     var next = sw.i - Math.sign(dx);
@@ -2931,7 +2966,10 @@
   }
   function load() {                          // (also used when the settings change the library)
     if (!src) return Promise.resolve();
-    return freshLists().then(function (t) { useLists(t); return pullReading(); });
+    // (the reading places asked for along with the lists, not after them; taken in after them, as before)
+    var asked = src.readWithSha ? src.readWithSha("reading.json") : null;
+    if (asked) asked.catch(function () {});
+    return freshLists().then(function (t) { useLists(t); return pullReading(asked); });
   }
   function standIns(k) {
     buildShell();
