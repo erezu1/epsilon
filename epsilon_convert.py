@@ -870,8 +870,10 @@ class Converter:
             # comma or "and" written with the name, jheppub's way: the commas are put back between the names)
             parts = [re.sub(r",\s*$", "", p.strip()) for p in re.split(r"\\and(?![A-Za-z])", g)]
             parts = [p for p in parts if p]
-            if o and o.strip() and len(parts) == 1:
-                self.meta["author_marks"][len(self.meta["authors"])] = re.sub(r"\s+", "", o)
+            # (the marks alone: an ORCID link written among them, \orcidlink{...}, is none)
+            o = ",".join(x for x in re.sub(r"\s+", "", o or "").split(",") if x and "\\" not in x)
+            if o and len(parts) == 1:
+                self.meta["author_marks"][len(self.meta["authors"])] = o
             self.meta["authors"].extend(parts)
         elif name == "authors":
             # putex.sty and the like: "A,\worksat{\X} B,\worksat{\X} and C \worksat{\Y}", the marks to the institutions
