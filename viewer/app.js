@@ -1586,6 +1586,7 @@
         var next = feedChoice(), cfg = config || {categories: ["hep-th"], crossLists: false};
         if (next.categories.join(",") === cfg.categories.join(",") && next.crossLists === !!cfg.crossLists) return;
         status.textContent = "Saving\u2026";
+        next = Object.assign({}, config || {}, next);      // (what else the file holds, kept)
         src.writeJSON("config.json", next, "Feed: " + next.categories.join(", ") + (next.crossLists ? " with cross-lists" : "")).then(function () {
           config = next;
           return src.run("feed.yml", {});

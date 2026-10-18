@@ -40,7 +40,6 @@ sys.path.insert(0, str(HERE))
 import epsilon_library as L  # noqa: E402
 
 REPO = os.environ.get("L2M_REPO", "erezu1/epsilon-library")
-APP = os.environ.get("L2M_APP", "https://erezu1.github.io/epsilon/")
 # the end of a commit's message when its push leaves GitHub nothing to convert (a note converted here, a note taken
 # out): the library's convert workflow is not started for it (GitHub's own rule for this line)
 NOTHING_TO_CONVERT = "\n\nskip-checks: true"
@@ -61,6 +60,21 @@ PREAMBLE = r"""\documentclass[11pt]{article}
 \newtheorem{remark}[theorem]{Remark}
 """
 
+
+
+def app_url():
+    """The reading app's address: $L2M_APP, else the private library's config.json ("app"), which this public code does
+    not name; "" when neither has it (links are then shown as ?p=...)."""
+    if os.environ.get("L2M_APP"):
+        return os.environ["L2M_APP"]
+    for d in [os.environ.get("L2M_LIBRARY"), str(HERE / "library"), str(Path.home() / ".cache" / "epsilon-library")]:
+        try:
+            a = json.loads((Path(d) / "config.json").read_text()).get("app") if d else None
+        except (OSError, ValueError):
+            a = None
+        if a:
+            return a if a.endswith("/") else a + "/"
+    return ""
 
 def die(msg):
     sys.exit("epsilon: " + msg)
@@ -243,7 +257,7 @@ def main():
         if not lib.entry(a.id):
             die("no note %s" % a.id)
         place_in_folder(root, a.id, a.folder)
-        print("in folder %s: %s" % (a.folder, APP + "?p=" + a.id))
+        print("in folder %s: %s" % (a.folder, app_url() + "?p=" + a.id))
         return
     if not a.source or not a.id:
         ap.error("give a source and --id")
@@ -257,19 +271,19 @@ def main():
     sha = L.tree_hash(dest)
     old = lib.entry(a.id)
     if old and old.get("sourceHash") == sha and old.get("status") == "ok":
-        print("unchanged:", APP + "?p=" + a.id)
+        print("unchanged:", app_url() + "?p=" + a.id)
         return
     since = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
     if a.here:
         e = L.convert_draft(lib, a.id)
         L.push(lib, "Note " + a.id + NOTHING_TO_CONVERT)
-        print(("ok: " if e.get("status") == "ok" else "failed: ") + APP + "?p=" + a.id)
+        print(("ok: " if e.get("status") == "ok" else "failed: ") + app_url() + "?p=" + a.id)
         if e.get("status") != "ok":
             print(e.get("error", ""), file=sys.stderr)
             sys.exit(1)
         return
     L.push(lib, "Note " + a.id)
-    link = APP + "?p=" + a.id
+    link = app_url() + "?p=" + a.id
     if a.no_wait:
         print("pushed; converting on GitHub (a minute or two):", link)
         return

@@ -30,7 +30,6 @@ import sys
 import time
 from pathlib import Path
 
-APP = os.environ.get("L2M_APP", "https://erezu1.github.io/epsilon/")
 COLOURS = {"green": 1, "pink": 2, "violet": 3, "orange": 4}
 NAMES = {1: "green", 2: "pink", 3: "violet", 4: "orange"}
 
@@ -133,6 +132,21 @@ class _Reader(html.parser.HTMLParser):
         if out:
             self._emit("".join(out))
 
+
+
+def app_url():
+    """The reading app's address: $L2M_APP, else the private library's config.json ("app"), which this public code does
+    not name; "" when neither has it (links are then shown as ?p=...)."""
+    if os.environ.get("L2M_APP"):
+        return os.environ["L2M_APP"]
+    for d in [os.environ.get("L2M_LIBRARY"), str(Path(__file__).resolve().parent / "library"), str(Path.home() / ".cache" / "epsilon-library")]:
+        try:
+            a = json.loads((Path(d) / "config.json").read_text()).get("app") if d else None
+        except (OSError, ValueError):
+            a = None
+        if a:
+            return a if a.endswith("/") else a + "/"
+    return ""
 
 def paper_text(doc):
     """The paper's text as the app reads it, and its sections: (text, [{a, id, level, title}])."""
@@ -286,7 +300,7 @@ def live(m):
 
 
 def link(key, mid=None):
-    return APP + "?p=" + key + ("#mark-" + mid if mid else "")
+    return app_url() + "?p=" + key + ("#mark-" + mid if mid else "")
 
 
 def pull(lib):                                      # the library's copy brought up to date (when it is a git clone)

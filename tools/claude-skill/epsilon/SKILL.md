@@ -13,7 +13,7 @@ light/dark). The tools live in one folder:
 E="/Users/urbach/IAS Dropbox/Erez Urbach/research/epsilon"
 ```
 
-## 1. Push a note into the app (https://erezu1.github.io/epsilon/)
+## 1. Push a note into the app
 
 It is converted on GitHub (a minute or two) and shows in the library, marked "note". Pushing again with the
 same `--id` updates the same note in place (it keeps its place, reading position and pin).
@@ -69,8 +69,11 @@ note you pushed, link to that place. The link opens the paper there, just below 
 place for a moment:
 
 ```
-https://erezu1.github.io/epsilon/?p=<key>#<place>
+<app>?p=<key>#<place>
 ```
+
+`<app>` is the app's address: the `app` entry of the library's `config.json` (`$E/library/config.json`), and the start of
+the `ok: <link>` that `epsilon.py` prints.
 
 - `<key>`: for an arXiv paper, its number without the version, with `/` written as `_` (`2607.14042`,
   `hep-th_0605206`). For a note or draft, its id (the `--id` you gave; it is in the `ok: <link>` that was printed).
@@ -85,7 +88,7 @@ https://erezu1.github.io/epsilon/?p=<key>#<place>
   `$E/library/papers/<key>/paper.json`. There, `labels` maps each label to its `number` and `id`, and `headings`
   lists the sections with their `number` and `id`. `python3 "$E/epsilon_library.py" --library "$E/library" list`
   lists the papers by key.
-- Write the link into the text, e.g. `[eq. (2.18)](https://erezu1.github.io/epsilon/?p=2607.14042#eq-2.18)`.
+- Write the link into the text, e.g. `[eq. (2.18)](<app>?p=2607.14042#eq-2.18)`, with `<app>` written out.
 - It opens only papers in the library: for another arXiv paper, offer to add it first.
 - A one-file page takes the same `#<place>` (`paper.html#eq-2.18`).
 
