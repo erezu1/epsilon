@@ -111,6 +111,50 @@
   }
 
   // ------------------------------------------------------------------ the chrome, from the theme
+  // The authors' names, each a tap to their affiliations (in the notes' sheet): the affiliations and the marks then
+  // not shown under and beside the names. Only when every name is found in the line, and the paper gives its
+  // affiliations as data (paper.json's affiliations and authorAffiliations). The words stay in the page, unseen, so
+  // that the paper's text (where marks are placed) is the same.
+  function tapNames(main, doc) {
+    var affs = doc.affiliations || [], names = doc.authors || [], per = doc.authorAffiliations || [];
+    var tm = main.querySelector(".titlemeta"), line = tm && tm.querySelector(".authors");
+    if (!affs.length || !names.length || !line) return;
+    var nodes = [], text = "";
+    var walk = document.createTreeWalker(line, NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
+      return n.parentNode.closest("sup, mjx-container, l2m-math") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    }});
+    for (var n = walk.nextNode(); n; n = walk.nextNode()) { nodes.push({n: n, at: text.length}); text += n.nodeValue; }
+    function where(i, end) {                  // a place in the line's text, as a node and an offset in it
+      for (var k = nodes.length - 1; k >= 0; k--) {
+        if (nodes[k].at < i || (!end && nodes[k].at === i)) return {n: nodes[k].n, o: i - nodes[k].at};
+      }
+      return {n: nodes[0].n, o: 0};
+    }
+    var found = [], from = 0;
+    for (var k = 0; k < names.length; k++) {
+      var re = new RegExp(names[k].trim().split(/\s+/).map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("[\\s\u00a0]+"), "g");
+      re.lastIndex = from;
+      var m = re.exec(text);
+      if (!m) return;                          // (a name not found as written: the block left as it is)
+      found.push([m.index, m.index + m[0].length]);
+      from = m.index + m[0].length;
+    }
+    for (k = found.length - 1; k >= 0; k--) {   // (from the last: the places before it stay where they are)
+      var a = where(found[k][0], false), b = where(found[k][1], true), r = document.createRange();
+      r.setStart(a.n, a.o); r.setEnd(b.n, b.o);
+      var marks = per[k] || [], lines = affs.filter(function (x) { return x.mark && marks.indexOf(x.mark) >= 0; });
+      if (!lines.length) lines = affs;         // (no marks, or none that match: all of them)
+      var span = document.createElement("span");
+      span.className = "l2m-au";
+      span.setAttribute("role", "button");
+      span.setAttribute("tabindex", "0");
+      span.setAttribute("data-affil", JSON.stringify(lines.map(function (x) { return x.text; })));
+      span.appendChild(r.extractContents());
+      r.insertNode(span);
+    }
+    tm.classList.add("l2m-au-on");
+  }
+
   function chrome(theme, title, hasNotes, o) {
     var I = theme.icons || {};
     var buttons = {
@@ -383,6 +427,7 @@
     var lib = o.onLibrary && tb.indexOf("library") >= 0 ?
       '<p class="l2m-libnav"><a href="' + esc(o.libraryHref || "./") + '" data-act="library">All papers</a></p>\n' : "";
     main.innerHTML = '<span id="l2m-top"></span>\n' + lib + fill(body, true);
+    tapNames(main, doc);
     // drawn at once where a part of the page is copied elsewhere as it is (headings to the bar, notes to their sheet) or
     // is first seen. (Figures and tables, copied to the viewer, are drawn by it as it opens: drawn here, the many in a
     // paper's figures and tables would be restyled at every change of colours, near or far, figures never being skipped)
@@ -429,7 +474,7 @@
     // the chrome, in front of <main>
     var holder = document.createElement("div");
     holder.className = "l2m-chrome";
-    holder.innerHTML = chrome(theme, doc.title || "", !!document.getElementById("notes-h"), o);
+    holder.innerHTML = chrome(theme, doc.title || "", !!(document.getElementById("notes-h") || main.querySelector(".l2m-au")), o);
     main.parentNode.insertBefore(holder, main);
     added.push(holder);
     root.classList.toggle("l2m-bar-always", theme.barShows !== "afterTitle");

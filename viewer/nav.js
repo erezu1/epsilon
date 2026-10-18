@@ -108,7 +108,7 @@ window.L2M_nav = function (opts) {
   var menu = document.getElementById("l2m-menu");
   var sheet = document.getElementById("l2m-fnsheet");
   var sheetBody = sheet ? sheet.querySelector(".sheet-body") : null;
-  var sheetNum = sheet ? sheet.querySelector(".sheet-num") : null;
+  var sheetTitle = sheet ? sheet.querySelector(".sheet-title") : null;
   var titleBtn = part(".bar-title");
   var titleInner = bar.querySelector(".bar-title-inner") || document.createElement("span");
   var backBtn = part('[data-act="back"]');
@@ -818,7 +818,7 @@ window.L2M_nav = function (opts) {
     var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
       if (n.nodeType === 1) {
         if (n.matches("mjx-container[data-n], l2m-math[n]")) return NodeFilter.FILTER_ACCEPT;
-        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark, .mjx-hl")) return NodeFilter.FILTER_REJECT;
+        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark, .mjx-hl, " + UNSEEN)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_SKIP;
       }
       return NodeFilter.FILTER_ACCEPT;
@@ -925,7 +925,7 @@ window.L2M_nav = function (opts) {
     var walk = document.createTreeWalker(main, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
       if (n.nodeType === 1) {
         if (n.matches("mjx-container[data-n]")) return NodeFilter.FILTER_ACCEPT;
-        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark, .mjx-hl")) return NodeFilter.FILTER_REJECT;
+        if (n.matches("svg, script, style, button, .skel-paper, [hidden], .l2m-mark, .mjx-hl, " + UNSEEN)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_SKIP;
       }
       return NodeFilter.FILTER_ACCEPT;
@@ -1440,6 +1440,9 @@ window.L2M_nav = function (opts) {
     });
   }
 
+  // (the title block's affiliations and marks, once the names open them: in the page, not seen, not searched)
+  var UNSEEN = ".l2m-au-on .affil, .l2m-au-on .authors > sup:not(.fnref)";
+
   // ---------------------------------------------------------------- footnote sheet
   function openSheet(ref) {
     if (!sheet) return false;
@@ -1449,11 +1452,30 @@ window.L2M_nav = function (opts) {
     if (!text) return false;
     closeMenu();
     sheetBody.innerHTML = text.innerHTML;
-    sheetNum.textContent = ref.textContent.trim();
+    sheetTitle.textContent = "Note " + ref.textContent.trim();
+    sheet.setAttribute("aria-label", "Footnote");
     sheetBody.scrollTop = 0;
     if (activeRef) activeRef.classList.remove("active");
     activeRef = ref;
     ref.classList.add("active");
+    if (!sheet.classList.contains("open")) overlayIn("l2mSheet");
+    L2M_footer(sheet, true);
+    return true;
+  }
+  // an author's name: their affiliations, in the same sheet, under the name
+  function openAuthor(el) {
+    var lines;
+    try { lines = JSON.parse(el.getAttribute("data-affil")); } catch (e) { return false; }
+    if (!sheet || !lines || !lines.length) return false;
+    closeMenu();
+    sheetBody.innerHTML = "";
+    lines.forEach(function (t) { var q = document.createElement("p"); q.textContent = t; sheetBody.appendChild(q); });
+    sheetTitle.textContent = el.textContent.trim();
+    sheet.setAttribute("aria-label", "Affiliations");
+    sheetBody.scrollTop = 0;
+    if (activeRef) activeRef.classList.remove("active");
+    activeRef = el;
+    el.classList.add("active");
     if (!sheet.classList.contains("open")) overlayIn("l2mSheet");
     L2M_footer(sheet, true);
     return true;
@@ -2139,6 +2161,10 @@ window.L2M_nav = function (opts) {
   });
 
   // ---------------------------------------------------------------- clicks and keys
+  on(document, "keydown", function (e) {           // (a name reached by Tab: Enter or Space opens it, as a click)
+    var au = e.target.closest && e.target.closest(".l2m-au");
+    if (au && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openAuthor(au); }
+  });
   on(document, "click", function (e) {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var a = e.target.closest ? e.target.closest("a[href^='#']") : null;
@@ -2154,6 +2180,8 @@ window.L2M_nav = function (opts) {
       e.preventDefault();
       return;
     }
+    var au = e.target.closest ? e.target.closest(".l2m-au") : null;
+    if (au && openAuthor(au)) { e.preventDefault(); return; }
     // a citation: the reference shown in the peek (a long press goes there instead)
     if (a && a.closest(".cite") && !(peek && peek.contains(a))) {
       var cid = decodeURIComponent(a.getAttribute("href").slice(1));

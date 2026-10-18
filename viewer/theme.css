@@ -487,6 +487,13 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .sheet-body { max-height: 40vh; overflow-y: auto; font-size: 0.95em; line-height: 1.55; padding: 0 4px 2px; }
 .sheet-body p { margin: 0 0 0.5em; }
 .fnref a.active { background: var(--bar-current); border-radius: 4px; }
+/* the authors' names, each opening their affiliations in the sheet (viewer.js): a link's colour, as any tappable word;
+   the affiliations and marks then not shown in the title block */
+.l2m-au { color: var(--link); cursor: pointer; border-radius: 4px; -webkit-tap-highlight-color: transparent; }
+.l2m-au:focus-visible { outline: none; text-decoration: underline; }
+@media (hover: hover) { .l2m-au:hover { text-decoration: underline; } }
+.l2m-au.active { background: var(--bar-current); }
+.l2m-au-on .affil, .l2m-au-on .authors > sup:not(.fnref) { display: none; }
 
 /* notes list at the end (also the no-script fallback) */
 .footnotes { margin-top: 2.5em; }
