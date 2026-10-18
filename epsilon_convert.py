@@ -84,7 +84,7 @@ FORMAT = {
     "textsc": ('<span class="sc">', "</span>"), "textrm": ("", ""), "textsf": ("", ""),
     "textnormal": ("", ""), "textup": ("", ""), "textmd": ("", ""), "underline": ("<u>", "</u>"),
     "uline": ("<u>", "</u>"), "textsuperscript": ("<sup>", "</sup>"), "textsubscript": ("<sub>", "</sub>"),
-    "mbox": ("", ""), "hbox": ("", ""), "text": ("", ""), "enquote": ("\u201c", "\u201d"),
+    "mbox": ("", ""), "hbox": ("", ""), "vbox": ("", ""), "vtop": ("", ""), "text": ("", ""), "enquote": ("\u201c", "\u201d"),
     "mathrm": ("", ""), "textup": ("", ""), "nolinkurl": ("<code>", "</code>"), "fbox": ("", ""),
     "caps": ('<span class="sc">', "</span>"), "textcircled": ("(", ")"),
     "centerline": ("", ""), "leftline": ("", ""), "rightline": ("", ""), "shortstack": ("", ""),
@@ -110,7 +110,14 @@ IGNORE0 = ("begingroup", "endgroup", "ignorespacesafterend", "ignorespaces", "lo
            "nonfrenchspacing", "selectfont", "strut", "mathstrut", "break", "allowbreak", "nobreak",
            "onecolumn", "twocolumn", "balance", "normalcolor", "boldmath", "unboldmath", "hline",
            "endinput", "tableofcontents", "listoffigures", "listoftables", "printindex", "maketitle",
-           "appendix", "notoc", "toccontinuoustrue", "fi", "else", "iffalse", "iftrue", "normalsize")
+           "appendix", "notoc", "toccontinuoustrue", "fi", "else", "iffalse", "iftrue", "normalsize",
+           # plain TeX's page making (harvmac papers and the like): nothing on a screen
+           "goodbreak", "eject", "supereject", "midinsert", "topinsert", "pageinsert", "endinsert", "filbreak",
+           "noblackbox", "nopagenumbers", "magstep", "magstephalf")
+# plain TeX's lengths, set with = (\epsfxsize=3in, \baselineskip=16pt plus 2pt): the setting skipped
+DIMS = ("magnification", "epsfxsize", "epsfysize", "baselineskip", "leftskip", "rightskip", "parindent", "parskip", "hsize", "vsize",
+        "hoffset", "voffset", "abovedisplayskip", "belowdisplayskip", "footskip", "topskip", "lineskip",
+        "lineskiplimit", "hfuzz", "vfuzz", "overfullrule", "jot", "mathsurround", "tolerance", "emergencystretch")
 IGNORE1 = ("vspace", "tikzsetnextfilename", "vspace*", "pagestyle", "thispagestyle", "index", "glossary", "hypersetup",
            "enlargethispage", "graphicspath", "setcitestyle", "captionsetup", "bibliographystyle", "nocite",
            "pagenumbering",
@@ -127,7 +134,7 @@ PIC_SETUP = {"tikzset": 1, "pgfplotsset": 1, "pgfkeys": 1, "tikzfeynmanset": 1, 
              "colorlet": 2, "pgfmathsetmacro": 2, "pgfmathtruncatemacro": 2, "pgfmathsetlengthmacro": 2,
              "definecolor": 3, "pgfmathdeclarefunction": 3, "makeatletter": 0, "makeatother": 0}
 SYMBOLS = {
-    "S": "\u00a7", "P": "\u00b6", "dag": "\u2020", "ddag": "\u2021", "copyright": "\u00a9",
+    "S": "\u00a7", "P": "\u00b6", "lq": "\u2018", "rq": "\u2019", "dag": "\u2020", "ddag": "\u2021", "copyright": "\u00a9",
     "pounds": "\u00a3", "ldots": "\u2026", "dots": "\u2026", "textellipsis": "\u2026", "cdots": "\u22ef",
     "LaTeX": "LaTeX", "TeX": "TeX", "LaTeXe": "LaTeX2\u03b5", "BibTeX": "BibTeX",
     "textbackslash": "\\", "textasciitilde": "~", "textasciicircum": "^", "textbar": "|",
@@ -537,6 +544,7 @@ class Converter:
         self.build = None
         self.expansions = 0
         self.id_map = {}
+        self.font_names = set()          # (fonts a plain TeX paper declares, \font\eightrm=...: nothing here)
         self.all_fn = []
         self.used_ids = {"l2m-top", "l2m-bar", "l2m-menu", "l2m-fnsheet", "refs-h", "abstract-h", "notes-h"}
 
@@ -790,6 +798,7 @@ class Converter:
 
     def parse_preamble(self, pre):
         self.scan_definitions(pre)
+        self.font_names |= set(re.findall(r"\\font\s*\\([A-Za-z]+)", pre))   # (\font\ticp=cmcsc10: \ticp then nothing)
         for m in re.finditer(r"\\(?:usepackage|RequirePackage)\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}", pre):
             for p in m.group(1).split(","):
                 p = p.strip()
@@ -954,7 +963,8 @@ class Converter:
         d = self.macros.get(name)
         if not d or d["math_only"] or d.get("from_sty") or name in self.NATIVE:
             return False
-        return not self.COMPLEX.search(d["body"])
+        # (a \relax in it, a plain TeX habit, \def\II{\relax{I\kern-.1em I}}, is nothing to fear)
+        return not self.COMPLEX.search(re.sub(r"\\relax(?![A-Za-z])", "", d["body"]))
 
     def _alias_re(self, builtin):
         names = [k for k, d in self.macros.items()
@@ -1374,6 +1384,8 @@ class Converter:
         body = d["body"]
         for n in range(len(args), 0, -1):
             body = body.replace("#%d" % n, args[n - 1])
+        if re.search(r"\\[A-Za-z]+$", body) and re.match(r"[A-Za-z]", s[k:k + 1]):
+            body += " "                      # (\def\br{\hfill\break} before "G.": a command, then G, not \breakG)
         while "\\l2mifempty{" in body:                     # (decided now, the argument known)
             at = body.index("\\l2mifempty{")
             a, j = read_group(body, at + 11)
@@ -1705,7 +1717,18 @@ class Converter:
             a, i = read_arg(s, i)
             out.append(self.accent(name, a))
             return i
-        if name in ("hspace", "hskip", "kern", "vskip", "vspace"):
+        if name in DIMS:
+            m = re.match(r"\s*=?\s*-?[\d.]+\s*(true\s*)?(pt|em|ex|cm|mm|in|bp|pc|sp|dd|mu|\\[A-Za-z]+)?"
+                         r"(\s*(plus|minus)\s*-?[\d.]+\s*(fil+|\w+))*", s[i:])
+            return i + (m.end() if m else 0)
+        if name == "font":                       # \font\eightrm=cmr8 scaled\magstep1: skipped; \eightrm then nothing
+            m = re.match(r"\s*\\([A-Za-z]+)\s*=?\s*[A-Za-z0-9]+(\s*(scaled\s*(\\magstep(half|\s*\d)|\d+)|at\s*[\d.]+\s*\w+))?", s[i:])
+            if m:
+                self.font_names.add(m.group(1))
+                return i + m.end()
+        if name in self.font_names:
+            return i
+        if name in ("hspace", "hskip", "kern", "vskip", "vspace", "vglue", "hglue"):
             if s[i:i + 1] == "*":
                 i += 1
             g, j = read_group(s, i)
@@ -1716,7 +1739,7 @@ class Converter:
                              r"(\s*(plus|minus)\s*-?[\d.]+\s*\w+)*", s[i:])
                 if m:
                     i += m.end()
-            if name in ("hspace", "hskip"):
+            if name in ("hspace", "hskip", "hglue"):
                 out.append(" ")
             return i
         if name in IGNORE1 or full in IGNORE1:
