@@ -1768,7 +1768,14 @@ class Converter:
 
     # ------------------------------------------------------------------ images
     def find_image(self, name):
+        for _ in range(5):                                # (a name given by a macro of the paper's, \figfile: its text)
+            m = re.match(r"\s*\\([A-Za-z@]+)\s*", name)
+            d = self.macros.get(m.group(1)) if m else None
+            if not d or d["nargs"]:
+                break
+            name = d["body"] + name[m.end():]
         name = name.replace("{", "").replace("}", "")     # ({plots/x_0.5}.png: braces keep a name's dots from LaTeX, nothing more)
+        name = name.strip().strip('"')                    # ("Figures/a b.jpg": quotes, for a name with spaces)
         dirs = [self.srcdir] + [(self.srcdir / d).resolve() for d in self.graphicspath]
         for d in dirs:
             for ext in ("", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".eps", ".gif"):
