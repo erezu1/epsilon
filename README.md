@@ -2,6 +2,8 @@
 
 Turns a LaTeX article into a paper you can read comfortably on a phone.
 
+![The reading app on a phone: Witten's "Anti De Sitter Space And Holography" (hep-th/9802150), searched for \phi_0 (the match inside equation 2.11 highlighted), the paper's marks and notes, and the dark theme](examples/app.png)
+
 It works in three separate parts:
 
 | part | what it is | made by |
@@ -195,4 +197,4 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `viewer/prefs.js` | applies the reader's saved choices before the page is drawn |
 | `viewer/index.html` | the app's page |
 | `DOCUMENT.md` | the document format |
-| `examples/` | a sample document that exercises the supported features |
+| `examples/` | a sample document that exercises the supported features, and the picture above (`app.png`) |

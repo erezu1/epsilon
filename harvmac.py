@@ -103,8 +103,29 @@ def harvmac_to_latex(text):
             if g is None:
                 return None, m.end()
             refs[name] = g.strip()
-            return {"lref": "", "nref": "\x02N%s\x02" % name, "ref": "\x02R%s\x02" % name}[kind], end
+            out = {"lref": "", "nref": "\x02N%s\x02" % name, "ref": "\x02R%s\x02" % name}[kind]
+            # (the line it ends taken with it, as a space: references defined a line each inside a paragraph, once
+            # gone, leave no empty line behind, which would end the paragraph)
+            k = end
+            while k < len(s) and s[k] in " \t":
+                k += 1
+            if k < len(s) and s[k] == "\n":
+                return out + " ", k + 1
+            return out, end
         return fn
+    # a reference's name defined twice (\nref\gibtot twice): as in TeX, each definition its own reference (and number),
+    # a citation the one defined last before it; the later ones renamed, with their citations up to the next one
+    defs = [(m.start(), m.group(1)) for m in re.finditer(r"\\(?:lref|nref|ref)\s*\\([A-Za-z]+)", t)]
+    times = {}
+    for _, n in defs:
+        times[n] = times.get(n, 0) + 1
+    for n in [n for n, c in times.items() if c > 1]:
+        at = [p for p, x in defs if x == n]
+        for k in range(len(at) - 1, 0, -1):          # (from the last back: the places before are not moved)
+            end = at[k + 1] if k + 1 < len(at) else len(t)
+            seg = re.sub(r"\\%s(?![A-Za-z])" % n, lambda m: "\\" + n + "zz" * k, t[at[k]:end])
+            t = t[:at[k]] + seg + t[end:]
+            at = [p if p <= at[k] else p + len(seg) - (end - at[k]) for p in at]
     for kind in ("lref", "nref", "ref"):
         t = _each(t, r"\\%s(?![A-Za-z])" % kind, refdef(kind))
 
@@ -240,12 +261,28 @@ def harvmac_to_latex(text):
     if names:
         rx = re.compile(r"\\(%s)(?![A-Za-z])" % "|".join(sorted(map(re.escape, names), key=len, reverse=True)))
 
-        def bare(m):
-            k = t2.rfind("\\label{", 0, m.start())
-            if m.group(1) in refs:
-                number(m.group(1))
-            return names[m.group(1)]
+        # an equation's name given twice (\eqn\obbo twice): as in TeX, each equation keeps the number it had, and a
+        # reference means the one named last before it; the later ones get labels of their own
+        seen = {}
+
+        def relabel(m):
+            n = m.group(1)
+            seen[n] = seen.get(n, 0) + 1
+            return "\\label{%s}" % (n if seen[n] == 1 or n not in labels else n + "zz" * (seen[n] - 1))
+        t2 = re.sub(r"\\label\{([A-Za-z]+)\}", relabel, t2)
         t2 = re.sub(r"\\label\{([A-Za-z]+)\}", lambda m: "\\label{\x03%s}" % m.group(1), t2)
+        defs = {}
+        for d in re.finditer(r"\\label\{\x03([A-Za-z]+?)((?:zz)*)\}", t2):
+            defs.setdefault(d.group(1), []).append((d.start(), d.group(1) + d.group(2)))
+
+        def bare(m):
+            n = m.group(1)
+            if n in refs:
+                number(n)
+            if n in labels and len(defs.get(n, [])) > 1:
+                before = [lab for at, lab in defs[n] if at < m.start()]
+                return "\\eqref{%s}" % (before[-1] if before else defs[n][0][1])
+            return names[n]
         t2 = rx.sub(bare, t2)
         t2 = t2.replace("\\label{\x03", "\\label{")
 
@@ -260,7 +297,8 @@ def harvmac_to_latex(text):
         t2 += "\n" + bib
 
     head = ["\\documentclass[11pt]{article}", "\\usepackage{amsmath,amssymb,graphicx,epsfig}",
-            "\\let\\Bbb\\mathbb", "\\providecommand{\\affiliation}[1]{}", "\\numberwithin{equation}{section}", "\\providecommand{\\half}{{\\textstyle{1\\over2}}}"]
+            "\\let\\Bbb\\mathbb", "\\providecommand{\\affiliation}[1]{}", "\\numberwithin{equation}{section}", "\\providecommand{\\half}{{\\textstyle{1\\over2}}}",
+            "\\providecommand{\\litfont}{}"]
     if title:
         head.append("\\title{%s}" % title)
     if authors:

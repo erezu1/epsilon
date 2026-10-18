@@ -1342,7 +1342,7 @@ class Converter:
                   "tr": "\\operatorname{tr}", "widecheck": ["\\check{#1}", 1], "tcboxmath": ["\\boxed{#1}", 1],
                   "footnote": ["", 1], "footnotesize": "", "small": "", "toprule": "\\hline", "midrule": "\\hline",
                   "bottomrule": "\\hline", "href": ["#2", 2], "relax": "", "ensuremath": ["#1", 1],
-                  "bbone": "\\mathbb{1}", "one": "\\mathbb{1}", "tikzsetnextfilename": ["", 1], "nicefrac": ["{}^{#1}\\!/\\!{}_{#2}", 2],
+                  "bbone": "\\mathbb{1}", "one": "\\mathbb{1}", "tikzsetnextfilename": ["", 1], "litfont": "", "nicefrac": ["{}^{#1}\\!/\\!{}_{#2}", 2],
                   "raisebox": ["\\raise{#1}{#2}", 2]}
         for k, v in extras.items():
             macros.setdefault(k, v)
@@ -1666,6 +1666,16 @@ class Converter:
             o, i = read_opt(s, i)
             g, i = read_group(s, i)
             out.append(self.image_html((g or "").strip(), o or ""))
+            return i
+        if name in ("epsfbox", "epsffile"):                  # (epsf, the older way: \epsfbox{fig1.eps})
+            g, i = read_group(s, i)
+            out.append(self.image_html((g or "").strip(), ""))
+            return i
+        if name == "psfig":                                  # (psfig: \psfig{figure=fig1.eps,width=3in})
+            g, i = read_group(s, i)
+            f = re.search(r"(?:figure|file)\s*=\s*([^,}]+)", g or "")
+            if f:
+                out.append(self.image_html(f.group(1).strip(), ""))
             return i
         if name == "ensuremath":
             g, i = read_group(s, i)
