@@ -819,6 +819,8 @@ class Converter:
                 return
             i = self.meta_command(s, m.group(1), m.end())
 
+    NOTE_GROUP = re.compile(r"\\(?:footnote|note|thanks|email|emailAdd)\*?(?![A-Za-z])\s*(?:\[[^\]]*\])?\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}")
+
     def meta_command(self, s, name, i):
         o, j = read_opt(s, i)
         g, j = read_group(s, j)
@@ -827,6 +829,10 @@ class Converter:
         if name == "title":
             self.meta["title"] = g
         elif name == "author":
+            g = re.sub(r"\\note(?![A-Za-z])", r"\\footnote", g)     # (jheppub's \note: a footnote to the name)
+            nm = re.search(r",\s*(" + self.NOTE_GROUP.pattern + r")\s*$", g)      # ("Name,\note{...}", jheppub's way: the
+            if nm:                                                             # comma is the list's, not the note's)
+                g = g[:nm.start()] + nm.group(1)
             # jheppub, authblk, elsarticle: \author[a,b]{Name,} ... \affiliation[a]{...}, the marks to the affiliations (the
             # comma or "and" written with the name, jheppub's way: the commas are put back between the names)
             parts = [re.sub(r",\s*$", "", p.strip()) for p in re.split(r"\\and(?![A-Za-z])", g)]
@@ -844,7 +850,17 @@ class Converter:
                     if nums and self.meta["authors"]:
                         self.meta["author_marks"][len(self.meta["authors"]) - 1] = ",".join(nums)
                     continue
-                self.meta["authors"].extend(p.strip() for p in re.split(r",|\s+and\s+|\\and(?![A-Za-z])", chunk) if p.strip())
+                # (split at the commas between names, not in a note to one: "A\footnote{e-mail: a}, B" is two names)
+                notes = []
+                chunk = self.NOTE_GROUP.sub(lambda n: notes.append(n.group(0)) or "\x02%d\x02" % (len(notes) - 1), chunk)
+                for p in re.split(r",|\s+and\s+|\\and(?![A-Za-z])", chunk):
+                    p = re.sub(r"\x02(\d+)\x02", lambda n: notes[int(n.group(1))], p).strip()
+                    if not p:
+                        continue
+                    if p.startswith(("\\footnote", "\\thanks")) and self.meta["authors"]:   # (a note after the comma: the name's before)
+                        self.meta["authors"][-1] += p
+                    else:
+                        self.meta["authors"].append(p)
         elif name == "institution":                  # putex.sty: \institution{Key}{Name, place}
             g2, j2 = read_group(s, j)
             if g2 is not None:
@@ -2926,7 +2942,10 @@ class Converter:
             for k, a in enumerate(m["authors"]):
                 ah = self.convert_inline(a).strip()
                 if marked and k in m["author_marks"]:
-                    ah += "<sup>%s</sup>" % html.escape(m["author_marks"][k])
+                    # (the institutions' marks first, then any note's, as written: Name\worksat{..}\footnote{..})
+                    fm = re.search(r'((?:<sup class="fnref">.*?</sup>)+)$', ah, re.S)
+                    mark = "<sup>%s</sup>" % html.escape(m["author_marks"][k])
+                    ah = ah[:fm.start()] + mark + fm.group(1) if fm else ah + mark
                 names.append(ah)
             joined = ""
             for k, a in enumerate(names):
@@ -3080,7 +3099,9 @@ class Converter:
             "format": DOC_FORMAT, "version": DOC_VERSION, "converter": __version__,
             "source": self.src.name, "engine": self.args.engine,
             "title": self.args.title or plain_text(self.meta["title"] or self.src.stem),
-            "authors": [re.sub(r"^(and|&)\s+", "", plain_text(a)) for a in self.meta["authors"]],
+            # (the names alone: the notes written with them, e-mails and thanks, are the title's, not names)
+            "authors": [re.sub(r"^(and|&)\s+", "", plain_text(re.sub(r"(?<!\\)\\[,;:! ](?<!\\\\ )", " ", self.NOTE_GROUP.sub("", a))).strip().rstrip(",").strip())
+                        for a in self.meta["authors"]],
             "kicker": self.args.kicker, "lang": self.args.lang,
             "body": body,
             "headings": [{"level": l, "number": n, "html": enc(t), "id": i} for l, n, t, i in self.headings],
