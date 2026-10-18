@@ -1026,12 +1026,18 @@ class Converter:
         return "".join(out)
 
     # ------------------------------------------------------------------ LaTeX run
+    def tex_env(self):
+        """Where LaTeX and BibTeX look: the paper's folder first, then TeX Live, then Epsilon's own tex/ (styles papers
+        often load without shipping, which TeX Live lacks: JHEP's)."""
+        env = os.environ.copy()
+        for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS"):
+            env[var] = str(self.srcdir) + os.pathsep + env.get(var, "") + os.pathsep + str(HERE / "tex")
+        return env
+
     def compile(self, text, stem):
         tex = self.build / (stem + ".tex")
         tex.write_text(text)
-        env = os.environ.copy()
-        for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS"):
-            env[var] = str(self.srcdir) + os.pathsep + env.get(var, "")
+        env = self.tex_env()
         engine = self.args.engine
 
         def run(cmd):
@@ -1079,7 +1085,10 @@ class Converter:
             r = run(latex)
         if not aux.exists():
             tail = "\n".join(r.stdout.splitlines()[-25:])
-            sys.exit("epsilon_convert: LaTeX produced no .aux file. End of the log:\n" + tail)
+            # (a file LaTeX could not find, named first: the end of the log shows only the line after it)
+            gone = re.findall(r"File `([^']+)' not found", r.stdout)
+            why = ("a file is missing: %s (in neither the paper's sources nor this TeX Live). " % ", ".join(dict.fromkeys(gone))) if gone else ""
+            sys.exit("epsilon_convert: LaTeX produced no .aux file; " + why + "End of the log:\n" + tail)
         if r.returncode != 0:
             errs = [l for l in r.stdout.splitlines() if re.match(r"^.*:\d+: ", l)]
             self.warn("LaTeX reported errors (the page may still be fine): " + (errs[0] if errs else "see log"))
@@ -1734,6 +1743,7 @@ class Converter:
 
     # ------------------------------------------------------------------ images
     def find_image(self, name):
+        name = name.replace("{", "").replace("}", "")     # ({plots/x_0.5}.png: braces keep a name's dots from LaTeX, nothing more)
         dirs = [self.srcdir] + [(self.srcdir / d).resolve() for d in self.graphicspath]
         for d in dirs:
             for ext in ("", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".eps", ".gif"):
@@ -1747,7 +1757,7 @@ class Converter:
         moment each); image_html then only waits for its own."""
         from concurrent.futures import ThreadPoolExecutor
         todo = []
-        for m in re.finditer(r"\\includegraphics\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}", body):
+        for m in re.finditer(r"\\includegraphics\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})+)\}", body):
             p = self.find_image(m.group(1).strip())
             if p and p not in self.image_cache and p.suffix.lower() in (".pdf", ".eps") and p not in todo:
                 todo.append(p)
@@ -2414,6 +2424,9 @@ class Converter:
                         labels += "\\label{%s}" % lm.group(1)
                         k = lm.end()
                     para.append("%s\\lmobilerunin{%s}" % (labels, title or ""))
+                    # (a blank line after it ends no paragraph: as in LaTeX, the heading runs into the text that follows)
+                    while k < len(s) and s[k] in " \t\r\n":
+                        k += 1
                     i = k
                     continue
                 h, k = self.heading_html(cmd, star, s, j)
@@ -2647,9 +2660,7 @@ class Converter:
         doc = (pre + "\n\\usepackage[active,tightpage]{preview}\n\\setlength\\PreviewBorder{0pt}\n\\begin{document}\n" +
                "".join(body) + "\\end{document}\n")
         (self.build / "l2mpics.tex").write_text(doc)
-        env = os.environ.copy()
-        for var in ("TEXINPUTS", "BIBINPUTS", "BSTINPUTS"):
-            env[var] = str(self.srcdir) + os.pathsep + env.get(var, "")
+        env = self.tex_env()
         self.info("drawing %d pictures with %s ..." % (len(self.pics), self.args.engine))
         try:
             for _ in range(4):
