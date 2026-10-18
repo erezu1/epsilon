@@ -479,6 +479,12 @@ def tex_accents(tex):
     return re.sub(r"\{([^{}\\]*)\}", r"\1", tex) if "\\" not in tex else tex    # ({\'e}: its braces)
 
 
+def clean_mark(mk):
+    """A mark as shown: \\rm, spaces and brackets dropped ($^{\\rm (a)}$ is a)."""
+    return re.sub(r"\\[A-Za-z]+|[\s()]", "", mk)
+
+EMAIL_LINE = re.compile(r"(?:e-?mails?\s*:?\s*)?[\w.+-]+@[\w.-]+(?:\s*[,;]?\s*(?:and\s+)?[\w.+-]+@[\w.-]+)*\.?", re.I)
+
 def plain_text(tex):
     tex = tex_accents(tex)
     t = re.sub(r"\$([^$]*)\$", r"\1", tex)
@@ -2851,9 +2857,28 @@ class Converter:
             text = q.group(2) if q else re.sub(r"\\(?:begin|end)\{(?:center|flushleft|flushright|quotation|quote)\}", "", after)
             keep = "\\begin{abstract}" + text + "\\end{abstract}"
             rest = rest[:h.start()] + "\n\n" + (after[:q.start()] + after[q.end():] if q else "")
-        rest = re.sub(r"\\(?:begin|end)\{(?:center|flushleft|flushright)\}|\\phantom\{[^{}]*\}|\\(?:centering|noindent)(?![A-Za-z])|"
+        rest = re.sub(r"\\begin\{(?:adjustwidth\*?|minipage|tabular\*?)\}(?:\s*\[[^\]]*\])*(?:\s*\{(?:[^{}]|\{[^{}]*\})*\})*|"
+                      r"\\end\{(?:adjustwidth\*?|minipage|tabular\*?)\}|\\(?:begingroup|endgroup)(?![A-Za-z])|"
+                      r"\\renewcommand\s*\{?\\[A-Za-z]+\}?\s*\{[^{}]*\}|"
+                      r"\\(?:begin|end)\{(?:center|flushleft|flushright)\}|\\phantom\{[^{}]*\}|\\(?:centering|noindent)(?![A-Za-z])|"
                       r"\\(?:thispagestyle|pagestyle)\s*\{[^{}]*\}|\\(?:setcounter|addtocounter)\s*\{[^{}]*\}\s*\{[^{}]*\}", "\n", rest)
+        rest = re.sub(r"(?<!\\)&", " ", rest)          # (a tabular's cells: a mark and its affiliation)
+        rest = re.sub(r"\\(?:setstretch|linespread)\s*\{[^{}]*\}", " ", rest)
+        while True:                             # (definitions written on the page: none of its lines)
+            d = re.search(r"\\(?:re)?newcommand\*?\s*\{?\\[A-Za-z]+\}?\s*(?:\[\d\])?\s*(?=\{)", rest)
+            if not d:
+                break
+            g, e = read_group(rest, d.end())
+            rest = rest[:d.start()] + "\n" + (rest[e:] if g is not None else rest[d.end():])
+        notes = {n for n in re.findall(r"\\(?:re)?newcommand\*?\s*\{?\\([A-Za-z]+)\}?\s*\[1\]\s*\{[^\n]*\n?(?:[^\n]*\n){0,4}?[^\n]*\\footnote", inner)}
+        for n in notes:                         # (a footnote made by hand, \blfootnote{e-mail}: not the name's)
+            rest = re.sub(r"\\" + n + r"\s*\{(?:[^{}]|\{[^{}]*\})*\}", "", rest)
         t = re.search(r"\\(?:LARGE|Large|huge|Huge)(?![A-Za-z])\s*", rest)
+        u = None if t else re.search(r"(?m)^[ \t]*\\large\s*\\(?:bf|bfseries)(?![A-Za-z])\s*(.+?)\s*(?:\n\s*\n|\\\\|$(?![\s\S]))", rest + "\n\n")
+        if u:                                   # (\large\bf Title, alone in its paragraph, no group around it)
+            if not self.meta["title"] and 3 <= len(plain_text(u.group(1))) <= 400:
+                self.meta["title"] = u.group(1)
+            rest = rest[:u.start()] + "\n\n" + rest[u.end():]
         if t:
             if rest[t.end():t.end() + 1] == "{":
                 g, e = read_group(rest, t.end()); s0 = t.start()
@@ -2868,10 +2893,12 @@ class Converter:
         mark = r"\$\s*(?:\{\})?\^\s*\{?\s*([^${}]*?)\s*\}?\s*\$|\{\}\^\{([^{}]*)\}|\\textsuperscript\{([^{}]*)\}"
         pieces = re.split(r"\\\\(?:\[[^\]]*\])?|\\vskip\s*-?[\d.]+\s*[a-z]*|\\vspace\*?\{[^{}]*\}|\\(?:big|med|small)skip(?![A-Za-z])|"
                           r"\\par(?![A-Za-z])|\n\s*\n", rest)
-        lines = []
+        lines, alone = [], ""
         for p in pieces:
+            p = alone + p
             mk = re.search(mark, p)
             txt = re.sub(r"\s+", " ", plain_text(re.sub(mark, " ", p))).strip(" ,;")
+            alone = p if mk and not txt else ""       # (a mark on a line of its own: the next line's)
             if len(txt) >= 2:
                 lines.append((next((x for x in mk.groups() if x), None) if mk and re.fullmatch(r"[\s{]*(?:\\(?:small|footnotesize|scriptsize|normalsize|it|em|textit|textrm)(?![A-Za-z])[\s{]*)*", p[:mk.start()]) else None, txt, p))
         known = [a.split()[-1] for a in (getattr(self.args, "fallback_authors", "") or "").split(";") if a.strip()]
@@ -2880,21 +2907,30 @@ class Converter:
             return body[:a0] + keep + body[a1:]
         if not self.meta["authors"]:
             parts, marks = [], {}
-            for x in split_names(lines[at][2]):
+            line = lines[at][2].strip()
+            w = re.match(r"\{\s*(?:\\(?:bf|bfseries|large|Large|sc|scshape|normalsize)(?![A-Za-z])\s*)+", line)
+            if w:                               # ({\bf A, B and C}: the font the whole line's, not the first name's)
+                g, e = read_group(line, 0)
+                if g is not None and not line[e:].strip():
+                    line = line[w.end():e - 1]
+            for x in split_names(line):
                 mk = re.search(mark, x)
                 name = re.sub(r"\s+", " ", re.sub(mark, "", x)).strip()
                 if name:
                     if mk:
-                        marks[len(parts)] = re.sub(r"\s", "", next(y for y in mk.groups() if y))
+                        marks[len(parts)] = clean_mark(next(y for y in mk.groups() if y))
                     parts.append(name)
             if parts and all(len(plain_text(x)) < 80 for x in parts):
                 self.meta["authors"], self.meta["author_marks"] = parts, marks
         if not self.meta["affil"]:
             groups, gm = [], {}
-            for mk, txt, _ in lines[at + 1:]:
+            for mk, txt, p in lines[at + 1:]:
+                if not mk and EMAIL_LINE.fullmatch(txt):      # (the e-mails: their own line, not an affiliation's)
+                    self.meta["email"].append(re.sub(mark, " ", p).strip())
+                    continue
                 if mk or not groups:
                     if mk:
-                        gm[len(groups)] = re.sub(r"\s", "", mk)
+                        gm[len(groups)] = clean_mark(mk)
                     groups.append(txt)
                 else:
                     groups[-1] += ", " + txt
@@ -3109,7 +3145,8 @@ class Converter:
             self.info("wrote %s (%d formulas, %d footnotes)" % (folder, len(doc["math"]["items"]), len(doc["footnotes"])))
             if self.args.html:
                 from epsilon_render import bundle
-                bundle(doc, cache, Path(self.args.html), artifact=self.args.artifact, info=self.info)
+                bundle(doc, cache, Path(self.args.html), artifact=self.args.artifact, info=self.info,
+                       notes=json.loads(Path(self.args.notes).read_text()) if self.args.notes else None)
         finally:
             if tmp:
                 shutil.rmtree(tmp, ignore_errors=True)
@@ -3117,6 +3154,20 @@ class Converter:
             print("warnings:", file=sys.stderr)
             for msg, count in sorted(self.warnings.items()):
                 print("  " + msg + ("  (x%d)" % count if count > 1 else ""), file=sys.stderr)
+
+    def affil_data(self):
+        """The affiliations as data: each its mark (None when the paper shows none) and plain text (a line break a
+        comma), and, parallel to the authors, each author's marks."""
+        m, marked = self.meta, marked_affil(self.meta)
+        def text(a):
+            a = re.sub(r"\\\\(?:\[[^\]]*\])?|\\(?:newline|par)(?![A-Za-z])", ", ", self.NOTE_GROUP.sub("", a))
+            t = re.sub(r"\s*&\s*,\s*", " & ", re.sub(r"\\([&%$#_])", r"\1", plain_text(a)))
+            return re.sub(r"\s*,(?:\s*,)+", ",", re.sub(r"\s+,", ",", t)).strip(" ,")
+        affs = [{"mark": m["affil_marks"].get(k) if marked else None, "text": text(a)} for k, a in enumerate(m["affil"])]
+        affs = [x for k, x in enumerate(affs) if x["text"] and (x["mark"] or x not in affs[:k])]   # (unmarked, once each)
+        return {"affiliations": affs,
+                "authorAffiliations": [[x for x in re.split(r"[,\s]+", m["author_marks"].get(k, "")) if x] if marked else []
+                                       for k in range(len(m["authors"]))]}
 
     def document(self, page_body):
         """Everything the page needs, independent of the viewer: see DOCUMENT.md."""
@@ -3135,6 +3186,7 @@ class Converter:
             # (the names alone: the notes written with them, e-mails and thanks, are the title's, not names)
             "authors": [re.sub(r"^(and|&)\s+", "", plain_text(re.sub(r"(?<!\\)\\[,;:! ](?<!\\\\ )", " ", self.NOTE_GROUP.sub("", a))).strip().rstrip(",").strip())
                         for a in self.meta["authors"]],
+            **self.affil_data(),
             "kicker": self.args.kicker, "lang": self.args.lang,
             "body": body,
             "headings": [{"level": l, "number": n, "html": enc(t), "id": i} for l, n, t, i in self.headings],
@@ -3292,6 +3344,7 @@ def main():
     ap.add_argument("--html", metavar="FILE", help="also write a one-file page (the same as epsilon_render.py DIR -o FILE)")
     ap.add_argument("--artifact", action="store_true",
                     help="with --html: write a page fragment without <html>/<head>/<body>, for a Claude artifact")
+    ap.add_argument("--notes", metavar="FILE", help="with --html: marks and notes the page carries (see epsilon_render.py --notes)")
     ap.add_argument("--kicker", help='small line above the title, for example "Draft"')
     ap.add_argument("--title", help="override the title")
     ap.add_argument("--fallback-title", help="the title when the source has none of its own (a title page drawn by hand)")

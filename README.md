@@ -4,6 +4,8 @@ Turns a LaTeX article into a paper you can read comfortably on a phone.
 
 ![The reading app on a phone: Witten's "Anti De Sitter Space And Holography" (hep-th/9802150), searched for \phi_0 (the match inside equation 2.11 highlighted), its contents, and a marked passage with its note in the dark theme](examples/app.png)
 
+To see a page for yourself, open [the example](https://raw.githack.com/erezu1/epsilon/main/examples/demo.html): a short made-up article with a few notes on it, one HTML file that works offline.
+
 It works in three separate parts:
 
 | part | what it is | made by |
@@ -63,6 +65,7 @@ packs it with the viewer into one file that works offline. The fonts go inside t
 | `-o DIR` | the document folder (default: `paper.l2m` next to `paper.tex`) |
 | `--html FILE` | also write a one-file page |
 | `--artifact` | with `--html`: a page fragment (no `<html>/<head>/<body>`) for publishing as a Claude artifact |
+| `--notes notes.json` | with `--html`: marks and notes the page carries (see below) |
 | `--kicker "Draft"` | small line above the title (`epsilon_render.py --kicker` changes it later) |
 | `--title "..."` | override the title |
 | `--engine xelatex` | use `xelatex` or `lualatex` to obtain the numbering |
@@ -75,6 +78,12 @@ Try it on the example:
 
 ```bash
 python3 epsilon_convert.py examples/sample.tex --html examples/sample.html --kicker Example
+```
+
+A page can carry marks and notes, as the app shows them: in the margin on a wide screen, under a small sign on a phone, and listed in the contents panel's *Notes* tab. `--notes notes.json` gives them as a list of `{"words", "note", "colour"}`, where `words` are the words marked as the paper's text has them, with formulas as their TeX between `$` signs. A note may hold LaTeX. The reader can mark the page too; their marks stay in their own browser. [`examples/demo.html`](examples/demo.html) is a made-up short article with a few notes (its authors, institute and references are fictional). It is built by:
+
+```bash
+python3 epsilon_convert.py examples/demo.tex --html examples/demo.html --notes examples/demo-notes.json --kicker Example
 ```
 
 ## The theme
@@ -197,4 +206,4 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `viewer/prefs.js` | applies the reader's saved choices before the page is drawn |
 | `viewer/index.html` | the app's page |
 | `DOCUMENT.md` | the document format |
-| `examples/` | a sample document that exercises the supported features, and the picture above (`app.png`) |
+| `examples/` | a sample document that exercises the supported features; a made-up article with notes (`demo.tex`, `demo-notes.json`, built as `demo.html`); and the picture above (`app.png`) |

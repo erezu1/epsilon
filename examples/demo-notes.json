@@ -1,0 +1,14 @@
+[
+  {"words": "The return amplitude of the thermal state, its echo,",
+   "colour": "orange",
+   "note": "This is the spectral form factor in disguise: $|Z(\\beta+it)|^2/Z(\\beta)^2$."},
+  {"words": "It starts at $\\mathcal{E}(0)=1$, falls to its smallest value at $t=\\pi/\\Delta$",
+   "colour": "pink",
+   "note": "One line from $|\\cosh(a+ib)|^2 = \\cosh^2 a - \\sin^2 b$. The smallest value is \\[\\mathcal{E}_{\\min} = \\frac{\\cosh\\beta\\Delta - 1}{\\cosh\\beta\\Delta + 1} = \\tanh^2\\frac{\\beta\\Delta}{2}.\\]"},
+  {"words": "one over the number of states",
+   "colour": "green",
+   "note": "Check: at $\\beta = 0$, $Z(0) = 2$, so $Z(0)/Z(0)^2 = 1/2$."},
+  {"words": "the cosines of different gaps fall out of phase",
+   "colour": "violet", "by": "Claude",
+   "note": "For a Gaussian $\\rho$ the average of $\\cos\\Delta t$ is $e^{-\\sigma^2 t^2/2}\\cos\\bar\\Delta t$, so the revivals die on the time scale $1/\\sigma$."}
+]

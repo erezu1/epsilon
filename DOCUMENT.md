@@ -21,6 +21,7 @@ Reconvert from LaTeX only when the converter itself changes: how LaTeX is read, 
 | `converter` | version of `epsilon_convert.py` that wrote it |
 | `source`, `engine` | main `.tex` file name and the LaTeX engine used for the numbering |
 | `title`, `authors`, `kicker`, `lang` | plain-text title and author names (for page titles and library lists), the small line above the title (may be null), language code |
+| `affiliations`, `authorAffiliations` | the affiliations as plain text (a line break a comma), each `{"mark", "text"}`, the mark null when the paper shows none; and, parallel to `authors`, each author's marks (`[["a", "b"], ["a"]]`, empty lists when unmarked) |
 | `body` | the paper as HTML, see below |
 | `headings` | `[{level, number, html, id}]`, in order: the contents list |
 | `labels` | `{latex label: {number, id}}`: the number LaTeX printed and the HTML id of the target (author labels only) |

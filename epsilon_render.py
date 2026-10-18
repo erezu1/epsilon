@@ -76,8 +76,73 @@ def font_css(theme, text, theme_dir=VIEWER):
                               "greek": has_greek}
 
 
-def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=None):
-    """Write the one-file page for DOC (images inline) and its drawn formulas CACHE (or None)."""
+def page_marks(doc, notes):
+    """NOTES ([{"words", "note", "colour"}], the words as the paper's text has them: formulas as their TeX between $
+    signs) as the marks the page carries, placed in DOC's text as the app places them."""
+    import epsilon_notes as N
+    C, heads = N.paper_text(doc)
+    marks = {}
+    for k, n in enumerate(notes):
+        s, e, _ = N.find_words(C, n["words"])
+        s, e = N.whole(C, s, e)
+        h = N.head_at(heads, s)
+        mid = "n%d" % (k + 1)
+        marks[mid] = {"id": mid, "c": N.COLOURS.get(n.get("colour", "orange"), 4), "quote": C[s:e], "pre": C[max(0, s - 40):s],
+                      "post": C[e:e + 40], "start": s, "end": e, "sec": h["id"] if h else "", "ver": "page", "made": 0, "at": 0}
+        if n.get("note"):
+            marks[mid]["note"] = n["note"].strip()
+        if n.get("by"):
+            marks[mid]["by"] = n["by"]
+    return marks
+
+
+# a page with marks: they are kept as the page came, the reader's own (and changes) in the reader's browser
+PAGE_STORE = r"""function l2mPageMarks(key) {
+  var given = JSON.parse(document.getElementById("l2m-marks").textContent), LS = "l2m-page-marks:" + key, marks = {};
+  var mine = (function () { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch (e) { return null; } })() || {};
+  Object.keys(given).forEach(function (id) { marks[id] = given[id]; });
+  Object.keys(mine).forEach(function (id) { if (!marks[id] || (mine[id].at || 0) > (marks[id].at || 0)) marks[id] = mine[id]; });
+  function keep() {
+    var own = {};
+    Object.keys(marks).forEach(function (id) { if (marks[id] !== given[id]) own[id] = marks[id]; });
+    try { localStorage.setItem(LS, JSON.stringify(own)); } catch (e) {}
+  }
+  function toast(html, ms) {
+    var t = document.getElementById("app-toast");
+    if (!t) { t = document.createElement("div"); t.id = "app-toast"; t.className = "app-toast glass glass-bottom"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+    t.innerHTML = html; t.onclick = null; t.l2mAway = null;
+    if (window.L2M_footer) L2M_footer(t, true);
+    clearTimeout(t.l2mTimer);
+    t.l2mTimer = setTimeout(function () { if (window.L2M_footer) L2M_footer(t, false); }, ms || 4000);
+  }
+  function toastAct(html, label, fn, ms) {
+    var x = (window.L2M_THEME && L2M_THEME.icons && L2M_THEME.icons.close) || "&times;";
+    toast('<span class="app-ask app-act-row"><span class="app-ask-q">' + html + '</span><span class="app-confirm-acts">' +
+          '<button type="button" class="app-pill app-ask-yes" data-act-go>' + label + '</button><button type="button" class="bar-btn app-toast-x" data-toast-x aria-label="Close">' +
+          x + "</button></span></span>", ms || 5000);
+    var t = document.getElementById("app-toast");
+    function away(go) { t.onclick = null; t.l2mAway = null; clearTimeout(t.l2mTimer); if (window.L2M_footer) L2M_footer(t, false); if (go) fn(); }
+    t.l2mAway = function () { away(false); };
+    t.onclick = function (e) { if (e.target.closest("[data-act-go]")) away(true); else if (e.target.closest("[data-toast-x]")) away(false); };
+  }
+  return {
+    version: "page",
+    all: function () { return marks; },
+    put: function (m) { m.at = Date.now(); marks[m.id] = m; keep(); },
+    place: function (m) { marks[m.id] = m; },
+    pull: function () { return Promise.resolve(false); },
+    flush: function () {},
+    link: function (id) { return location.href.split("#")[0] + "#mark-" + encodeURIComponent(id); },
+    toast: toast, toastAct: toastAct,
+    toastAway: function () { var t = document.getElementById("app-toast"); if (t && t.classList.contains("open") && t.l2mAway) t.l2mAway(); }
+  };
+}
+"""
+
+
+def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=None, notes=None):
+    """Write the one-file page for DOC (images inline) and its drawn formulas CACHE (or None); with NOTES, the marks
+    and notes it carries (see page_marks), the reader able to mark it too."""
     theme_dir = Path(theme_dir)
     theme = json.loads((theme_dir / "theme.json").read_text())
     if kicker:
@@ -101,16 +166,18 @@ def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=
              '<link rel="preconnect" href="https://fonts.googleapis.com">\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n') +
             "<style>\n%s</style>\n<script>window.L2M_THEME = %s;</script>\n<script>\n%s</script>\n" % (
         css(), inline_json(theme), read("prefs.js")))
+    marks = page_marks(doc, notes) if notes is not None else None
     boot = ('(function () {\n'
             '  var doc = JSON.parse(document.getElementById("l2m-doc").textContent);\n'
             '  var cache = JSON.parse(document.getElementById("l2m-math").textContent);\n'
-            '  L2M_open({doc: doc, theme: window.L2M_THEME, cache: cache, key: doc.source || ""});\n'
-            '})();\n')
+            '  L2M_open({doc: doc, theme: window.L2M_THEME, cache: cache, key: doc.source || ""%s});\n'
+            '})();\n') % (', marks: l2mPageMarks(doc.source || "")' if marks is not None else "")
     body = ('<main tabindex="-1"><noscript>This page needs JavaScript to show the paper.</noscript></main>\n'
             '<script type="application/json" id="l2m-doc">%s</script>\n'
-            '<script type="application/json" id="l2m-math">%s</script>\n'
-            "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n") % (
-        inline_json(doc), inline_json(cache), read("nav.js"), read("viewer.js"), boot)
+            '<script type="application/json" id="l2m-math">%s</script>\n' % (inline_json(doc), inline_json(cache)) +
+            ('<script type="application/json" id="l2m-marks">%s</script>\n<script>\n%s%s</script>\n' % (
+                inline_json(marks), read("marks.js"), PAGE_STORE) if marks is not None else "") +
+            "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n" % (read("nav.js"), read("viewer.js"), boot))
     if artifact:
         page = head + body
     else:
@@ -130,6 +197,9 @@ def main():
                     help="write a page fragment without <html>/<head>/<body>, for publishing as a Claude artifact")
     ap.add_argument("--kicker", help="small line above the title (default: the one given when converting)")
     ap.add_argument("--theme", metavar="DIR", default=str(VIEWER), help="the viewer folder (default: viewer/)")
+    ap.add_argument("--notes", metavar="FILE", help='marks and notes the page carries: a JSON list of {"words", "note", '
+                    '"colour"} (the words as the paper has them, formulas as their TeX between $ signs; the colour orange, '
+                    'green, pink or violet); the reader can mark the page too')
     ap.add_argument("-q", "--quiet", action="store_true", help="print nothing but errors")
     a = ap.parse_args()
     path = Path(a.doc)
@@ -143,7 +213,8 @@ def main():
         cache = draw_math(doc, lambda m: warnings.__setitem__(m, warnings.get(m, 0) + 1), info)
         if warnings and not a.quiet:
             print("%d formula warnings (math.json was missing or out of date)" % sum(warnings.values()), file=sys.stderr)
-    bundle(doc, cache, out, a.artifact, a.kicker, a.theme, info)
+    notes = json.loads(Path(a.notes).read_text()) if a.notes else None
+    bundle(doc, cache, out, a.artifact, a.kicker, a.theme, info, notes)
 
 
 if __name__ == "__main__":

@@ -205,16 +205,36 @@ def _split_names(p):
     return [x.strip() for x in out if x.strip()]
 
 
+# a mark written with a name or an address ($^{1,2}$, ~$^a$, $^{a},$): the mark itself
+MARK = r"[~\s]*\$\s*(?:\{\})?\^\s*\{?\s*(?:\\rm\s*)?([^${}]*?)\s*\}?\s*,?\s*\$"
+MARK_AT = r"\s*" + MARK
+
+
+def _marked(x, at_end):
+    """A name (its mark after it) or an address (its mark before it): (the mark, or None; the rest)."""
+    m = re.search(MARK + r"\s*,?\s*$", x) if at_end else re.match(MARK_AT, x)
+    if not m or not m.group(1).strip():
+        return None, x
+    return re.sub(r"[\s()]", "", m.group(1)), (x[:m.start()] if at_end else x[m.end():]).strip()
+
+
 def _sort_lines(lines, authors, affil, emails):
     """A title page's lines sorted out: names (several on a line: split), their places, their e-mails (an e-mail in a
     note to a name stays in it)."""
+    last = None
     for x in lines:
         k, p = _kind(x), _plain_line(x)
         if k == "skip":
+            last = k
             continue
-        if k == "place":
-            affil.append(p)
+        if k == "place":                           # (the lines of one address, one under the other: one affiliation)
+            if last == "place" and not re.match(MARK_AT, p):
+                affil[-1] += "\\\\ " + p
+            else:
+                affil.append(p)
+            last = k
             continue
+        last = k
         bare = NOTE.sub("", p)
         found = re.findall(r"[\w.+-]+@[\w.-]+\w", bare)
         if k == "email":
@@ -570,9 +590,15 @@ def harvmac_to_latex(text):
         t2 += "\n" + bib
 
     head = ["\\documentclass[11pt]{article}", "\\usepackage{amsmath,amssymb,graphicx,epsfig}",
-            "\\let\\Bbb\\mathbb", "\\providecommand{\\affiliation}[1]{}"] + ([] if sequential else ["\\numberwithin{equation}{section}"]) + HARV_MACROS
+            "\\let\\Bbb\\mathbb", "\\providecommand{\\affiliation}[2][]{}"] + ([] if sequential else ["\\numberwithin{equation}{section}"]) + HARV_MACROS
     if title:
         head.append("\\title{%s}" % title)
+    names, places = [_marked(a, True) for a in authors], [_marked(a, False) for a in affil]
+    if any(m for m, _ in names) and any(m for m, _ in places):     # (the marks: which address is whose)
+        head.append("\\makeatletter\\renewcommand{\\author}[2][]{\\g@addto@macro\\@author{#2 }}\\makeatother")
+        head += ["\\author%s{%s}" % ("[%s]" % m if m else "", a) for m, a in names]
+        head += ["\\affiliation%s{%s}" % ("[%s]" % m if m else "", a) for m, a in places]
+        authors = affil = []
     if authors:
         head.append("\\author{%s}" % " \\and ".join(authors))
     for e in emails:

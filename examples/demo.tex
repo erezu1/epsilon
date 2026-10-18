@@ -1,0 +1,110 @@
+% A made-up short article, the example of a page with notes (examples/demo-notes.json).
+% Its authors, institute and references are fictional.
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{tikz}
+\usepackage{hyperref}
+
+\newtheorem{proposition}{Proposition}
+\newcommand{\Tr}{\operatorname{Tr}}
+\newcommand{\ket}[1]{\lvert #1 \rangle}
+
+\title{Thermal Echoes in a Two-Level Toy Model}
+\author{Ada Example\thanks{Institute for Imaginary Studies, Nowhere Lane 1, Exampletown}
+  \and Ben Sample\thanks{Department of Hypothetical Physics, University of Elsewhere}}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study the simplest system that still forgets: a single two-level system at temperature $T=1/\beta$, probed
+twice. The return amplitude of the thermal state, its \emph{echo}, decays and revives with period $2\pi/\Delta$,
+and its time average is fixed by the partition function alone. We show how the same structure survives when the
+gap is random, where the revivals wash out and a plateau remains.
+\end{abstract}
+
+\section{Introduction}
+
+A thermal state remembers little. One way to ask how little is to prepare it, let it evolve, and ask how much of it
+comes back. For a large chaotic system the answer decays to a small plateau~\cite{Toy1}; for a small one it
+oscillates. Here we take the smallest example, a two-level system with gap $\Delta$, where everything can be
+computed in closed form, and use it as a guide to the general case\footnote{All numbers in this note are for
+$\hbar = k_B = 1$.}.
+
+\section{The model}
+\label{sec:model}
+
+The Hamiltonian is
+\begin{equation}
+  H = \frac{\Delta}{2}\,\sigma_z , \qquad H\ket{\pm} = \pm\frac{\Delta}{2}\ket{\pm},
+  \label{eq:H}
+\end{equation}
+and its partition function is
+\begin{equation}
+  Z(\beta) = \Tr e^{-\beta H} = 2\cosh\frac{\beta\Delta}{2}.
+  \label{eq:Z}
+\end{equation}
+The \emph{thermal echo} is the overlap of the thermofield double state with itself after a time $t$,
+\begin{equation}
+  \mathcal{E}(t) = \left| \frac{Z(\beta + i t)}{Z(\beta)} \right|^2
+  = \frac{\cosh\beta\Delta + \cos\Delta t}{\cosh\beta\Delta + 1}.
+  \label{eq:echo}
+\end{equation}
+It starts at $\mathcal{E}(0)=1$, falls to its smallest value at $t=\pi/\Delta$, and returns at $t = 2\pi/\Delta$
+(figure~\ref{fig:echo}).
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=0.9cm,y=2.4cm]
+  \draw[->] (0,0) -- (7,0) node[right] {$t$};
+  \draw[->] (0,0) -- (0,1.15) node[above] {$\mathcal{E}$};
+  \draw[dashed] (0,0.61) -- (6.6,0.61) node[right] {\small average};
+  \draw[thick,domain=0:6.6,samples=120,smooth] plot (\x,{(1.54+cos(\x*0.952 r))/(2.54)});
+  \node[below] at (3.3,0) {$\pi/\Delta$};
+  \draw (3.3,0.02) -- (3.3,-0.02);
+\end{tikzpicture}
+\caption{The echo \eqref{eq:echo} for $\beta\Delta = 1$: it never decays for good, it only oscillates about its
+average \eqref{eq:avg}.}
+\label{fig:echo}
+\end{figure}
+
+\section{Time average}
+
+The echo has a simple long-time average.
+
+\begin{proposition}
+\label{prop:avg}
+For any $\beta$,
+\begin{equation}
+  \overline{\mathcal{E}} \equiv \lim_{\tau\to\infty}\frac{1}{\tau}\int_0^\tau \mathcal{E}(t)\, dt
+  = \frac{Z(2\beta)}{Z(\beta)^2}.
+  \label{eq:avg}
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+The cosine in \eqref{eq:echo} averages to zero, leaving $\cosh\beta\Delta/(\cosh\beta\Delta+1)$. Since
+$Z(2\beta) = 2\cosh\beta\Delta$ and $Z(\beta)^2 = 2\cosh\beta\Delta + 2$, this is \eqref{eq:avg}.
+\end{proof}
+
+At high temperature the plateau is $\overline{\mathcal{E}} \to 1/2$, one over the number of states, as for a
+large system~\cite{Toy2}; at low temperature it tends to one, since the ground state alone hardly changes.
+
+\section{A random gap}
+
+Let the gap be drawn from a distribution $\rho(\Delta)$ of width $\sigma$. The echo averaged over the gap,
+\begin{equation}
+  \langle \mathcal{E}(t) \rangle = \int d\Delta\, \rho(\Delta)\, \mathcal{E}(t;\Delta),
+  \label{eq:random}
+\end{equation}
+loses its revivals once $t \gg 1/\sigma$: the cosines of different gaps fall out of phase, and only the average
+of section~\ref{sec:model}'s result remains, a plateau. This is the two-level version of the ramp and plateau of
+larger systems~\cite{Toy1,Toy2}.
+
+\begin{thebibliography}{9}
+\bibitem{Toy1} A.~Example, \emph{How much of a thermal state comes back}, J.~Imag.~Phys.~\textbf{1} (2026) 1.
+\bibitem{Toy2} B.~Sample, \emph{Plateaus without chaos}, Fictional Lett.~\textbf{7} (2025) 42.
+\end{thebibliography}
+
+\end{document}
