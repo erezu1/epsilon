@@ -400,6 +400,24 @@ def strip_comments(text):
     return s.replace("\x01", "")
 
 
+def for_tex(text):
+    """TEXT as written for LaTeX to run, in a folder of its own. A file named from the paper's folder (./poppers.png)
+    is found there only without its ./, as the paper's folder is searched and a path starting ./ is looked for nowhere
+    else. A line too long for TeX (200000 characters: a plot's .pgf, its lines ended by %, joined as comments are
+    taken out) is broken between commands, after a %."""
+    text = re.sub(r"(\\(?:includegraphics|input|include|includepdf)\*?\s*(?:\[[^\]]*\])?\s*\{)\./", r"\1", text)
+    def broken(line):
+        if len(line) <= 50000:
+            return line
+        out, at = [], 0
+        for m in re.finditer(r"(?<=\})(?=\\[A-Za-z])", line):      # (between "}" and a command: no space made)
+            if m.start() - at >= 2000:
+                out.append(line[at:m.start()] + "%")
+                at = m.start()
+        return "\n".join(out + [line[at:]])
+    return "\n".join(broken(l) for l in text.split("\n"))
+
+
 def drop_stray_braces(s):
     """The braces that never pair up, dropped: LaTeX lets a group run on to the end of the document (a stray "{" at a
     paragraph's start, say), but the converter reads groups whole. Verbatim-like environments and \\verb are left be."""
@@ -1090,10 +1108,7 @@ class Converter:
 
     def compile(self, text, stem):
         tex = self.build / (stem + ".tex")
-        # (LaTeX runs in a folder of its own: a file named from the paper's folder, ./poppers.png, is found there
-        # only without its ./, as the paper's folder is searched; a path starting ./ is looked for nowhere else)
-        text = re.sub(r"(\\(?:includegraphics|input|include|includepdf)\*?\s*(?:\[[^\]]*\])?\s*\{)\./", r"\1", text)
-        tex.write_text(text)
+        tex.write_text(for_tex(text))
         env = self.tex_env()
         engine = self.args.engine
 
@@ -1150,7 +1165,11 @@ class Converter:
             errs = [l for l in r.stdout.splitlines() if re.match(r"^.*:\d+: ", l)]
             self.warn("LaTeX reported errors (the page may still be fine): " + (errs[0] if errs else "see log"))
         bbl = self.build / (stem + ".bbl")
-        return aux.read_text(errors="replace"), (bbl.read_text(errors="replace") if bbl.exists() else "")
+        # (revtex's footnotes come back through BibTeX with the accents LaTeX's own way: \protect \mathaccentV {bar}016
+        # is \bar)
+        bib = re.sub(r"\\protect\s*\\mathaccentV\s*\{([A-Za-z]+)\}\s*[0-9A-Fa-f]{3}\s*", r"\\\1",
+                     bbl.read_text(errors="replace")) if bbl.exists() else ""
+        return aux.read_text(errors="replace"), bib
 
     def fetch_missing(self, log):
         """On a machine that allows it (EPSILON_TLMGR set: the path of a file listing what was added), the TeX Live
@@ -2744,11 +2763,16 @@ class Converter:
             # may set its own parameters, \def\scale{2}, for a macro defined in the body)
             body += [t + "\n" for t in (self.setup or [])[done:p["setup"]]]
             done = max(done, p["setup"])
-            body.append("\\sbox0{}\\sbox0{%s}\\typeout{L2MPIC %d \\the\\ht0\\space\\the\\dp0\\space\\the\\wd0}"
-                        "\\begin{preview}\\usebox0\\end{preview}\n" % ((("$\\displaystyle %s$" % p["src"]) if p["math"] else p["src"]), k))
+            # (a picture's own \makeatletter, a plot's .pgf: no use once it is read as the box's argument, so the @
+            # a letter around it)
+            at = "\\makeatletter" in p["src"]
+            body.append(("\\makeatletter" if at else "") +
+                        "\\sbox0{}\\sbox0{%s}\\typeout{L2MPIC %d \\the\\ht0\\space\\the\\dp0\\space\\the\\wd0}"
+                        "\\begin{preview}\\usebox0\\end{preview}" % ((("$\\displaystyle %s$" % p["src"]) if p["math"] else p["src"]), k) +
+                        ("\\makeatother" if at else "") + "\n")
         doc = (pre + "\n\\usepackage[active,tightpage]{preview}\n\\setlength\\PreviewBorder{0pt}\n\\begin{document}\n" +
                "".join(body) + "\\end{document}\n")
-        (self.build / "l2mpics.tex").write_text(doc)
+        (self.build / "l2mpics.tex").write_text(for_tex(doc))
         env = self.tex_env()
         self.info("drawing %d pictures with %s ..." % (len(self.pics), self.args.engine))
         try:
