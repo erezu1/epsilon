@@ -17,8 +17,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      name: github-pages             # (no url: the site's address is not shown on the repo's page)
     steps:
       - uses: actions/checkout@v4
       - name: Release tag in the links (a phone never mixes files of two releases)
