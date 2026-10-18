@@ -555,6 +555,16 @@ class Converter:
         self.used_ids.add(cand)
         return cand
 
+    def fresh_id(self, base):
+        """An id not used yet, from BASE (a heading's title or number): another of the same name gets -2, -3, ..."""
+        base = re.sub(r"[^A-Za-z0-9._~-]+", "-", base).strip("-") or "id"
+        cand, k = base, 2
+        while cand in self.used_ids:
+            cand = "%s-%d" % (base, k)
+            k += 1
+        self.used_ids.add(cand)
+        return cand
+
     # ------------------------------------------------------------------ messages
     def warn(self, msg):
         self.warnings[msg] = self.warnings.get(msg, 0) + 1
@@ -579,13 +589,25 @@ class Converter:
         def rep(m):
             name = (m.group(2) or m.group(3)).strip()
             p = self.find_file(name, basedir, [".tex", ""])
-            if p is None or p.suffix not in (".tex", ".bbl", ""):
+            if p is None or p.suffix not in (".tex", ".bbl", "", ".pgf", ".tikz"):   # (a figure's code too: .pgf, .tikz)
                 if p is None:
                     self.warn("could not find \\%s{%s}" % (m.group(1), name))
                 return m.group(0)
             sub = strip_comments(p.read_text(errors="replace"))
             return self.inline_inputs(sub, p.parent, depth + 1)
 
+        def imp(m):                     # the import package: \import{dir}{file}, \subimport, \inputfrom, \includefrom
+            d, name = m.group(2).strip(), m.group(3).strip()
+            base = (basedir / d) if d else basedir
+            p = self.find_file(name, base, [".tex", ""])
+            if p is None or p.suffix not in (".tex", "", ".pgf", ".tikz"):
+                if p is None:
+                    self.warn("could not find \\%s{%s}{%s}" % (m.group(1), d, name))
+                return m.group(0)
+            sub = strip_comments(p.read_text(errors="replace"))
+            return self.inline_inputs(sub, p.parent, depth + 1)
+
+        text = re.sub(r"\\(subimport|import|inputfrom|includefrom|subinputfrom|subincludefrom)\*?\s*\{([^}]*)\}\s*\{([^}]*)\}", imp, text)
         return re.sub(r"\\(input|include)\s*(?:\{([^}]*)\}|(?<=\s)([^\s{}\\]+\.tex))", rep, text)
 
     # ------------------------------------------------------------------ definitions
@@ -1036,6 +1058,9 @@ class Converter:
 
     def compile(self, text, stem):
         tex = self.build / (stem + ".tex")
+        # (LaTeX runs in a folder of its own: a file named from the paper's folder, ./poppers.png, is found there
+        # only without its ./, as the paper's folder is searched; a path starting ./ is looked for nowhere else)
+        text = re.sub(r"(\\(?:includegraphics|input|include|includepdf)\*?\s*(?:\[[^\]]*\])?\s*\{)\./", r"\1", text)
         tex.write_text(text)
         env = self.tex_env()
         engine = self.args.engine
@@ -1301,7 +1326,7 @@ class Converter:
                   "tr": "\\operatorname{tr}", "widecheck": ["\\check{#1}", 1], "tcboxmath": ["\\boxed{#1}", 1],
                   "footnote": ["", 1], "footnotesize": "", "small": "", "toprule": "\\hline", "midrule": "\\hline",
                   "bottomrule": "\\hline", "href": ["#2", 2], "relax": "", "ensuremath": ["#1", 1],
-                  "bbone": "\\mathbb{1}", "one": "\\mathbb{1}", "tikzsetnextfilename": ["", 1],
+                  "bbone": "\\mathbb{1}", "one": "\\mathbb{1}", "tikzsetnextfilename": ["", 1], "nicefrac": ["{}^{#1}\\!/\\!{}_{#2}", 2],
                   "raisebox": ["\\raise{#1}{#2}", 2]}
         for k, v in extras.items():
             macros.setdefault(k, v)
@@ -2265,12 +2290,14 @@ class Converter:
         num = self.number_html(labs[0]) if (labs and not star) else ""
         user = [l for l in labs if not l.startswith(AUTO)]
         if user:
-            hkey = user[0]
-        elif num:
-            hkey = "section-" + plain_text(num)
+            hid = self.sid(user[0])
         else:
-            hkey = re.sub(r"[^a-z0-9]+", "-", plain_text(title or "").lower()).strip("-") or "section"
-        hid = self.sid(hkey)
+            # (no label of its own: by its number, or by its title, and never another heading's: two "Standard
+            # solutions" in two sections, or numbers LaTeX could not give, get ids of their own)
+            n = plain_text(num) if num else ""
+            hkey = ("section-" + n) if re.search(r"[A-Za-z0-9]", n) else \
+                (re.sub(r"[^a-z0-9]+", "-", plain_text(title or "").lower()).strip("-") or "section")
+            hid = self.fresh_id(hkey)
         if cmd == "part":
             tag, toc = "h2", 1
             num = ("Part " + num) if num else ""
