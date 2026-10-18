@@ -2,7 +2,7 @@
 
 Turns a LaTeX article into a paper you can read comfortably on a phone.
 
-![The reading app on a phone: Witten's "Anti De Sitter Space And Holography" (hep-th/9802150), searched for \phi_0 (the match inside equation 2.11 highlighted), the paper's marks and notes, and the dark theme](examples/app.png)
+![The reading app on a phone: Witten's "Anti De Sitter Space And Holography" (hep-th/9802150), searched for \phi_0 (the match inside equation 2.11 highlighted), its contents, and a marked passage with its note in the dark theme](examples/app.png)
 
 It works in three separate parts:
 
