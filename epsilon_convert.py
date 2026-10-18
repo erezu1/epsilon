@@ -3335,6 +3335,10 @@ def save_doc(doc, folder, cache=None):
     pat = re.compile(r'src="data:([\w/+.-]+);base64,([A-Za-z0-9+/=]+)"')
     doc = dict(doc, body=pat.sub(extract, doc["body"]),
                footnotes=[dict(f, html=pat.sub(extract, f["html"])) for f in doc["footnotes"]])
+    # the pictures inside formulas, as files too: drawn into math.json, they are not also sent in paper.json
+    pics = doc["math"].get("pictures")
+    if pics:
+        doc["math"] = dict(doc["math"], pictures={k: pat.sub(extract, 'src="%s"' % v)[5:-1] for k, v in pics.items()})
     (folder / "paper.json").write_text(json.dumps(doc, ensure_ascii=False, indent=1))
 
 
@@ -3359,7 +3363,22 @@ def load_doc(path):
     doc["body"] = pat.sub(inline, doc["body"])
     for f in doc["footnotes"]:
         f["html"] = pat.sub(inline, f["html"])
+    doc["math"]["pictures"] = picture_uris(doc["math"].get("pictures"), folder)
     return doc
+
+
+def picture_uris(pics, folder):
+    """The pictures inside formulas (paper.json's math.pictures) as data: URIs, those kept as files in FOLDER/images/
+    read in (a document written before they were files has them as URIs already)."""
+    if not pics:
+        return pics
+    mime = {v: k for k, v in IMAGE_EXT.items()}
+    out = {}
+    for k, v in pics.items():
+        f = Path(folder) / v if not v.startswith("data:") else None
+        out[k] = ("data:%s;base64,%s" % (mime.get(f.suffix[1:], "application/octet-stream"), base64.b64encode(f.read_bytes()).decode())
+                  if f and f.is_file() else v)
+    return out
 
 
 def main():

@@ -5,7 +5,7 @@
 ```
 paper.l2m/
   paper.json        the document
-  images/           figures, one file each, named by a hash of their content
+  images/           figures and the pictures inside formulas, one file each, named by a hash of their content
   math.json         every formula drawn once (a cache, see below)
 ```
 
@@ -28,6 +28,7 @@ Reconvert from LaTeX only when the converter itself changes: how LaTeX is read, 
 | `footnotes` | `[{n, html}]` |
 | `math.items` | `[{tex, display}]`, one per formula, in the order they are referenced |
 | `math.macros`, `math.packages` | the paper's macros and the MathJax packages, enough to render any item on its own |
+| `math.pictures` | `{n: "images/<hash>.svg"}`, only when formulas hold pictures LaTeX drew (TikZ in math): each picture's file, put into its formulas when they are drawn (so `math.json` carries them, and `paper.json` only names them) |
 | `math.key` | a fingerprint of `math`, so a cache of drawn formulas can be checked against it |
 | `warnings` | `{message: count}` from the conversion |
 

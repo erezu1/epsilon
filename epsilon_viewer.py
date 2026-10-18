@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from epsilon_convert import DOC_FORMAT, DOC_VERSION, draw_math, load_math  # noqa: E402
+from epsilon_convert import DOC_FORMAT, DOC_VERSION, draw_math, load_math, picture_uris  # noqa: E402
 from epsilon_render import ascii_html, inline_json  # noqa: E402
 
 VIEWER = HERE / "viewer"
@@ -64,6 +64,7 @@ def build(a):
         if folder.is_file():
             folder = folder.parent
         doc = json.loads((folder / "paper.json").read_text())
+        doc["math"]["pictures"] = picture_uris(doc["math"].get("pictures"), folder)
         if doc.get("format") != DOC_FORMAT or doc.get("version", 0) > DOC_VERSION:
             sys.exit("epsilon_viewer: %s is not a document this viewer reads" % folder)
         path = "papers/" + doc_name(folder)
