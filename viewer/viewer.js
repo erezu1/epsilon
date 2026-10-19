@@ -112,13 +112,25 @@
 
   // ------------------------------------------------------------------ the chrome, from the theme
   // The authors' names, each a tap to their affiliations (in the notes' sheet): the affiliations and the marks then
-  // not shown under and beside the names. Only when every name is found in the line, and the paper gives its
-  // affiliations as data (paper.json's affiliations and authorAffiliations). The words stay in the page, unseen, so
-  // that the paper's text (where marks are placed) is the same.
+  // not shown under and beside the names. Only when every name is found in the line. The affiliations are paper.json's
+  // (affiliations, authorAffiliations); a paper converted before it had them, those the title block shows (its
+  // p.affil lines, each with its mark, and the marks after the names). The words stay in the page, unseen, so that
+  // the paper's text (where marks are placed) is the same.
+  function affilsShown(tm) {
+    return Array.prototype.map.call(tm.querySelectorAll(".affil"), function (q) {
+      var c = q.cloneNode(true), mk = c.firstElementChild && c.firstElementChild.tagName === "SUP" && !c.firstElementChild.classList.contains("fnref") ? c.firstElementChild : null;
+      if (mk) mk.remove();
+      Array.prototype.forEach.call(c.querySelectorAll("br"), function (b) { b.replaceWith(", "); });
+      Array.prototype.forEach.call(c.querySelectorAll("sup.fnref"), function (f) { f.remove(); });
+      return {mark: mk ? mk.textContent.trim() : null, text: c.textContent.replace(/\s+/g, " ").replace(/\s*,(\s*,)+/g, ",").trim().replace(/^,\s*|\s*,$/g, "")};
+    }).filter(function (x) { return x.text; });
+  }
   function tapNames(main, doc) {
-    var affs = doc.affiliations || [], names = doc.authors || [], per = doc.authorAffiliations || [];
+    var names = doc.authors || [];
     var tm = main.querySelector(".titlemeta"), line = tm && tm.querySelector(".authors");
-    if (!affs.length || !names.length || !line) return;
+    if (!names.length || !line) return;
+    var given = !!doc.affiliations, affs = given ? doc.affiliations : affilsShown(tm), per = doc.authorAffiliations || [];
+    if (!affs.length) return;
     var nodes = [], text = "";
     var walk = document.createTreeWalker(line, NodeFilter.SHOW_TEXT, {acceptNode: function (n) {
       return n.parentNode.closest("sup, mjx-container, l2m-math") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
@@ -139,19 +151,30 @@
       found.push([m.index, m.index + m[0].length]);
       from = m.index + m[0].length;
     }
+    var spans = [];
     for (k = found.length - 1; k >= 0; k--) {   // (from the last: the places before it stay where they are)
       var a = where(found[k][0], false), b = where(found[k][1], true), r = document.createRange();
       r.setStart(a.n, a.o); r.setEnd(b.n, b.o);
-      var marks = per[k] || [], lines = affs.filter(function (x) { return x.mark && marks.indexOf(x.mark) >= 0; });
-      if (!lines.length) lines = affs;         // (no marks, or none that match: all of them)
       var span = document.createElement("span");
       span.className = "l2m-au";
       span.setAttribute("role", "button");
       span.setAttribute("tabindex", "0");
-      span.setAttribute("data-affil", JSON.stringify(lines.map(function (x) { return x.text; })));
       span.appendChild(r.extractContents());
       r.insertNode(span);
+      spans[k] = span;
     }
+    spans.forEach(function (span, k) {
+      var marks = per[k] || [];
+      if (!given) {                            // (the marks shown after the name, up to the next name)
+        marks = [];
+        for (var x = span.nextSibling; x && !(x.classList && x.classList.contains("l2m-au")); x = x.nextSibling) {
+          if (x.tagName === "SUP" && !x.classList.contains("fnref")) marks = marks.concat(x.textContent.split(/[,\s]+/).filter(Boolean));
+        }
+      }
+      var lines = affs.filter(function (x) { return x.mark && marks.indexOf(x.mark) >= 0; });
+      if (!lines.length) lines = affs;         // (no marks, or none that match: all of them)
+      span.setAttribute("data-affil", JSON.stringify(lines.map(function (x) { return x.text; })));
+    });
     tm.classList.add("l2m-au-on");
   }
 
