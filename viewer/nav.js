@@ -539,7 +539,8 @@ window.L2M_nav = function (opts) {
     varkappa: "kappa", varGamma: "Gamma", varDelta: "Delta", varTheta: "Theta", varLambda: "Lambda", varXi: "Xi", varPi: "Pi",
     varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
     varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
-    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac"};
+    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac",
+    text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm"};   // (upright text, as \mathrm)
   function alts(name) {
     var one = SAME[name] || name, out = [];
     [one].concat(Object.keys(SAME).filter(function (k) { return SAME[k] === one; })).forEach(function (n) {
@@ -608,7 +609,7 @@ window.L2M_nav = function (opts) {
   var ACCS = "hat|bar|tilde|vec|dot|ddot|check|breve|acute|grave|widehat|widetilde|overline|underline|mathring";
   var INSIDE = "((?:[^{}]|\\{[^{}]*\\})*)";      // (what a font or an accent holds: a group within too, \bar{\mathbf{a}})
   var FONTED = new RegExp("\\\\(" + FONTS + ")\\{" + INSIDE + "\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{" + INSIDE + "\\}", "g");
-  var HAS_FONT = new RegExp("\\\\(" + FONTS + ")\\{"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")\\{");
+  var HAS_FONT = new RegExp("\\\\(" + FONTS + ")(?![A-Za-z])"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])");   // (\mathrm alone too)
   var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
   var plainMemo = [];                  // (by how the query reads: with or without fonts, accents, primes)
   function plainly(t, q) {             // the formula's TeX as a plain query reads it
@@ -842,7 +843,11 @@ window.L2M_nav = function (opts) {
     t = uniTeX(physics(expand(t))).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
     t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"));
-    t = t.replace(OLDFONT, function (x, f, a, g, b) { return "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}"; });
+    t = t.replace(OLDFONT, function (x, f, a, g, b, at, all) {   // (a script's own braces kept: S_{\rm gen} is S_{\mathrm{gen}})
+      var y = "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}";
+      return f && /[_^]\s*$/.test(all.slice(Math.max(0, at - 3), at)) ? "{" + y + "}" : y;
+    });
+    t = t.replace(/([_^])\s*(\\[A-Za-z]+\s*\{[^{}]*\})/g, "$1{$2}");   // (S_\text{gen} as S_{\text{gen}})
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
     t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
     t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])?(\\[A-Za-z]+|[^{\\\s])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
