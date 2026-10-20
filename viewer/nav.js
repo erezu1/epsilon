@@ -606,7 +606,8 @@ window.L2M_nav = function (opts) {
   // B' > 1, for B>1); asked for in a font, with an accent or a prime, only so
   var FONTS = "mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm";
   var ACCS = "hat|bar|tilde|vec|dot|ddot|check|breve|acute|grave|widehat|widetilde|overline|underline|mathring";
-  var FONTED = new RegExp("\\\\(" + FONTS + ")\\{([^{}]*)\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{([^{}]*)\\}", "g");
+  var INSIDE = "((?:[^{}]|\\{[^{}]*\\})*)";      // (what a font or an accent holds: a group within too, \bar{\mathbf{a}})
+  var FONTED = new RegExp("\\\\(" + FONTS + ")\\{" + INSIDE + "\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{" + INSIDE + "\\}", "g");
   var HAS_FONT = new RegExp("\\\\(" + FONTS + ")\\{"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")\\{");
   var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
   var plainMemo = [];                  // (by how the query reads: with or without fonts, accents, primes)
@@ -665,7 +666,7 @@ window.L2M_nav = function (opts) {
     if (ODD[font] && ODD[font][c]) codes.push(ODD[font][c]);
     else if (base) codes.push(hex(base + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
     if (font === "boldsymbol" || font === "bm") codes.push(hex(FROM.mathbf[at] + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
-    if (font === "mathit" && at < 2) codes.push(hex((at ? 0x1D44E : 0x1D434) + k - (at ? 97 : 65)));
+    if (font === "mathit" && at < 2) codes.push(c === "h" ? "210E" : hex((at ? 0x1D44E : 0x1D434) + k - (at ? 97 : 65)));   // (an italic h: Planck's)
     return codes;
   }
   function glyphsOf(q) {
@@ -698,6 +699,7 @@ window.L2M_nav = function (opts) {
         else if (OPNAME.test(name)) { for (var o = 0; o < name.length; o++) out.push([hex(name.charCodeAt(o))]); }
         else if (OPS[name]) out.push(alts(name));
         else if (name === "{" || name === "}") out.push([hex(name.charCodeAt(0))]);
+        else if (name === "|") out.push(["2016", "2225"]);
         else if (!QUIET.test(name)) return null;
         continue;
       }
@@ -771,6 +773,44 @@ window.L2M_nav = function (opts) {
     }
     return t;
   }
+  // the physics and braket packages' commands as what they draw, in queries and formulas alike: \ket{\psi} finds
+  // |\psi\rangle, and |\psi\rangle finds \ket{\psi} (a paper's own definition of one of them wins: written out first)
+  var PHYS = {ket: [1, 1], bra: [1, 1], braket: [1, 2], ketbra: [2, 2], expval: [1, 2], mel: [3, 3], abs: [1, 1], norm: [1, 1],
+    dv: [1, 2], pdv: [1, 2], order: [1, 1], comm: [2, 2]};
+  var PHYS_RE = /\\(ketbra|ket|braket|bra|expval|mel|abs|norm|dv|pdv|order|comm)(?![A-Za-z])\*?/g;
+  function physics(t) {
+    if (t.search(PHYS_RE) < 0) return t;
+    var out = "", i = 0, m;
+    while ((PHYS_RE.lastIndex = i, m = PHYS_RE.exec(t))) {
+      var name = m[1], at = PHYS_RE.lastIndex, args = [], want = PHYS[name];
+      if (typeof MACROS[name] === "string") { out += t.slice(i, at); i = at; continue; }
+      while (args.length < want[1]) {
+        var j = at;
+        while (t.charAt(j) === " ") j++;
+        if (t.charAt(j) === "{") {
+          for (var d = 0, e = j; e < t.length; e++) { if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) break; }
+          if (e >= t.length) break;
+          args.push(physics(t.slice(j + 1, e))); at = e + 1;
+        } else if (args.length < want[0] && t.charAt(j)) {
+          var tk = /^\\([A-Za-z]+|.)|^./.exec(t.slice(j));
+          args.push(tk[0]); at = j + tk[0].length;
+        } else break;
+      }
+      if (args.length < want[0]) { out += t.slice(i, at); i = at; continue; }
+      var a = args[0], b = args[1], c = args[2], drawn =
+        name === "ket" ? "|" + a + "\\rangle" : name === "bra" ? "\\langle " + a + "|" :
+        name === "braket" ? "\\langle " + a + "|" + (b != null ? b : a) + "\\rangle" :
+        name === "ketbra" ? "|" + a + "\\rangle\\langle " + b + "|" :
+        name === "expval" ? (b != null ? "\\langle " + b + "|" + a + "|" + b + "\\rangle" : "\\langle " + a + "\\rangle") :
+        name === "mel" ? "\\langle " + a + "|" + b + "|" + c + "\\rangle" : name === "abs" ? "|" + a + "|" :
+        name === "norm" ? "\\|" + a + "\\|" : name === "order" ? "\\mathcal{O}(" + a + ")" : name === "comm" ? "[" + a + "," + b + "]" :
+        (b != null ? "\\frac{" + (name === "dv" ? "d" : "\\partial ") + a + "}{" + (name === "dv" ? "d" : "\\partial ") + b + "}"
+                   : "\\frac{" + (name === "dv" ? "d" : "\\partial ") + "}{" + (name === "dv" ? "d" : "\\partial ") + a + "}");
+      out += t.slice(i, m.index) + drawn + " ";
+      i = at;
+    }
+    return out + t.slice(i);
+  }
   var SIZES = /\\(left|right|middle|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|bigm|Bigm)(?![A-Za-z])\s*\.?/g;
   var NAMED_FA = new RegExp("\\\\(" + FONTS + "|" + ACCS + ")\\s*([A-Za-z0-9]|\\\\[A-Za-z]+)(?![A-Za-z])", "g");
   function fracBraces(t) {             // \frac12, \frac a{b}: \frac{1}{2}, \frac{a}{b}
@@ -799,7 +839,7 @@ window.L2M_nav = function (opts) {
     t = t || "";
     if (normed.hasOwnProperty(t)) return normed[t];
     var was = t;
-    t = uniTeX(expand(t)).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
+    t = uniTeX(physics(expand(t))).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
     t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"));
     t = t.replace(OLDFONT, function (x, f, a, g, b) { return "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}"; });
@@ -812,6 +852,7 @@ window.L2M_nav = function (opts) {
   // a word written in a formula (V_{\mathbf{leading}}, \text{if }x>0, \operatorname{Res}): the letters of its text and
   // font groups, each with the font it is drawn in; letters in a row outside them are variables, never a word
   var WORDED = /\\(text|textup|textnormal|mbox|hbox|mathrm|mathbf|mathsf|mathtt|mathit|operatorname\*?|boldsymbol|bm)\{/g;
+  var SCRIPTED = /[_^]\{([A-Za-z]{3,})\}/g;
   function wordsIn(t) {
     var out = [], m;
     WORDED.lastIndex = 0;
@@ -833,6 +874,12 @@ window.L2M_nav = function (opts) {
       })(m.index + m[0].length, font);
       out.push(letters);
       WORDED.lastIndex = m.index + m[0].length;
+    }
+    // a script that is a word, V(s,u)_{leading}: its braces holding letters only, three or more, in the italic it is
+    // drawn in (_{ij}, _{a+b}, _{\mu\nu} are no words)
+    SCRIPTED.lastIndex = 0;
+    while ((m = SCRIPTED.exec(t))) {
+      out.push(m[1].split("").map(function (c) { return {c: c, font: "mathit"}; }));
     }
     return out;
   }
@@ -949,7 +996,7 @@ window.L2M_nav = function (opts) {
       forms.forEach(function (f) {
         if (had.has(f.el)) return;                    // (found already, as TeX)
         var tex = opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "";
-        if (!tex || (tex = texNorm(tex)).search(WORDED) < 0) return;
+        if (!tex || ((tex = texNorm(tex)).search(WORDED) < 0 && tex.search(SCRIPTED) < 0)) return;
         var seqs = wordSeqs(tex, what.word);
         if (!seqs.length) return;
         var drawn = f.el.tagName !== "L2M-MATH", lazy = drawn && f.el.hasAttribute("data-lazy") && window.L2M_math, got = 0;
