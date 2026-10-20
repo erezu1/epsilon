@@ -597,6 +597,7 @@ window.L2M_nav = function (opts) {
     else if (/^[A-Za-z]{3,}$/.test(q) && (OPS[q] || OPNAME.test(q))) w.tex = "\\" + q;   // "sum", "log": the word, and the command
     if (!w.text && !w.tex && !w.glyph) return null;              // (too short to look for yet)
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
+    if (/^[A-Za-z]{3,}$/.test(q)) w.word = q.toLowerCase();   // "leading": in the text, and as written in formulas
     var cm = /^\[\s*([0-9A-Za-z]+)\s*\]$/.exec(q);
     if (cm) w.cite = cm[1];                 // "[66]": that reference cited anywhere, [34, 66, 78] too (and its entry)
     return w;
@@ -808,6 +809,44 @@ window.L2M_nav = function (opts) {
     if (++normedN > 20000) { normed = {}; normedN = 0; }
     return (normed[was] = t);
   }
+  // a word written in a formula (V_{\mathbf{leading}}, \text{if }x>0, \operatorname{Res}): the letters of its text and
+  // font groups, each with the font it is drawn in; letters in a row outside them are variables, never a word
+  var WORDED = /\\(text|textup|textnormal|mbox|hbox|mathrm|mathbf|mathsf|mathtt|mathit|operatorname\*?|boldsymbol|bm)\{/g;
+  function wordsIn(t) {
+    var out = [], m;
+    WORDED.lastIndex = 0;
+    while ((m = WORDED.exec(t))) {
+      var font = /^(mathbf|mathsf|mathtt|mathit|boldsymbol|bm)$/.test(m[1]) ? m[1] : "mathrm", letters = [];
+      (function read(i, font) {             // the group from i (just past its "{"): its letters, nested fonts within
+        for (var d = 1; i < t.length; i++) {
+          var c = t.charAt(i), sub = /^\\([A-Za-z]+)\{/.exec(t.slice(i, i + 20));
+          if (sub && /^(mathbf|mathsf|mathtt|mathit|mathrm|boldsymbol|bm|text|textup)$/.test(sub[1])) {
+            i = read(i + sub[0].length, /^(text|textup)$/.test(sub[1]) ? font : sub[1]);
+            continue;
+          }
+          if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)); i += cm[0].length - 1; letters.push(null); continue; }
+          if (c === "{") d++;
+          else if (c === "}") { if (!--d) return i; }
+          else letters.push(/[A-Za-z]/.test(c) ? {c: c, font: font} : null);
+        }
+        return i;
+      })(m.index + m[0].length, font);
+      out.push(letters);
+      WORDED.lastIndex = m.index + m[0].length;
+    }
+    return out;
+  }
+  function wordSeqs(t, word) {              // for each place the word is written in t: the glyphs that draw it
+    var seqs = [];
+    wordsIn(t).forEach(function (ls) {
+      var s = ls.map(function (l) { return l ? l.c.toLowerCase() : "\u0000"; }).join(""), i = s.indexOf(word);
+      while (i >= 0) {
+        seqs.push(ls.slice(i, i + word.length).map(function (l) { return fontGlyph(l.font, l.c); }));
+        i = s.indexOf(word, i + word.length);
+      }
+    });
+    return seqs;
+  }
   function findRun() {
     foundBack();
     findClear();
@@ -903,6 +942,32 @@ window.L2M_nav = function (opts) {
         if (!got && (!what.glyph || texHas(tex, what.tex))) {                                // the formula as a whole
           found.push({at: f.at, el: f.el});      // (marked as it is drawn in, near the view; the one gone to, at once)
         }
+      });
+    }
+    if (what.word) {
+      var had = new Set(found.map(function (h) { return h.el; }));
+      forms.forEach(function (f) {
+        if (had.has(f.el)) return;                    // (found already, as TeX)
+        var tex = opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "";
+        if (!tex || (tex = texNorm(tex)).search(WORDED) < 0) return;
+        var seqs = wordSeqs(tex, what.word);
+        if (!seqs.length) return;
+        var drawn = f.el.tagName !== "L2M-MATH", lazy = drawn && f.el.hasAttribute("data-lazy") && window.L2M_math, got = 0;
+        if (drawn) {
+          var gl = lazy ? null : f.el.querySelectorAll("[data-c]");
+          var codes = lazy ? L2M_math.codes(+f.el.getAttribute("data-n")) : Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
+          seqs.forEach(function (seq) {
+            for (var i = 0; i + seq.length <= codes.length; i++) {
+              var ok = true;
+              for (var j = 0; j < seq.length && ok; j++) ok = seq[j].indexOf(codes[i + j]) >= 0;
+              if (!ok) continue;
+              if (found.some(function (h) { return h.el === f.el && h.span && h.span[0] === i; })) continue;   // (the same place, written twice)
+              found.push({at: f.at + (got++) * 1e-4, el: f.el, span: [i, i + seq.length], glyphs: gl ? Array.prototype.slice.call(gl, i, i + seq.length) : null});
+              break;
+            }
+          });
+        }
+        if (!got) found.push({at: f.at, el: f.el});   // (its drawing not read: the formula as a whole)
       });
     }
     found.sort(function (x, y) { return x.at - y.at; });
