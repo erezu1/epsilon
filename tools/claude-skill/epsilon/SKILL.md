@@ -10,7 +10,7 @@ references, a contents panel, footnotes in a sheet, citations, figures and TikZ,
 light/dark). The tools live in one folder:
 
 ```bash
-E="/Users/urbach/IAS Dropbox/Erez Urbach/research/epsilon"
+E="/Users/urbach/IAS Dropbox/Erez Urbach/code_proj/epsilon"
 ```
 
 ## 1. Push a note into the app
