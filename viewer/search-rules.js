@@ -19,7 +19,8 @@ globalThis.L2M_searchRules = function (MACROS) {
     "θ": "theta", "ϑ": "vartheta", "ι": "iota", "κ": "kappa", "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi", "π": "pi", "ρ": "rho",
     "σ": "sigma", "ς": "varsigma", "τ": "tau", "υ": "upsilon", "ϕ": "phi", "φ": "varphi", "χ": "chi", "ψ": "psi", "ω": "omega",
     "Γ": "Gamma", "Δ": "Delta", "Θ": "Theta", "Λ": "Lambda", "Ξ": "Xi", "Π": "Pi", "Σ": "Sigma", "Υ": "Upsilon", "Φ": "Phi",
-    "Ψ": "Psi", "Ω": "Omega", "ℓ": "ell", "ℏ": "hbar", "∂": "partial", "∇": "nabla", "∞": "infty"};
+    "Ψ": "Psi", "Ω": "Omega", "ℓ": "ell", "ℏ": "hbar", "∂": "partial", "∇": "nabla", "∞": "infty", "ϖ": "varpi", "ϱ": "varrho",
+    "ϰ": "varkappa"};
 
   // one symbol spelled in several ways (\varepsilon and \epsilon, \le and \leq and <=, ...): all one, both in what is
   // asked and in the formulas' TeX (SAME: each spelling's one), and as drawn (alts: the drawings of each)
@@ -27,13 +28,15 @@ globalThis.L2M_searchRules = function (MACROS) {
     varkappa: "kappa", varGamma: "Gamma", varDelta: "Delta", varTheta: "Theta", varLambda: "Lambda", varXi: "Xi", varPi: "Pi",
     varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
     varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
-    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac",
+    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
+  stackrel: "overset", Box: "square", operatorname: "mathrm", bm: "boldsymbol",
     text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm"};   // (upright text, as \mathrm)
   function alts(name) {
     var one = SAME[name] || name, out = [];
     [one].concat(Object.keys(SAME).filter(function (k) { return SAME[k] === one; })).forEach(function (n) {
       var c = GLYPH[n] || OPS[n];
       if (c && out.indexOf(c) < 0) out.push(c);
+      (OPS_TOO[n] || []).forEach(function (x) { if (out.indexOf(x) < 0) out.push(x); });
     });
     return out;
   }
@@ -41,7 +44,13 @@ globalThis.L2M_searchRules = function (MACROS) {
   var UNI = {"≤": "leq", "≥": "geq", "≠": "neq", "≈": "approx", "∼": "sim", "≡": "equiv", "∝": "propto", "∫": "int",
     "∮": "oint", "∑": "sum", "∏": "prod", "√": "sqrt", "→": "rightarrow", "←": "leftarrow", "⊗": "otimes", "⊕": "oplus",
     "∈": "in", "⊂": "subset", "±": "pm", "∓": "mp", "×": "times", "·": "cdot", "⋅": "cdot", "⟨": "langle", "⟩": "rangle",
-    "†": "dagger", "…": "ldots", "⋯": "cdots", "∧": "wedge", "∨": "vee", "∩": "cap", "∪": "cup", "∘": "circ", "∗": "ast"};
+    "†": "dagger", "…": "ldots", "⋯": "cdots", "∧": "wedge", "∨": "vee", "∩": "cap", "∪": "cup", "∘": "circ", "∗": "ast",
+    "◦": "circ", "∀": "forall", "∃": "exists", "¬": "neg", "≪": "ll", "≫": "gg", "≃": "simeq", "≅": "cong", "∉": "notin",
+    "⊆": "subseteq", "⊃": "supset", "⊇": "supseteq", "↦": "mapsto", "⇒": "Rightarrow", "⇔": "Leftrightarrow",
+    "⟹": "Longrightarrow", "⟺": "Longleftrightarrow", "⟶": "longrightarrow", "⊥": "perp", "≺": "prec", "≻": "succ",
+    "≲": "lesssim", "≳": "gtrsim", "∖": "setminus", "‡": "ddagger", "⋄": "diamond", "□": "square", "∠": "angle", "⋮": "vdots",
+    "⋱": "ddots", "⌊": "lfloor", "⌋": "rfloor", "⌈": "lceil", "⌉": "rceil", "⋃": "bigcup", "⋂": "bigcap", "⨁": "bigoplus",
+    "⨂": "bigotimes", "ϖ": "varpi", "ϱ": "varrho", "∥": "parallel", "‖": "|"};
   var SUPS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ", SUPT = "0123456789+-=()ni", SUBS = "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎", SUBT = "0123456789+-=()";
   function uniTeX(q) {
     if (!/[^\x00-\x7f]/.test(q)) return q;
@@ -100,6 +109,9 @@ globalThis.L2M_searchRules = function (MACROS) {
   var HAS_FONT = new RegExp("\\\\(" + FONTS + ")(?![A-Za-z])"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])");   // (\mathrm alone too)
   var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
   var plainMemo = [];                  // (by how the query reads: with or without fonts, accents, primes)
+  // a script of one token, its braces off (x^{2}: x^2), a command kept apart from a letter after it (^{\infty}n: ^\infty n)
+  var SCRIPT1 = /([_^])\{([^{}\\]|\\[A-Za-z]+)\}(?=([A-Za-z])?)/g;
+  function script1(x, s, a, next) { return s + a + (next && a.charAt(0) === "\\" ? " " : ""); }
   function plainly(t, q) {             // the formula's TeX as a plain query reads it
     var font = HAS_FONT.test(q), acc = HAS_ACC.test(q), prime = /'|\\prime/.test(q);
     var memo = plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] || (plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] = new Map());
@@ -109,7 +121,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     if (!font) t = t.replace(FONTED, "$2");
     if (!acc) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, "$2");
     if (!prime) t = t.replace(PRIMED, "");
-    t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");     // (^{\sf F}, the font gone: ^F, as texNorm has it)
+    t = t.replace(SCRIPT1, script1);     // (^{\sf F}, the font gone: ^F, as texNorm has it)
     memo.set(t0, t);
     return t;
   }
@@ -135,8 +147,19 @@ globalThis.L2M_searchRules = function (MACROS) {
     langle: "27E8", rangle: "27E9", dagger: "2020", ldots: "2026", cdots: "22EF", to: "2192", rightarrow: "2192", leftarrow: "2190",
     leq: "2264", le: "2264", geq: "2265", ge: "2265", neq: "2260", ne: "2260", approx: "2248", sim: "223C", equiv: "2261",
     propto: "221D", otimes: "2297", oplus: "2295", wedge: "2227", vee: "2228", cap: "2229", cup: "222A", in: "2208",
-    subset: "2282", mid: "2223", prime: "2032", star: "22C6", ast: "2217", circ: "2218", bullet: "2219"};
-  var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle)$/;
+    subset: "2282", mid: "2223", prime: "2032", star: "22C6", ast: "2217", circ: "2218", bullet: "2219",
+    forall: "2200", exists: "2203", neg: "AC", lnot: "AC", ll: "226A", gg: "226B", simeq: "2243", cong: "2245", doteq: "2250",
+    notin: "2209", ni: "220B", subseteq: "2286", supset: "2283", supseteq: "2287", mapsto: "21A6", Rightarrow: "21D2",
+    Leftarrow: "21D0", Leftrightarrow: "21D4", leftrightarrow: "2194", longrightarrow: "27F6", longleftarrow: "27F5",
+    longleftrightarrow: "27F7", Longrightarrow: "27F9", Longleftarrow: "27F8", Longleftrightarrow: "27FA", uparrow: "2191",
+    downarrow: "2193", perp: "22A5", prec: "227A", succ: "227B", preceq: "2AAF", succeq: "2AB0", lesssim: "2272", gtrsim: "2273",
+    setminus: "2216", ddagger: "2021", diamond: "22C4", square: "25A1", angle: "2220", vdots: "22EE", ddots: "22F1",
+    lfloor: "230A", rfloor: "230B", lceil: "2308", rceil: "2309", bigcup: "22C3", bigcap: "22C2", bigoplus: "2A01",
+    bigotimes: "2A02", bigodot: "2A00", coprod: "2210", ominus: "2296", odot: "2299", oslash: "2298", vdash: "22A2",
+    models: "22A8", div: "F7", iint: "222C", iiint: "222D", top: "22A4", coloneqq: "2254", triangle: "25B3", sqcup: "2294", sqcap: "2293"};
+  // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
+  var OPS_TOO = {circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"]};
+  var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
   var SYM = {"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
     "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"};
   function hex(c) { return c.toString(16).toUpperCase(); }
@@ -158,6 +181,10 @@ globalThis.L2M_searchRules = function (MACROS) {
     if (font === "mathit" && at < 2) codes.push(c === "h" ? "210E" : hex((at ? 0x1D44E : 0x1D434) + k - (at ? 97 : 65)));   // (an italic h: Planck's)
     return codes;
   }
+  // an accent's drawing, after what it is over (as TeX's PDF and MathJax both draw it)
+  var ACC_DRAWN = {hat: ["5E", "2C6", "302"], widehat: ["5E", "2C6", "302"], bar: ["AF", "2C9", "304"], tilde: ["7E", "2DC", "303"],
+    widetilde: ["7E", "2DC", "303"], vec: ["20D7", "2192"], dot: ["2D9", "307"], ddot: ["A8", "308"], check: ["2C7", "30C"],
+    breve: ["2D8", "306"], acute: ["B4", "2CA", "301"], grave: ["60", "2CB", "300"], slashed: ["2F", "338"]};
   function glyphsOf(q) {
     var out = [], i = 0, m, fontTo = -1, font = "";   // letters in \mathcal{...} and the like: drawn in their own fonts
     while (i < q.length) {
@@ -170,6 +197,25 @@ globalThis.L2M_searchRules = function (MACROS) {
             for (var d = 0, e = i; e < q.length; e++) { if (q.charAt(e) === "{") d++; else if (q.charAt(e) === "}" && !--d) break; }
             fontTo = e;
           } else fontTo = i + 1;
+          continue;
+        }
+        if (ACC_DRAWN[name] || /^(overset|underset|xrightarrow|xleftarrow|binom|overbrace|underbrace)$/.test(name)) {
+          var two = /^(overset|underset|binom)$/.test(name), gA = [], parts = [];
+          for (var pa = 0; pa < (two ? 2 : 1); pa++) {
+            if (q.charAt(i) === "{") {
+              for (var d3 = 0, e3 = i; e3 < q.length; e3++) { if (q.charAt(e3) === "{") d3++; else if (q.charAt(e3) === "}" && !--d3) break; }
+              parts.push(q.slice(i + 1, e3)); i = e3 + 1;
+            } else if ((m = /^(\\[A-Za-z]+|.)/.exec(q.slice(i)))) { parts.push(m[1]); i += m[0].length; }
+          }
+          if (parts.length < (two ? 2 : 1)) return null;     // (an accent asked for alone, \hat: the whole formula)
+          parts = parts.map(function (x) { return glyphsOf(x) || null; });
+          if (parts.some(function (x) { return !x; })) return null;
+          if (ACC_DRAWN[name]) gA = parts[0].concat([ACC_DRAWN[name]]);
+          else if (name === "binom") gA = [["28"]].concat(parts[0], parts[1], [["29"]]);
+          else if (name === "overbrace" || name === "underbrace") gA = parts[0].concat([[name === "overbrace" ? "23DE" : "23DF"]]);
+          else if (two) gA = parts[1].concat(parts[0]);
+          else gA = [name === "xrightarrow" ? ["2192", "27F6"] : ["2190", "27F5"]].concat(parts[0]);
+          out.push.apply(out, gA);
           continue;
         }
         if (name === "sqrt") {                       // a root is drawn with what is under it first, then the sign (then its index)
@@ -216,15 +262,27 @@ globalThis.L2M_searchRules = function (MACROS) {
   }
   // the physics and braket packages' commands as what they draw, in queries and formulas alike: \ket{\psi} finds
   // |\psi\rangle, and |\psi\rangle finds \ket{\psi} (a paper's own definition of one of them wins: written out first)
-  var PHYS = {ket: [1, 1], bra: [1, 1], braket: [1, 2], ketbra: [2, 2], expval: [1, 2], mel: [3, 3], abs: [1, 1], norm: [1, 1],
-    dv: [1, 2], pdv: [1, 2], order: [1, 1], comm: [2, 2]};
-  var PHYS_RE = /\\(ketbra|ket|braket|bra|expval|mel|abs|norm|dv|pdv|order|comm)(?![A-Za-z])\*?/g;
+  var PHYS = {ket: [1, 1], bra: [1, 1], braket: [1, 2], ketbra: [2, 2], expval: [1, 2], ev: [1, 2], mel: [3, 3], abs: [1, 1], norm: [1, 1],
+    dv: [1, 2], pdv: [1, 3], order: [1, 1], comm: [2, 2], acomm: [2, 2], dd: [1, 1], vb: [1, 1], vu: [1, 1], va: [1, 1],
+    grad: [0, 1], div: [0, 1], curl: [0, 1], laplacian: [0, 1], qty: [0, 1], eval: [1, 1], tr: [0, 1], Tr: [0, 1]};
+  var PHYS_RE = /\\(ketbra|ket|braket|bra|expval|ev|mel|abs|norm|dv|pdv|order|acomm|comm|dd|vb|vu|va|grad|div|curl|laplacian|qty|eval|tr|Tr)(?![A-Za-z])\*?/g;
+  // a derivative as drawn: \dv{f}{x} df/dx, \dv[2]{f}{x} d^2f/dx^2, \pdv{f}{x}{y} \partial^2f/\partial x\partial y, \dv{x} d/dx
+  function diff(d, a, b, c, pow) {
+    var n = c != null ? "2" : pow, top = d + (n ? "^{" + n + "}" : "");
+    if (b == null) return "\\frac{" + top + "}{" + d + a + (n ? "^{" + n + "}" : "") + "}";
+    return "\\frac{" + top + a + "}{" + d + b + (c != null ? d + c : n ? "^{" + n + "}" : "") + "}";
+  }
   function physics(t) {
     if (t.search(PHYS_RE) < 0) return t;
     var out = "", i = 0, m;
     while ((PHYS_RE.lastIndex = i, m = PHYS_RE.exec(t))) {
-      var name = m[1], at = PHYS_RE.lastIndex, args = [], want = PHYS[name];
+      var name = m[1], at = PHYS_RE.lastIndex, args = [], want = PHYS[name], pow = "";
       if (typeof MACROS[name] === "string") { out += t.slice(i, at); i = at; continue; }
+      if (name === "ev") name = "expval";
+      if (name === "div" && !/^\s*[{(]/.test(t.slice(at))) { out += t.slice(i, at); i = at; continue; }   // (a ÷ b: no argument)
+      var om = /^\s*\[([^\]]*)\]/.exec(t.slice(at));      // (\dv[2]{f}{x}, \dd[3]{x}: the power)
+      if (om && /^(dv|pdv|dd)$/.test(name)) { pow = om[1]; at += om[0].length; }
+      var braced = /^\s*\{/.test(t.slice(at));            // (\tr{\rho}, \qty{x}: drawn with braces; \tr(\rho), \qty(x): with what follows)
       while (args.length < want[1]) {
         var j = at;
         while (t.charAt(j) === " ") j++;
@@ -245,8 +303,12 @@ globalThis.L2M_searchRules = function (MACROS) {
         name === "expval" ? (b != null ? "\\langle " + b + "|" + a + "|" + b + "\\rangle" : "\\langle " + a + "\\rangle") :
         name === "mel" ? "\\langle " + a + "|" + b + "|" + c + "\\rangle" : name === "abs" ? "|" + a + "|" :
         name === "norm" ? "\\|" + a + "\\|" : name === "order" ? "\\mathcal{O}(" + a + ")" : name === "comm" ? "[" + a + "," + b + "]" :
-        (b != null ? "\\frac{" + (name === "dv" ? "d" : "\\partial ") + a + "}{" + (name === "dv" ? "d" : "\\partial ") + b + "}"
-                   : "\\frac{" + (name === "dv" ? "d" : "\\partial ") + "}{" + (name === "dv" ? "d" : "\\partial ") + a + "}");
+        name === "acomm" ? "\\{" + a + "," + b + "\\}" : name === "dd" ? "\\mathrm{d}" + (pow ? "^{" + pow + "}" : "") + a :
+        name === "vb" ? "\\mathbf{" + a + "}" : name === "vu" ? "\\hat{\\mathbf{" + a + "}}" : name === "va" ? "\\vec{\\mathbf{" + a + "}}" :
+        name === "grad" ? "\\nabla " + (a || "") : name === "div" ? "\\nabla\\cdot " + (a || "") : name === "curl" ? "\\nabla\\times " + (a || "") :
+        name === "laplacian" ? "\\nabla^2 " + (a || "") : name === "qty" ? (braced ? "\\{" + a + "\\}" : "") : name === "eval" ? a + "|" :
+        name === "tr" || name === "Tr" ? "\\mathrm{" + name + "}" + (braced ? "\\{" + a + "\\}" : "") :
+        diff(name === "dv" ? "\\mathrm{d}" : "\\partial ", a, b, c, pow);
       out += t.slice(i, m.index) + drawn + " ";
       i = at;
     }
@@ -272,6 +334,39 @@ globalThis.L2M_searchRules = function (MACROS) {
     return out + t.slice(i);
   }
   var normed = {}, normedN = 0;
+  // TeX's spacing (\, \; \: \! \  ~ \quad ...): none, as a space is none; a row's end, \\, kept
+  var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:! ]|(?:qquad|quad|enspace|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
+  function unspaced(t) {
+    for (var k = 0; k < 4 && t.search(SPACING) >= 0; k++) t = t.replace(SPACING, "$1$2 ");
+    return t.replace(/(^|[^\\])~/g, "$1 ");
+  }
+  var FONT_RUN = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\{([^{}]*)\}\\\1\{/g;
+  // a letter's two scripts in one order, its subscript first: x^a_b is x_b^a
+  function scriptOrder(t) {
+    if (t.indexOf("^") < 0 || t.indexOf("_") < 0) return t;
+    var arg = function (i) {                     // the end of the script that starts at i
+      var c = t.charAt(i);
+      if (c === "{") { for (var d = 0, e = i; e < t.length; e++) { if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) return e + 1; } return t.length; }
+      if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)); return i + (cm ? cm[0].length : 1); }
+      return i + 1;
+    };
+    var out = "", i = 0;
+    while (i < t.length) {
+      var c = t.charAt(i);
+      if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)); out += cm[0]; i += cm[0].length; continue; }
+      if (c === "^" && i + 1 < t.length) {
+        var a1 = arg(i + 1);
+        if (t.charAt(a1) === "_" && a1 + 1 < t.length) {
+          var b1 = arg(a1 + 1);
+          out += "_" + scriptOrder(t.slice(a1 + 1, b1)) + "^" + scriptOrder(t.slice(i + 1, a1));
+          i = b1;
+          continue;
+        }
+      }
+      out += c; i++;
+    }
+    return out;
+  }
   // the old font switches, {\sf F}, {\rm d}, and \textsf{F} and the like: as \mathsf{F}, \mathrm{d}
   var OLDF = {rm: "mathrm", bf: "mathbf", it: "mathit", sf: "mathsf", tt: "mathtt", cal: "mathcal",
     textrm: "mathrm", textbf: "mathbf", textit: "mathit", textsf: "mathsf", texttt: "mathtt"};
@@ -281,6 +376,12 @@ globalThis.L2M_searchRules = function (MACROS) {
     if (normed.hasOwnProperty(t)) return normed[t];
     var was = t;
     t = uniTeX(physics(expand(t))).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
+    t = unspaced(t).replace(/\\operatorname\*/g, "\\operatorname").replace(/\{\s*\}/g, "")   // (x\,dx, a,\ b; \Gamma^\mu{}_{\nu\rho}, {}_2F_1)
+      .replace(/\\(?:lvert|rvert|vert|mid)(?![A-Za-z])/g, "|").replace(/\\(?:lVert|rVert|Vert|parallel)(?![A-Za-z])/g, "\\|")
+      .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\(Re|Im)(?![A-Za-z])/g, "\\mathrm{$1}")   // (\Re: Re as the physics package draws it, or ℜ)
+      .replace(/\^\s*\{?\s*((?:\\prime\s*)+)\}?/g, function (x, p) { return p.replace(/\\prime\s*/g, "'"); })   // (y^\prime: y')
+      .replace(/\{\s*([A-Za-z])\s*('+)\s*\}(?=\s*[\^_])/g, "$1$2")                  // ({x'}^2: x'^2)
+      .replace(/\\substack\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1");                   // (\sum_{\substack{i<j\\ j<N}}: its rows)
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
     t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"));
     t = t.replace(OLDFONT, function (x, f, a, g, b, at, all) {   // (a script's own braces kept: S_{\rm gen} is S_{\mathrm{gen}})
@@ -289,8 +390,10 @@ globalThis.L2M_searchRules = function (MACROS) {
     });
     t = t.replace(/([_^])\s*(\\[A-Za-z]+\s*\{[^{}]*\})/g, "$1{$2}");   // (S_\text{gen} as S_{\text{gen}})
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
-    t = t.replace(/([_^])\{([^{}\\]|\\[A-Za-z]+)\}/g, "$1$2");
-    t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])?(\\[A-Za-z]+|[^{\\\s])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
+    t = t.replace(SCRIPT1, script1);
+    t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])?(\\[A-Za-z]+|[^{\\\s\[])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
+    for (var k = 0; k < 4; k++) t = t.replace(FONT_RUN, "\\$1{$2");   // (\mathrm{for}\mathrm{all}: \mathrm{forall}, as \text{for all})
+    t = scriptOrder(t);
     if (++normedN > 20000) { normed = {}; normedN = 0; }
     return (normed[was] = t);
   }
