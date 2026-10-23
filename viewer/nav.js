@@ -903,9 +903,26 @@ window.L2M_nav = function (opts) {
     var t = opts.tex ? texText(range) : null, q = (t != null ? t : String(sel)).replace(/\s+/g, " ").trim();
     return q.length <= 300 ? q : "";
   }
+  // the formulas' TeX read for search (texNorm, and as a plain query reads it) while the reader types, a few at a time,
+  // once: the first search then finds them read (on a long paper, some tens of ms on a phone saved from the first search)
+  var warmed = false;
+  function warmFind() {
+    if (warmed || !opts.tex) return;
+    warmed = true;
+    var els = document.querySelectorAll("main mjx-container[data-n], main l2m-math[n]"), k = 0;
+    (function chunk() {
+      if (dead) return;
+      for (var end = Math.min(els.length, k + 200); k < end; k++) {
+        var tex = opts.tex(els[k].getAttribute("data-n") || els[k].getAttribute("n"));
+        if (tex) rules.plainly(texNorm(tex), "");
+      }
+      if (k < els.length) setTimeout(chunk, 0);
+    })();
+  }
   function openFind(q) {
     if (typeof q === "string" && q && findField) { findField.value = q; if (finding) { findRun(); findField.focus(); } }
     if (!findBar || finding) return;
+    warmFind();
     closeMenu("jump"); closeSheet();
     finding = true;
     if (useHistory) { try { if (!state().l2mFind) { stepIn({l2mFind: true}); findAt = here(); } } catch (e) {} }

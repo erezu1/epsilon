@@ -6,32 +6,35 @@
 // its TeX}; a PDF has none). A plain script: loaded as one by the app, imported by the viewer (globalThis either way).
 globalThis.L2M_searchRules = function (MACROS) {
   MACROS = MACROS || {};
-  var expanded = {};
-  var GLYPH = {alpha: "1D6FC", beta: "1D6FD", gamma: "1D6FE", delta: "1D6FF", epsilon: "1D716", varepsilon: "1D700", zeta: "1D701",
+  // the tables below hold no built-in names: a query "constructor" or "\\toString" is no symbol, and "hasOwnProperty"
+  // or "__proto__" kept as a query's reading can't break the next search
+  function own(o) { var m = Object.create(null); Object.keys(o).forEach(function (k) { m[k] = o[k]; }); return m; }
+  function macro(n) { return Object.prototype.hasOwnProperty.call(MACROS, n) && typeof MACROS[n] === "string" ? MACROS[n] : null; }
+  var GLYPH = own({alpha: "1D6FC", beta: "1D6FD", gamma: "1D6FE", delta: "1D6FF", epsilon: "1D716", varepsilon: "1D700", zeta: "1D701",
     eta: "1D702", theta: "1D703", vartheta: "1D717", iota: "1D704", kappa: "1D705", varkappa: "1D718", lambda: "1D706", mu: "1D707",
     nu: "1D708", xi: "1D709", pi: "1D70B", varpi: "1D71B", rho: "1D70C", varrho: "1D71A", sigma: "1D70E", varsigma: "1D70D",
     tau: "1D70F", upsilon: "1D710", phi: "1D719", varphi: "1D711", chi: "1D712", psi: "1D713", omega: "1D714", Gamma: "393",
     Delta: "394", Theta: "398", Lambda: "39B", Xi: "39E", Pi: "3A0", Sigma: "3A3", Upsilon: "3A5", Phi: "3A6", Psi: "3A8",
     Omega: "3A9", varGamma: "1D6E4", varDelta: "1D6E5", varTheta: "1D6E9", varLambda: "1D6EC", varXi: "1D6EF", varPi: "1D6F1",
     varSigma: "1D6F4", varUpsilon: "1D6F6", varPhi: "1D6F7", varPsi: "1D6F9", varOmega: "1D6FA", ell: "2113", hbar: "210F",
-    hslash: "210F", partial: "1D715", nabla: "2207", infty: "221E", aleph: "2135", wp: "2118", emptyset: "2205", varnothing: "2205"};
-  var GREEK = {"α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ϵ": "epsilon", "ε": "varepsilon", "ζ": "zeta", "η": "eta",
+    hslash: "210F", partial: "1D715", nabla: "2207", infty: "221E", aleph: "2135", wp: "2118", emptyset: "2205", varnothing: "2205"});
+  var GREEK = own({"α": "alpha", "β": "beta", "γ": "gamma", "δ": "delta", "ϵ": "epsilon", "ε": "varepsilon", "ζ": "zeta", "η": "eta",
     "θ": "theta", "ϑ": "vartheta", "ι": "iota", "κ": "kappa", "λ": "lambda", "μ": "mu", "ν": "nu", "ξ": "xi", "π": "pi", "ρ": "rho",
     "σ": "sigma", "ς": "varsigma", "τ": "tau", "υ": "upsilon", "ϕ": "phi", "φ": "varphi", "χ": "chi", "ψ": "psi", "ω": "omega",
     "Γ": "Gamma", "Δ": "Delta", "Θ": "Theta", "Λ": "Lambda", "Ξ": "Xi", "Π": "Pi", "Σ": "Sigma", "Υ": "Upsilon", "Φ": "Phi",
     "Ψ": "Psi", "Ω": "Omega", "ℓ": "ell", "ℏ": "hbar", "∂": "partial", "∇": "nabla", "∞": "infty", "ϖ": "varpi", "ϱ": "varrho",
-    "ϰ": "varkappa"};
+    "ϰ": "varkappa"});
 
   // one symbol spelled in several ways (\varepsilon and \epsilon, \le and \leq and <=, ...): all one, both in what is
   // asked and in the formulas' TeX (SAME: each spelling's one), and as drawn (alts: the drawings of each)
-  var SAME = {varepsilon: "epsilon", varphi: "phi", vartheta: "theta", varrho: "rho", varsigma: "sigma", varpi: "pi",
+  var SAME = own({varepsilon: "epsilon", varphi: "phi", vartheta: "theta", varrho: "rho", varsigma: "sigma", varpi: "pi",
     varkappa: "kappa", varGamma: "Gamma", varDelta: "Delta", varTheta: "Theta", varLambda: "Lambda", varXi: "Xi", varPi: "Pi",
     varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
     varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
     gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "cdots",
   dotsm: "cdots", dotsi: "cdots", bigsqcup: "sqcup", bm: "boldsymbol", mathscr: "mathcal", mathds: "mathbb", mathbbm: "mathbb",
-    text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm"};   // (upright text, as \mathrm)
+    text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm"});   // (upright text, as \mathrm)
   function alts(name) {
     var one = SAME[name] || name, out = [];
     [one].concat(Object.keys(SAME).filter(function (k) { return SAME[k] === one; })).forEach(function (n) {
@@ -42,7 +45,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     return out;
   }
   // a query typed with the symbols themselves (a phone's keys): α, ≤, x², ... read as their TeX
-  var UNI = {"≤": "leq", "≥": "geq", "≠": "neq", "≈": "approx", "∼": "sim", "≡": "equiv", "∝": "propto", "∫": "int",
+  var UNI = own({"≤": "leq", "≥": "geq", "≠": "neq", "≈": "approx", "∼": "sim", "≡": "equiv", "∝": "propto", "∫": "int",
     "∮": "oint", "∑": "sum", "∏": "prod", "√": "sqrt", "→": "rightarrow", "←": "leftarrow", "⊗": "otimes", "⊕": "oplus",
     "∈": "in", "⊂": "subset", "±": "pm", "∓": "mp", "×": "times", "·": "cdot", "⋅": "cdot", "⟨": "langle", "⟩": "rangle",
     "†": "dagger", "…": "ldots", "⋯": "cdots", "∧": "wedge", "∨": "vee", "∩": "cap", "∪": "cup", "∘": "circ", "∗": "ast",
@@ -51,7 +54,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     "⟹": "Longrightarrow", "⟺": "Longleftrightarrow", "⟶": "longrightarrow", "⊥": "perp", "≺": "prec", "≻": "succ",
     "≲": "lesssim", "≳": "gtrsim", "∖": "setminus", "‡": "ddagger", "⋄": "diamond", "□": "square", "∠": "angle", "⋮": "vdots",
     "⋱": "ddots", "⌊": "lfloor", "⌋": "rfloor", "⌈": "lceil", "⌉": "rceil", "⋃": "bigcup", "⋂": "bigcap", "⨁": "bigoplus",
-    "⨂": "bigotimes", "ϖ": "varpi", "ϱ": "varrho", "∥": "parallel", "‖": "|"};
+    "⨂": "bigotimes", "ϖ": "varpi", "ϱ": "varrho", "∥": "parallel", "‖": "|"});
   var SUPS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ", SUPT = "0123456789+-=()ni", SUBS = "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎", SUBT = "0123456789+-=()";
   function uniTeX(q) {
     if (!/[^\x00-\x7f]/.test(q)) return q;
@@ -132,7 +135,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     return t;
   }
   // ? in a query: any one symbol, or (as {?}) anything in braces: Z_? is any Z with something under it
-  var GROUP = "\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\}", TOKEN = "(?:\\\\[A-Za-z]+|" + GROUP + "|[^{}\\\\])";
+  var GROUP = "\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\}", TOKEN = "(?:\\\\[A-Za-z]+(?![A-Za-z])|\\\\[^A-Za-z]|" + GROUP + "|[^{}\\\\])";   // (a command whole: \\alpha is one symbol, never \\al and then pha)
   function texHas(tex, q) {
     q = texNorm(q);
     var t = plainly(texNorm(tex), q), i;
@@ -149,7 +152,7 @@ globalThis.L2M_searchRules = function (MACROS) {
   }
   // the glyphs a piece of TeX draws, in the order a formula's drawing has them (a letter: italic or upright; a
   // command: its symbol; braces, _ and ^ draw nothing); null when it has something this cannot tell
-  var OPS = {cdot: "22C5", times: "D7", pm: "B1", mp: "2213", sum: "2211", int: "222B", prod: "220F", oint: "222E", sqrt: "221A",
+  var OPS = own({cdot: "22C5", times: "D7", pm: "B1", mp: "2213", sum: "2211", int: "222B", prod: "220F", oint: "222E", sqrt: "221A",
     langle: "27E8", rangle: "27E9", dagger: "2020", ldots: "2026", cdots: "22EF", to: "2192", rightarrow: "2192", leftarrow: "2190",
     leq: "2264", le: "2264", geq: "2265", ge: "2265", neq: "2260", ne: "2260", approx: "2248", sim: "223C", equiv: "2261",
     propto: "221D", otimes: "2297", oplus: "2295", wedge: "2227", vee: "2228", cap: "2229", cup: "222A", in: "2208",
@@ -162,22 +165,22 @@ globalThis.L2M_searchRules = function (MACROS) {
     setminus: "2216", ddagger: "2021", diamond: "22C4", square: "25A1", angle: "2220", vdots: "22EE", ddots: "22F1",
     lfloor: "230A", rfloor: "230B", lceil: "2308", rceil: "2309", bigcup: "22C3", bigcap: "22C2", bigoplus: "2A01",
     bigotimes: "2A02", bigodot: "2A00", coprod: "2210", ominus: "2296", odot: "2299", oslash: "2298", vdash: "22A2",
-    models: "22A8", div: "F7", iint: "222C", iiint: "222D", top: "22A4", coloneqq: "2254", triangle: "25B3", sqcup: "2294", sqcap: "2293"};
+    models: "22A8", div: "F7", iint: "222C", iiint: "222D", top: "22A4", coloneqq: "2254", triangle: "25B3", sqcup: "2294", sqcap: "2293"});
   // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
-  var OPS_TOO = {circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"]};
+  var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"]});
   var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
-  var SYM = {"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
-    "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"};
+  var SYM = own({"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
+    "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"});
   function hex(c) { return c.toString(16).toUpperCase(); }
   var FONTCMD = /^(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm|operatorname)$/;
   // a letter or digit in \mathcal{...} and the like, as drawn: the codes it may have (the drawing's own: \mathcal's
   // letters are the plain ones in its calligraphic font, \mathbb's and \mathbf's are Unicode's double-struck and bold)
-  var ODD = {mathbb: {C: "2102", H: "210D", N: "2115", P: "2119", Q: "211A", R: "211D", Z: "2124"},
-    mathfrak: {C: "212D", H: "210C", I: "2111", R: "211C", Z: "2128"},
-    mathscr: {B: "212C", E: "2130", F: "2131", H: "210B", I: "2110", L: "2112", M: "2133", R: "211B", e: "212F", g: "210A", o: "2134"}};
-  var FROM = {mathbb: [0x1D538, 0x1D552, 0x1D7D8], mathfrak: [0x1D504, 0x1D51E], mathscr: [0x1D49C, 0x1D4B6],
+  var ODD = own({mathbb: own({C: "2102", H: "210D", N: "2115", P: "2119", Q: "211A", R: "211D", Z: "2124"}),
+    mathfrak: own({C: "212D", H: "210C", I: "2111", R: "211C", Z: "2128"}),
+    mathscr: own({B: "212C", E: "2130", F: "2131", H: "210B", I: "2110", L: "2112", M: "2133", R: "211B", e: "212F", g: "210A", o: "2134"})});
+  var FROM = own({mathbb: [0x1D538, 0x1D552, 0x1D7D8], mathfrak: [0x1D504, 0x1D51E], mathscr: [0x1D49C, 0x1D4B6],
     mathbf: [0x1D400, 0x1D41A, 0x1D7CE], boldsymbol: [0x1D468, 0x1D482, 0x1D7CE], bm: [0x1D468, 0x1D482, 0x1D7CE],
-    mathsf: [0x1D5A0, 0x1D5BA, 0x1D7E2], mathtt: [0x1D670, 0x1D68A, 0x1D7F6]};
+    mathsf: [0x1D5A0, 0x1D5BA, 0x1D7E2], mathtt: [0x1D670, 0x1D68A, 0x1D7F6]});
   function fontGlyph(font, c) {
     var k = c.charCodeAt(0), plain = hex(k), at = c <= "9" ? 2 : c < "a" ? 0 : 1, base = FROM[font] && FROM[font][at];
     var codes = [plain];
@@ -189,9 +192,9 @@ globalThis.L2M_searchRules = function (MACROS) {
     return codes;
   }
   // an accent's drawing, after what it is over (as TeX's PDF and MathJax both draw it)
-  var ACC_DRAWN = {hat: ["5E", "2C6", "302"], widehat: ["5E", "2C6", "302"], bar: ["AF", "2C9", "304"], tilde: ["7E", "2DC", "303"],
+  var ACC_DRAWN = own({hat: ["5E", "2C6", "302"], widehat: ["5E", "2C6", "302"], bar: ["AF", "2C9", "304"], tilde: ["7E", "2DC", "303"],
     widetilde: ["7E", "2DC", "303"], vec: ["20D7", "2192"], dot: ["2D9", "307"], ddot: ["A8", "308"], check: ["2C7", "30C"],
-    breve: ["2D8", "306"], acute: ["B4", "2CA", "301"], grave: ["60", "2CB", "300"], slashed: ["2F", "338"]};
+    breve: ["2D8", "306"], acute: ["B4", "2CA", "301"], grave: ["60", "2CB", "300"], slashed: ["2F", "338"]});
   function glyphsOf(q) {
     var out = [], i = 0, m, fontTo = -1, font = "";   // letters in \mathcal{...} and the like: drawn in their own fonts
     while (i < q.length) {
@@ -261,7 +264,7 @@ globalThis.L2M_searchRules = function (MACROS) {
 
   function expand(t) {
     for (var pass = 0; pass < 3; pass++) {
-      var t2 = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return typeof MACROS[n] === "string" ? MACROS[n] + " " : x; });
+      var t2 = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var b = macro(n); return b != null ? b + " " : x; });
       if (t2 === t) break;
       t = t2;
     }
@@ -269,9 +272,9 @@ globalThis.L2M_searchRules = function (MACROS) {
   }
   // the physics and braket packages' commands as what they draw, in queries and formulas alike: \ket{\psi} finds
   // |\psi\rangle, and |\psi\rangle finds \ket{\psi} (a paper's own definition of one of them wins: written out first)
-  var PHYS = {ket: [1, 1], bra: [1, 1], braket: [1, 2], ketbra: [2, 2], expval: [1, 2], ev: [1, 2], mel: [3, 3], abs: [1, 1], norm: [1, 1],
+  var PHYS = own({ket: [1, 1], bra: [1, 1], braket: [1, 2], ketbra: [2, 2], expval: [1, 2], ev: [1, 2], mel: [3, 3], abs: [1, 1], norm: [1, 1],
     dv: [1, 2], pdv: [1, 3], order: [1, 1], comm: [2, 2], acomm: [2, 2], dd: [1, 1], vb: [1, 1], vu: [1, 1], va: [1, 1],
-    grad: [0, 1], div: [0, 1], curl: [0, 1], laplacian: [0, 1], qty: [0, 1], eval: [1, 1], tr: [0, 1], Tr: [0, 1]};
+    grad: [0, 1], div: [0, 1], curl: [0, 1], laplacian: [0, 1], qty: [0, 1], eval: [1, 1], tr: [0, 1], Tr: [0, 1]});
   var PHYS_RE = /\\(ketbra|ket|braket|bra|expval|ev|mel|abs|norm|dv|pdv|order|acomm|comm|dd|vb|vu|va|grad|div|curl|laplacian|qty|eval|tr|Tr)(?![A-Za-z])\*?/g;
   // a derivative as drawn: \dv{f}{x} df/dx, \dv[2]{f}{x} d^2f/dx^2, \pdv{f}{x}{y} \partial^2f/\partial x\partial y, \dv{x} d/dx
   function diff(d, a, b, c, pow) {
@@ -284,7 +287,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     var out = "", i = 0, m;
     while ((PHYS_RE.lastIndex = i, m = PHYS_RE.exec(t))) {
       var name = m[1], at = PHYS_RE.lastIndex, args = [], want = PHYS[name], pow = "";
-      if (typeof MACROS[name] === "string") { out += t.slice(i, at); i = at; continue; }
+      if (macro(name) != null) { out += t.slice(i, at); i = at; continue; }
       if (name === "ev") name = "expval";
       if (name === "div" && !/^\s*[{(]/.test(t.slice(at))) { out += t.slice(i, at); i = at; continue; }   // (a ÷ b: no argument)
       var om = /^\s*\[([^\]]*)\]/.exec(t.slice(at));      // (\dv[2]{f}{x}, \dd[3]{x}: the power)
@@ -340,7 +343,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     }
     return out + t.slice(i);
   }
-  var normed = {}, normedN = 0;
+  var normed = new Map();
   // TeX's spacing (\, \; \: \! \  ~ \quad ...): none, as a space is none; a row's end, \\, kept
   var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:! \/]|(?:qquad|quad|enspace|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
   function unspaced(t) {
@@ -357,6 +360,12 @@ globalThis.L2M_searchRules = function (MACROS) {
     }
     return s > 0 && /\\(frac|dfrac|tfrac|cfrac|binom|dbinom|tbinom|overset|underset|stackrel)\s*$/.test(t.slice(Math.max(0, s - 12), s));
   }
+  // whether braces at i are a command's argument (\hat{x}) or a script's ({x}^2 after _ or ^): not after a symbol, \times{\mathbb Z}
+  function argAt(t, i) {
+    var before = t.slice(Math.max(0, i - 30), i), c = /\\([A-Za-z]+)$/.exec(before);
+    if (c) return c[1] === "sqrt" || !(GLYPH[c[1]] || OPS[c[1]] || SAME[c[1]] && (GLYPH[SAME[c[1]]] || OPS[SAME[c[1]]]));   // (\sqrt: a sign that takes one)
+    return /[_^}]$/.test(before);
+  }
   function loose(t) {
     for (var k = 0; k < 3; k++) {
       var out = "", i = 0, changed = false;
@@ -364,7 +373,7 @@ globalThis.L2M_searchRules = function (MACROS) {
         var c = t.charAt(i);
         if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)), tk = cm ? cm[0] : c; out += tk; i += tk.length; continue; }
         var one = c === "{" && /^\{(\\[A-Za-z]+|[A-Za-z0-9])\}/.exec(t.slice(i));   // (a single token's braces: {e}^{a} as e^a)
-        if (one && !/[A-Za-z_^}]$/.test(t.slice(Math.max(0, i - 30), i))) { out += one[1] + (/^[A-Za-z]/.test(t.charAt(i + one[0].length)) && one[1].charAt(0) === "\\" ? " " : ""); i += one[0].length; changed = true; continue; }   // (not after a letter: sqrt{2}, typed for \sqrt{2}, keeps them)
+        if (one && !argAt(t, i) && !/[A-Za-z]$/.test(t.slice(Math.max(0, i - 30), i).replace(/\\[A-Za-z]+$/, ""))) { out += (/^[A-Za-z]/.test(one[1]) && /\\[A-Za-z]+$/.test(out) ? " " : "") + one[1] + (/^[A-Za-z]/.test(t.charAt(i + one[0].length)) && one[1].charAt(0) === "\\" ? " " : ""); i += one[0].length; changed = true; continue; }   // (not after a letter: sqrt{2}, typed for \sqrt{2}, keeps them)
         if (c === "{" && (i === 0 || /[=+\-*\/(,\[|<>;:]/.test(t.charAt(i - 1)))) {
           for (var d = 0, e = i; e < t.length; e++) { if (t.charAt(e) === "\\") { e++; continue; } if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) break; }
           if (e < t.length && !/^[\^_]/.test(t.slice(e + 1))) { out += t.slice(i + 1, e); i = e + 1; changed = true; continue; }
@@ -413,12 +422,13 @@ globalThis.L2M_searchRules = function (MACROS) {
   // the old font switches, {\sf F}, {\rm d}, and \textsf{F} and the like: as \mathsf{F}, \mathrm{d}
   // what lays out and draws nothing: \hspace{..}, \vspace{..}, \kern-3em, \mkern-9mu, \phantom{..}
   var LAYOUT = /\\[hv]space\*?\s*\{[^{}]*\}|\\m?kern\s*-?\s*[\d.]+\s*(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp)|\\[hv]?phantom\s*\{(?:[^{}]|\{[^{}]*\})*\}/g;
-  var OLDF = {rm: "mathrm", bf: "mathbf", it: "mathit", sf: "mathsf", tt: "mathtt", cal: "mathcal",
-    textrm: "mathrm", textbf: "mathbf", textit: "mathit", textsf: "mathsf", texttt: "mathtt"};
+  var OLDF = own({rm: "mathrm", bf: "mathbf", it: "mathit", sf: "mathsf", tt: "mathtt", cal: "mathcal",
+    textrm: "mathrm", textbf: "mathbf", textit: "mathit", textsf: "mathsf", texttt: "mathtt"});
   var OLDFONT = /\{\s*\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*([^{}]*)\}|\\(?:(textrm|textbf|textit|textsf|texttt))\{([^{}]*)\}/g;
   function texNorm(t) {
     t = t || "";
-    if (normed.hasOwnProperty(t)) return normed[t];
+    var hit = normed.get(t);
+    if (hit !== undefined) return hit;
     var was = t;
     t = uniTeX(physics(expand(t))).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
     t = unspaced(t)
@@ -449,7 +459,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     t = t.replace(SCRIPT1, script1);
     t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])?(\\[A-Za-z]+|[^{\\\s\[])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
     for (var k = 0; k < 4; k++) t = t.replace(FONT_RUN, "\\$1{$2$3");   // (\mathrm{for}\mathrm{all}: \mathrm{forall}, as \text{for all})
-    t = t.replace(FONT_GROUP, function (x, g, at, all) { return /([_^}]|\\[A-Za-z]+)$/.test(all.slice(Math.max(0, at - 30), at)) ? x : g; });   // ({\mathbb R}^2: \mathbb{R}^2; an argument, \hat{\mathbf{n}}, kept)
+    t = t.replace(FONT_GROUP, function (x, g, at, all) { return argAt(all, at) ? x : g; });   // ({\mathbb R}^2: \mathbb{R}^2; an argument, \hat{\mathbf{n}}, kept)
     t = t.replace(/\\mathrm\{(\\math(?:tt|sf|bf|it|cal|bb|frak)\{[^{}]*\})\}/g, "$1")      // (\textup{\texttt{Eff}}: \mathtt{Eff})
       .replace(/\{([,.])\}/g, "$1")                                                     // (50{,}000)
       .replace(TWO_SCRIPTS, function (x, s, a, b) { return s + "{" + a.replace(/^\{|\}$/g, "") + b.replace(/^\{|\}$/g, "") + "}"; })   // (\eta^{*}{}^{\mu}: \eta^{*\mu})
@@ -459,8 +469,9 @@ globalThis.L2M_searchRules = function (MACROS) {
     t = scriptOrder(t);
     // (a space only between a command's name and a letter after it: \mu e, not e_\mu^a e)
     t = t.replace(/ +/g, function (m, at, all) { return /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[A-Za-z]/.test(all.slice(at + m.length)) ? " " : ""; });
-    if (++normedN > 20000) { normed = {}; normedN = 0; }
-    return (normed[was] = t);
+    if (normed.size > 20000) normed.clear();
+    normed.set(was, t);
+    return t;
   }
   // a word written in a formula (V_{\mathbf{leading}}, \text{if }x>0, \operatorname{Res}): the letters of its text and
   // font groups, each with the font it is drawn in; letters in a row outside them are variables, never a word
@@ -515,4 +526,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-23.2";
+globalThis.L2M_searchRules.version = "2026-10-23.3";
