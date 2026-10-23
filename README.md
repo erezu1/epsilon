@@ -203,6 +203,7 @@ The site is plain static files: `index.html`, the theme and the viewer scripts (
 | `viewer/mathjax/`, `tools/get_mathjax.py` | the app's copy of MathJax (Apache License 2.0), for papers without drawn formulas; kept offline by the service worker |
 | `viewer/viewer.js` | draws a document: bar, contents, settings, footnote sheet, figure viewer, formulas |
 | `viewer/nav.js` | runs an open paper: history-aware links, panels, figure zoom |
+| `viewer/search-rules.js` | the search's rules (what a query looks for, TeX read the same however written), shared with the PDF viewer for Chrome |
 | `viewer/prefs.js` | applies the reader's saved choices before the page is drawn |
 | `viewer/index.html` | the app's page |
 | `DOCUMENT.md` | the document format |

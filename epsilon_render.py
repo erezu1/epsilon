@@ -177,7 +177,7 @@ def bundle(doc, cache, out, artifact=False, kicker=None, theme_dir=VIEWER, info=
             '<script type="application/json" id="l2m-math">%s</script>\n' % (inline_json(doc), inline_json(cache)) +
             ('<script type="application/json" id="l2m-marks">%s</script>\n<script>\n%s%s</script>\n' % (
                 inline_json(marks), read("marks.js"), PAGE_STORE) if marks is not None else "") +
-            "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n" % (read("nav.js"), read("viewer.js"), boot))
+            "<script>\n%s</script>\n<script>\n%s</script>\n<script>\n%s</script>\n" % (read("search-rules.js") + read("nav.js"), read("viewer.js"), boot))
     if artifact:
         page = head + body
     else:

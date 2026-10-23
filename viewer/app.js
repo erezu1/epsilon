@@ -2330,7 +2330,7 @@
   // offline), and the reader is asked, in the lists (never while reading a paper; if one is open, when the lists come
   // back), whether to take it on now. "Not now": not asked again for that release (the next start brings it anyway).
   var appNext = null, appChecked = 0, appFetching = false, appAsked = null;
-  var APP_FILES = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "marks.js", "nav.js", "viewer.js", "app.js"];
+  var APP_FILES = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "marks.js", "search-rules.js", "nav.js", "viewer.js", "app.js"];
   function checkApp() {
     if (!REL || appNext || appFetching || Date.now() - appChecked < 60000 || navigator.onLine === false) return;
     appChecked = Date.now();

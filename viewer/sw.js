@@ -6,7 +6,7 @@
 // starts offline, even right after a new release was fetched and not yet taken on ("Not now").
 var SHELL = "l2m-shell-v8";
 var PAGE = "./";
-var RELEASED = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "marks.js", "nav.js", "viewer.js", "app.js"];   // name?v=release
+var RELEASED = ["fonts/fonts.css", "theme.css", "theme.json", "prefs.js", "marks.js", "search-rules.js", "nav.js", "viewer.js", "app.js"];   // name?v=release
 var OTHERS = ["offline.html", "manifest.webmanifest", "favicon.png", "film.webp"];   // (the home screen's icons: the system's own fetch)
 var FILES = [PAGE, "index.html"].concat(RELEASED, OTHERS);
 // what a page asked for offline, with no copy of it, shows instead of the browser's error

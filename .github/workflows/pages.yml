@@ -25,7 +25,7 @@ jobs:
       # The published copy without comments and spaces (the source here stays as written): two fifths less for a
       # phone to fetch and read. fonts/fonts.css is left as it is (sw.js reads its comments), and index.html too.
       - name: Minified
-        run: npx --yes esbuild@0.24.0 viewer/app.js viewer/nav.js viewer/viewer.js viewer/marks.js viewer/prefs.js viewer/sw.js viewer/theme.css --minify --outdir=viewer --allow-overwrite --log-level=warning
+        run: npx --yes esbuild@0.24.0 viewer/app.js viewer/nav.js viewer/search-rules.js viewer/viewer.js viewer/marks.js viewer/prefs.js viewer/sw.js viewer/theme.css --minify --outdir=viewer --allow-overwrite --log-level=warning
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
