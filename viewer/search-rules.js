@@ -29,7 +29,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
     varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
     gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
-  stackrel: "overset", Box: "square", operatorname: "mathrm", bm: "boldsymbol",
+  stackrel: "overset", Box: "square", operatorname: "mathrm", bm: "boldsymbol", mathscr: "mathcal",
     text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm"};   // (upright text, as \mathrm)
   function alts(name) {
     var one = SAME[name] || name, out = [];
@@ -112,14 +112,19 @@ globalThis.L2M_searchRules = function (MACROS) {
   // a script of one token, its braces off (x^{2}: x^2), a command kept apart from a letter after it (^{\infty}n: ^\infty n)
   var SCRIPT1 = /([_^])\{([^{}\\]|\\[A-Za-z]+)\}(?=([A-Za-z])?)/g;
   function script1(x, s, a, next) { return s + a + (next && a.charAt(0) === "\\" ? " " : ""); }
+  // a font's or an accent's group, its command gone: what it held, kept apart from a command before it (\rho\mathit{U}:
+  // \rho U, not \rhoU)
+  function unwrap(x, name, inner, at, all) {
+    return (/\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[A-Za-z]/.test(inner) ? " " : "") + inner;
+  }
   function plainly(t, q) {             // the formula's TeX as a plain query reads it
     var font = HAS_FONT.test(q), acc = HAS_ACC.test(q), prime = /'|\\prime/.test(q);
     var memo = plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] || (plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] = new Map());
     var was = memo.get(t);
     if (was !== undefined) return was;
     var t0 = t;
-    if (!font) t = t.replace(FONTED, "$2");
-    if (!acc) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, "$2");
+    if (!font) t = t.replace(FONTED, unwrap);
+    if (!acc) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, unwrap);
     if (!prime) t = t.replace(PRIMED, "");
     t = t.replace(SCRIPT1, script1);     // (^{\sf F}, the font gone: ^F, as texNorm has it)
     memo.set(t0, t);
@@ -177,6 +182,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     var codes = [plain];
     if (ODD[font] && ODD[font][c]) codes.push(ODD[font][c]);
     else if (base) codes.push(hex(base + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
+    if (font === "mathcal") codes.push.apply(codes, fontGlyph("mathscr", c).slice(1));   // (a script letter: \mathscr's too)
     if (font === "boldsymbol" || font === "bm") codes.push(hex(FROM.mathbf[at] + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
     if (font === "mathit" && at < 2) codes.push(c === "h" ? "210E" : hex((at ? 0x1D44E : 0x1D434) + k - (at ? 97 : 65)));   // (an italic h: Planck's)
     return codes;
@@ -353,7 +359,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     var out = "", i = 0;
     while (i < t.length) {
       var c = t.charAt(i);
-      if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)); out += cm[0]; i += cm[0].length; continue; }
+      if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)), tk = cm ? cm[0] : c; out += tk; i += tk.length; continue; }   // (a \ at the end, as typed: itself)
       if (c === "^" && i + 1 < t.length) {
         var a1 = arg(i + 1);
         if (t.charAt(a1) === "_" && a1 + 1 < t.length) {
