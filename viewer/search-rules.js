@@ -31,7 +31,9 @@ globalThis.L2M_searchRules = function (MACROS) {
     varkappa: "kappa", varGamma: "Gamma", varDelta: "Delta", varTheta: "Theta", varLambda: "Lambda", varXi: "Xi", varPi: "Pi",
     varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
     varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
-    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
+    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Rightarrow", iff: "Leftrightarrow",
+    longrightarrow: "rightarrow", Longrightarrow: "Rightarrow", longleftarrow: "leftarrow", Longleftarrow: "Leftarrow",   // (an arrow and its long form one: publishers swap them)
+    longleftrightarrow: "leftrightarrow", Longleftrightarrow: "Leftrightarrow", longmapsto: "mapsto",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "cdots",
   dotsm: "cdots", dotsi: "cdots", bigsqcup: "sqcup", bm: "boldsymbol", mathscr: "mathcal", mathds: "mathbb", mathbbm: "mathbb",
     text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm"});   // (upright text, as \mathrm)
@@ -158,7 +160,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     propto: "221D", otimes: "2297", oplus: "2295", wedge: "2227", vee: "2228", cap: "2229", cup: "222A", in: "2208",
     subset: "2282", mid: "2223", prime: "2032", star: "22C6", ast: "2217", circ: "2218", bullet: "2219",
     forall: "2200", exists: "2203", neg: "AC", lnot: "AC", ll: "226A", gg: "226B", simeq: "2243", cong: "2245", doteq: "2250",
-    notin: "2209", ni: "220B", subseteq: "2286", supset: "2283", supseteq: "2287", mapsto: "21A6", Rightarrow: "21D2",
+    notin: "2209", ni: "220B", subseteq: "2286", supset: "2283", supseteq: "2287", mapsto: "21A6", longmapsto: "27FC", Rightarrow: "21D2",
     Leftarrow: "21D0", Leftrightarrow: "21D4", leftrightarrow: "2194", longrightarrow: "27F6", longleftarrow: "27F5",
     longleftrightarrow: "27F7", Longrightarrow: "27F9", Longleftarrow: "27F8", Longleftrightarrow: "27FA", uparrow: "2191",
     downarrow: "2193", perp: "22A5", prec: "227A", succ: "227B", preceq: "2AAF", succeq: "2AB0", lesssim: "2272", gtrsim: "2273",
@@ -454,6 +456,9 @@ globalThis.L2M_searchRules = function (MACROS) {
       var y = "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}";
       return f && /[_^]\s*$/.test(all.slice(Math.max(0, at - 3), at)) ? "{" + y + "}" : y;
     });
+    // (an upright i, d or e alone, \mathrm{d}: the letter, as the imaginary unit, the differential and Euler's e are set
+    // either way; kept apart from a command before it, \int\mathrm{d}x: \int dx)
+    t = t.replace(/\\mathrm\s*\{\s*([ide])\s*\}/g, function (x, c, at, all) { return (/\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) ? " " : "") + c; });
     t = t.replace(/([_^])\s*(\\[A-Za-z]+\s*\{[^{}]*\})/g, "$1{$2}");   // (S_\text{gen} as S_{\text{gen}})
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
     t = t.replace(SCRIPT1, script1);
@@ -526,4 +531,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-23.3";
+globalThis.L2M_searchRules.version = "2026-10-24.2";
