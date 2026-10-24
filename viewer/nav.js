@@ -643,9 +643,13 @@ window.L2M_nav = function (opts) {
           // a formula not drawn yet is searched in its drawing as kept (its marks come when it is drawn)
           var gl = lazy ? null : f.el.querySelectorAll("[data-c]");
           var codes = lazy ? L2M_math.codes(+f.el.getAttribute("data-n")) : Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
-          var idx = [], all = codes;
-          for (var k = 0; k < all.length; k++) if (what.glyph || !over(all[k])) idx.push(k);
-          codes = idx.map(function (k) { return all[k]; });
+          // (a multiple integral drawn as one sign, ∬: two ∫ places, as the rules read \iint as \int\int; both its own)
+          var idx = [], all = codes, MANY = {"222C": 2, "222D": 3, "2A0C": 4};
+          codes = [];
+          for (var k = 0; k < all.length; k++) {
+            if (!what.glyph && over(all[k])) continue;
+            for (var r = 0, nr = MANY[all[k]] || 1; r < nr; r++) { idx.push(k); codes.push(nr > 1 ? "222B" : all[k]); }
+          }
           for (var i = 0; i + seq.length <= codes.length; i++) {
             var ok = true;
             for (var j = 0; j < seq.length && ok; j++) ok = seq[j][0] === "*" || seq[j].indexOf(codes[i + j]) >= 0;

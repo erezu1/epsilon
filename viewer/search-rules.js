@@ -58,7 +58,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     "⟹": "Longrightarrow", "⟺": "Longleftrightarrow", "⟶": "longrightarrow", "⊥": "perp", "≺": "prec", "≻": "succ",
     "≲": "lesssim", "≳": "gtrsim", "∖": "setminus", "‡": "ddagger", "⋄": "diamond", "□": "square", "∠": "angle", "⋮": "vdots",
     "⋱": "ddots", "⌊": "lfloor", "⌋": "rfloor", "⌈": "lceil", "⌉": "rceil", "⋃": "bigcup", "⋂": "bigcap", "⨁": "bigoplus",
-    "⨂": "bigotimes", "ϖ": "varpi", "ϱ": "varrho", "∥": "parallel", "‖": "|"});
+    "⨂": "bigotimes", "ϖ": "varpi", "ϱ": "varrho", "∥": "parallel", "‖": "|", "≔": "coloneqq", "≕": "eqqcolon", "∬": "iint", "∭": "iiint", "⨌": "iiiint"});
   var SUPS = "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾ⁿⁱ", SUPT = "0123456789+-=()ni", SUBS = "₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎", SUBT = "0123456789+-=()";
   function uniTeX(q) {
     if (!/[^\x00-\x7f]/.test(q)) return q;
@@ -169,7 +169,17 @@ globalThis.L2M_searchRules = function (MACROS) {
     setminus: "2216", ddagger: "2021", diamond: "22C4", square: "25A1", angle: "2220", vdots: "22EE", ddots: "22F1",
     lfloor: "230A", rfloor: "230B", lceil: "2308", rceil: "2309", bigcup: "22C3", bigcap: "22C2", bigoplus: "2A01",
     bigotimes: "2A02", bigodot: "2A00", coprod: "2210", ominus: "2296", odot: "2299", oslash: "2298", vdash: "22A2",
-    models: "22A8", div: "F7", iint: "222C", iiint: "222D", top: "22A4", coloneqq: "2254", triangle: "25B3", sqcup: "2294", sqcap: "2293"});
+    models: "22A8", div: "F7", iint: "222C", iiint: "222D", top: "22A4", coloneqq: "2254", triangle: "25B3", sqcup: "2294", sqcap: "2293",
+    // (the AMS symbols: relations, arrows, brackets)
+    leqslant: "2A7D", geqslant: "2A7E", leqq: "2266", geqq: "2267", lessapprox: "2A85", gtrapprox: "2A86", lll: "22D8", ggg: "22D9",
+    nleq: "2270", ngeq: "2271", nless: "226E", ngtr: "226F", preccurlyeq: "227C", succcurlyeq: "227D", precsim: "227E", succsim: "227F",
+    subsetneq: "228A", supsetneq: "228B", sqsubseteq: "2291", sqsupseteq: "2292", vartriangleleft: "22B2", vartriangleright: "22B3",
+    trianglelefteq: "22B4", trianglerighteq: "22B5", approxeq: "224A", backsim: "223D", eqsim: "2242", triangleq: "225C",
+    bumpeq: "224F", Bumpeq: "224E", circeq: "2257", multimap: "22B8", therefore: "2234", because: "2235", complement: "2201",
+    nexists: "2204", boxplus: "229E", boxtimes: "22A0", boxminus: "229F", boxdot: "22A1", curlyvee: "22CE", curlywedge: "22CF",
+    rightsquigarrow: "21DD", leftrightsquigarrow: "21AD", hookrightarrow: "21AA", hookleftarrow: "21A9", twoheadrightarrow: "21A0",
+    rightarrowtail: "21A3", rightleftharpoons: "21CC", leftrightharpoons: "21CB", rightharpoonup: "21C0", nrightarrow: "219B",
+    leftleftarrows: "21C7", rightrightarrows: "21C9", llbracket: "27E6", rrbracket: "27E7", varpropto: "221D", mho: "2127"});
   // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
   var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"]});
   var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
@@ -478,7 +488,9 @@ globalThis.L2M_searchRules = function (MACROS) {
       .replace(/\\(?:lvert|rvert|vert|mid)(?![A-Za-z])/g, "|").replace(/\\(?:lVert|rVert|Vert|parallel)(?![A-Za-z])/g, "\\|")
       .replace(/\\ensuremath\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, "$1")   // (\ensuremath{X}: X)
       .replace(/\.\.\.+/g, "\\ldots ")                                                // (1...k: 1\ldots k, as typed)
+      .replace(/\\(i{2,4})nt(?![A-Za-z])/g, function (x, is) { return new Array(is.length + 1).join("\\int "); })   // (\iint: \int\int, as a PDF can't tell them apart)
       .replace(/\\colon(?![A-Za-z])/g, ":").replace(/\\%/g, "%")
+      .replace(/\\x(right|left)arrow\s*\[([^\]]*)\]\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$3}{\\underset{$2}{\\$1arrow}}")   // (\xrightarrow[b]{a}: a over, b under)
       .replace(/\\x(right|left)arrow\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$2}{\\$1arrow}")   // (\xrightarrow{\Phi}: \overset{\Phi}{\rightarrow})
       .replace(/\\boldsymbol\s*\{\s*([0-9]+)\s*\}/g, "\\mathbf{$1}")                     // (\boldsymbol{1}: \mathbf{1}, a digit set bold)
       .replace(/\\math(?:rm|it)\s*\{\s*(\\[A-Za-z]+)\s*\}/g, function (x, c) { return GLYPH[c.slice(1)] ? c + " " : x; })   // (\mathrm{\theta}: \theta)
@@ -575,4 +587,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-24.7";
+globalThis.L2M_searchRules.version = "2026-10-24.10";
