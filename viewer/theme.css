@@ -31,6 +31,7 @@
   --find-a: 10%; --find-now-a: 32%; --find-band-a: 11%; --find-band-now-a: 34%;
   --mark-a: 42%; --mark-on-a: 64%;   /* a mark; the one whose sheet is open, or a link just landed on */
   --seg-on: var(--glass-solid); --seg-on-shadow: 0 1px 4px -1px var(--bar-shadow);   /* the chosen option of a segmented control */
+  --frame-a: 5%; --hair-a: 9%;       /* (the flat skin: a panel's tint of ink, and its edge's) */
   /* made from them */
   --glass: color-mix(in srgb, var(--ground) var(--glass-a), transparent);
   --glass-solid: color-mix(in srgb, var(--ground) 97%, transparent);
@@ -65,6 +66,7 @@
     --find-a: 18%; --find-now-a: 56%; --find-band-a: 20%; --find-band-now-a: 60%;
     --mark-a: 34%; --mark-on-a: 54%;
     --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
+    --frame-a: 8%; --hair-a: 14%;
     --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
     /* the colours authors give formulas (\color{blue}), made light on the dark page */
     --tex-red: #ff8a80; --tex-green: #6bd88f; --tex-blue: #7f9fff; --tex-magenta: #f08ce8; --tex-gray: #9aa1aa;
@@ -87,6 +89,7 @@
   --find-a: 18%; --find-now-a: 56%; --find-band-a: 20%; --find-band-now-a: 60%;
   --mark-a: 34%; --mark-on-a: 54%;
   --seg-on: color-mix(in srgb, var(--ink) 15%, transparent);
+  --frame-a: 8%; --hair-a: 14%;
   --seg-on-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--shade) 35%, transparent);
   /* the colours authors give formulas (\color{blue}), made light on the dark page */
   --tex-red: #ff8a80; --tex-green: #6bd88f; --tex-blue: #7f9fff; --tex-magenta: #f08ce8; --tex-gray: #9aa1aa;
@@ -2117,12 +2120,14 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   /* its edge: a faint hairline drawn within it, round corners and all, on every side but one at the screen's edge
      (the header's top, a footer's foot; on a phone, where the glass meets the screen's sides, those too) */
   --g-line: transparent;
-  --g-hair: color-mix(in srgb, var(--rule) 70%, transparent);
+  --g-hair: color-mix(in srgb, var(--ink) var(--hair-a), transparent);
   --g-edge-top: inset 0 -0.5px 0 0 var(--g-hair);
   --g-edge-bottom: inset 0 0.5px 0 0 var(--g-hair);
   --g-edge-round: inset 0 0 0 0.5px var(--g-hair);
-  --g-shadow: 0 0 48px 0 color-mix(in srgb, var(--bar-shadow) 42%, transparent);
-  --g-shadow-round: 0 0 18px 0 color-mix(in srgb, var(--bar-shadow) 48%, transparent);
+  /* (two even shadows, a near and a far: the edge crisp, the glass lifted) */
+  --g-shadow: 0 0 3px 0 color-mix(in srgb, var(--bar-shadow) 16%, transparent), 0 0 32px 0 color-mix(in srgb, var(--bar-shadow) 30%, transparent);
+  --g-shadow-round: 0 0 2px 0 color-mix(in srgb, var(--bar-shadow) 18%, transparent), 0 0 14px 0 color-mix(in srgb, var(--bar-shadow) 34%, transparent);
+  --g-frame: color-mix(in srgb, var(--ink) var(--frame-a), var(--ground));   /* (a panel's ground) */
   --g-cover-fill: var(--ground); --g-cover-blur: none;
   --film-o: 0;
   --r: 0px;                     /* (the glass and its boxes square; what is pressed or typed in round, as in glass) */
@@ -2138,6 +2143,19 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 :root[data-skin="flat"] .glass::before { content: none; }
 /* (flat: no border, so that the edge's ring, drawn just inside the box, lies on the glass's very edge) */
 :root[data-skin="flat"] :is(.glass-top, .glass-bottom, .glass-round, .app-day.stuck, .peek-head) { border-width: 0; }
+/* (flat, its layers: the bar on the page's own ground; a panel under it (contents, settings) a faintly tinted ground,
+   what is chosen in it a pill of the page's ground, as a segmented control's chosen option, and under the pointer a
+   faint grey, not the link's tint) */
+:root[data-skin="flat"] .l2m-menu { --g-fill: var(--g-frame); --g-fill-solid: var(--g-frame);
+  --bar-hover: color-mix(in srgb, var(--ink) var(--frame-a), transparent); --bar-current: var(--seg-on); }
+:root[data-skin="flat"] .l2m-menu :is(a.current, .sel-ind, .opt[aria-checked="true"]) { box-shadow: var(--seg-on-shadow); }
+:root[data-skin="flat"] .l2m-menu .opt-list .opt[aria-checked="true"] { box-shadow: none; }   /* (there the pill is the .sel-ind behind it) */
+/* (a panel open, the flat bar keeps its own ground over the panel's, not clear: it stays the page's colour, the panel
+   tinted under it; square below while the panel is open or closing, so no corner of the panel shows beside it) */
+:root[data-skin="flat"] .l2m-bar { transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s 300ms,
+  border-color 0s 300ms, border-radius 0s 300ms; }
+:root[data-skin="flat"] .l2m-bar.menu-open { background-color: var(--g-fill); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s, border-radius 0s; }
 /* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */
 .l2m-note-tex.display { display: block; overflow-x: auto; overflow-y: hidden; text-align: center; margin: 0.3em 0; }
 .l2m-note-tex mjx-container[jax="SVG"] { margin: 0 !important; }
