@@ -792,10 +792,13 @@ a.lib-title { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .app-picker { transition-duration: 0.01s; } }
 
 /* ------------------------------------------------------------ interface size and font (Material 3 measures)
-   The bar is 64px tall with 48px touch targets and 24px icons; the interface (bar, panels, app lists,
-   buttons) is set in a clean sans, while papers keep the reading font. */
+   The bar is 64px tall with 48px touch targets and 24px icons (56px on a wide screen: see below); the interface
+   (bar, panels, app lists, buttons) is set in a clean sans, while papers keep the reading font. */
 :root { --ui: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
 .l2m-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 8px); padding-bottom: 8px; }
+/* (on a wide screen, nothing above the row: its icons 12px from the bar's top, as far as they are from the reading
+   line under them (10px) and it from the bar's foot (8px); 8px more there made the bar look thick and its row low) */
+@media (min-width: 800px) { .l2m-bar { padding-top: env(safe-area-inset-top, 0px); } }
 .bar-btn { width: 48px; height: 48px; }
 .bar-btn svg, .bar-title-ico svg { width: 24px; height: 24px; }
 .bar-inner { gap: 4px; }
