@@ -1413,7 +1413,7 @@
     setMode(which === "settings");
     shell.querySelector(which === "add" ? "#app-plus" : "#app-gear").setAttribute("aria-expanded", "true");
     panelOpen = which;
-    unjoin();
+    if (isPage(current)) joinBar(current);         // the bar lets go of a pinned header, shrinking as the panel comes down
     requestAnimationFrame(function () {
       Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide);
       var f = inner.querySelector("#add-id");
@@ -1466,21 +1466,7 @@
     shell.querySelector("#app-plus").setAttribute("aria-expanded", "false");
     root.classList.remove("l2m-settings-open");
     panelOpen = false;
-    // the list's pinned header back in the bar once the panel is shut (300ms, its close), growing in as it does
-    clearTimeout(unjoin.t);
-    unjoin.t = setTimeout(function () { joinHeld = false; if (!panelOpen && shell && isPage(current)) joinBar(current); }, 300);
-  }
-  // a panel opening: the bar lets go of a pinned header at once (the panel covers where it was)
-  var joinHeld = false;
-  function unjoin() {
-    clearTimeout(unjoin.t);
-    joinHeld = true;
-    if (!isPage(current)) return;
-    var row = shell.querySelector(".app-bar-day");
-    row.style.transition = "none";
-    joinBar(current);
-    row.getBoundingClientRect();
-    row.style.transition = "";
+    if (isPage(current)) joinBar(current);           // the list's pinned header back in the bar, growing as the panel goes up
   }
   // the settings' tabs: the underline slides, the panes slide sideways (a swipe too), the panel takes each one's height
   function bindSetTabs(inner, tab) {
@@ -2199,9 +2185,9 @@
       d.classList.toggle("stuck", passed);            // passed headers are drawn by the bar, not the list
       if (passed) cur = i;
     });
-    // (a panel open or closing, the bar takes no header in: the panel stands right under the bar, whatever the list
-    // behind does, and its contents stay where they are as it goes)
-    var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === k && !joinHeld;
+    // (a panel open, the bar takes no header in: the panel stands right under the bar, whatever the list behind does;
+    // the bar shrinks as the panel rolls down behind it, and grows again as it rolls back up)
+    var bar = shell.querySelector("#app-bar"), row = bar.querySelector(".app-bar-day"), on = cur >= 0 && current === k && !panelOpen;
     // where the header's words stand, as they would with this list in view (the list may be sliding sideways)
     var textX = 0;
     if (cur >= 0) {

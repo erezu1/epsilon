@@ -382,7 +382,7 @@ ol.refs li { display: flex; gap: 0.6em; margin: 0 0 0.7em; }
 .l2m-menu {
   position: fixed;
   top: calc(-1 * var(--g-above));                                           /* (reaching on up out of sight, as the bar's shadow does) */
-  padding-top: calc(var(--l2m-bar-h, 64px) + var(--l2m-join-h, 0px) + var(--g-above));     /* (below the bar, and its pinned date) */
+  padding-top: calc(var(--l2m-bar-h, 64px) + var(--g-above));     /* (below the bar; with a panel open the bar holds no pinned date) */
   display: flex;
   flex-direction: column;
   left: 0;
@@ -1331,8 +1331,9 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
   .app-lead > *, .app-tabswap > *, #app-search, #app-fold, #app-plus { transition-duration: 0.01s; }
 }
 
-/* a panel over a list with a pinned header: it opens from, and closes onto, the bar with the header (its full height:
-   --l2m-join-h, the header's, app.js) */
+/* a panel over a list with a pinned header: it rolls down from behind the bar with the header (its full height:
+   --l2m-join-h, the header's, app.js) and back up behind it; the bar lets the header go as the panel comes down,
+   shrinking on the panel's own curve, and takes it back in as the panel goes up */
 :root { --l2m-join-h: 0px; }
 .app-bar .app-bar-day, .app-bar.joined.settled .app-bar-day {
   transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1), padding-top 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease;
@@ -2155,11 +2156,9 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 :root[data-skin="flat"] .l2m-menu :is(a.current, .sel-ind, .opt[aria-checked="true"]) { box-shadow: var(--seg-on-shadow); }
 :root[data-skin="flat"] .l2m-menu .opt-list .opt[aria-checked="true"] { box-shadow: none; }   /* (there the pill is the .sel-ind behind it) */
 /* (a panel open, the flat bar keeps its own ground over the panel's, not clear: it stays the page's colour, the panel
-   tinted under it; square below while the panel is open or closing, so no corner of the panel shows beside it) */
-:root[data-skin="flat"] .l2m-bar { transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s 300ms,
-  border-color 0s 300ms, border-radius 0s 300ms; }
-:root[data-skin="flat"] .l2m-bar.menu-open { background-color: var(--g-fill); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s, border-radius 0s; }
+   tinted under it; and its shape and edge line, its corners round as ever, so that nothing of it changes as a panel
+   comes or goes) */
+:root[data-skin="flat"] .l2m-bar.menu-open { background-color: var(--g-fill); box-shadow: var(--g-edge-top); }
 /* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */
 .l2m-note-tex.display { display: block; overflow-x: auto; overflow-y: hidden; text-align: center; margin: 0.3em 0; }
 .l2m-note-tex mjx-container[jax="SVG"] { margin: 0 !important; }
