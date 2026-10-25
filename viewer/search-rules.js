@@ -104,6 +104,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     if (q.slice(last).trim()) parts.push({t: q.slice(last)});
     if (parts.length > 1 && parts.some(function (x) { return x.f != null; })) return {mixed: parts};
     q = bareCmds(q);                                  // (sqrt{2}: \sqrt{2}, matched and its glyphs read as one)
+    if (q.charAt(0) !== "$") q = typedTeX(q);         // (psi(t,x), F_14: as meant; in $...$, TeX as written)
     if (q.charAt(0) === "$") {                       // "$...": the formulas only (the rest read as TeX)
       q = q.slice(1).replace(/\$$/, "").trim();
       if (!q) return null;
@@ -120,7 +121,10 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var w = {text: q.replace(/[^A-Za-z]/g, "").length >= 3 || /[^A-Za-z\s]/.test(q) && q.length >= 2 ? q.toLowerCase() : null};
     if (GLYPH[q]) { w.glyph = alts(q); w.tex = "\\" + q; }         // "phi": the word, and the symbol
     else if (/^[A-Za-z]{3,}$/.test(q) && (OPS[q] || OPNAME.test(q))) w.tex = "\\" + q;   // "sum", "log": the word, and the command
-    if (!w.text && !w.tex && !w.glyph) return null;              // (too short to look for yet)
+    // one or two letters or digits (C, ab, x2 has its text): in the formulas, as drawn, case and all (as words they
+    // would be found in nearly every word)
+    if (!w.text && !w.tex && !w.glyph && /^[A-Za-z0-9]{1,2}$/.test(q)) return {tex: q};
+    if (!w.text && !w.tex && !w.glyph) return null;
     else if (/[^A-Za-z\s]/.test(q)) w.tex = q.replace(/\s+/g, ""); // "O(N)", "a+b": in the text, and in the formulas
     if (/^[A-Za-z]{3,}$/.test(q)) w.word = q.toLowerCase();   // "leading": in the text, and as written in formulas
     var cm = /^\[\s*([0-9A-Za-z]+)\s*\]$/.exec(q);
@@ -192,11 +196,34 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // command, in the query as it is matched and as its glyphs are read
   var BARE_CMD = new RegExp("(^|[^A-Za-z\\\\])(" + ACCS + "|sqrt|frac|dfrac|tfrac|binom|overline|underline)(?=\\{)", "g");
   // (and <=, >=, != as typed: \leq, \geq, \neq; only in a query: in a formula's TeX they are what they are, <a,b>=0 or n!=1)
-  // (and a symbol's name so typed with formula TeX after it: psi(t,x), alpha_1, phi^2, partial_mu; a word alone, phi, a word)
-  var BARE_SYM = new RegExp("(^|[^A-Za-z\\\\])(" + Object.keys(GLYPH).filter(function (n) { return n.length > 1; })
-    .sort(function (a, b) { return b.length - a.length; }).join("|") + ")(?=[(_^0-9=+\\-*/<>|,\\\\{\\[])", "g");
-  var BARE_SCRIPT = new RegExp("([_^])(" + BARE_SYM.source.split("(")[2].split(")")[0] + ")(?![A-Za-z])", "g");   // (as a script: partial_mu)
-  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(BARE_SYM, "$1\\$2").replace(BARE_SCRIPT, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq "); }
+  // (a query that is a formula as typed, with =, _, ^, \\, brackets, digits...: a run of letters that is wholly symbols'
+  // names is them, psi(t,x), 1/rho, = L psi, munu; and a script of more than one digit or letter is all of it, F_14,
+  // delta_ij; a word alone, phi, or among words, the phi meson: a word)
+  var NAMES = Object.keys(GLYPH).filter(function (n) { return n.length > 1; });
+  var NAMED = own({}); NAMES.forEach(function (n) { NAMED[n] = 1; });
+  function asNames(run) {                          // run as names one after another (munu: mu nu), or null
+    var at = [[]];
+    for (var i = 1; i <= run.length; i++) {
+      at[i] = null;
+      for (var j = Math.max(0, i - 10); j < i && !at[i]; j++) if (at[j] && NAMED[run.slice(j, i)]) at[i] = at[j].concat([run.slice(j, i)]);
+    }
+    return at[run.length];
+  }
+  var FORMULA_LIKE = /[_^\\{}=+*\/<>()\[\]|0-9]/;
+  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/(^|[^\\])!=/g, "$1\\neq "); }   // (\!= is a thin space less and =)
+  // (a query typed, not in $...$, TeX as written: its names and scripts as a person means them)
+  function typedTeX(q) {
+    if (!FORMULA_LIKE.test(q)) return q;
+    return q.replace(/(\\?)([A-Za-z]+)/g, function (x, sl, run, at, all) {
+      if (sl) return x;                                // (a command's own name)
+      if (/\\(text[a-z]*|math[a-z]+|operatorname|mbox|begin|end)\s*\{$/.test(all.slice(Math.max(0, at - 20), at))) return x;   // (words in a font's or a text's braces)
+      var ns = asNames(run);
+      if (!ns) return x;
+      var r = ns.map(function (n) { return "\\" + n; }).join("");
+      if (ns.length > 1 && /[_^]$/.test(all.slice(0, at))) return "{" + r + "}";   // (^munu: ^{\mu\nu})
+      return r + (/^[A-Za-z]/.test(all.charAt(at + x.length)) ? " " : "");
+    }).replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9\\{_^])/g, "$1{$2}");   // (F_14, delta_ij, T_AB: all of it; alpha_iH_R: i only)
+  }
   function texHas(tex, q) {
     q = texNorm(bareCmds(q));
     var t = plainly(texNorm(tex), q), i;
@@ -534,7 +561,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   }
   var TWO_SCRIPTS = /([_^])(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])\1(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])/g;
   var FONT_GROUP = /\{(\\(?:mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\{[^{}]*\})\}/g;
-  var FONT_RUN = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\s*\{([^{}]*)\}(\s*-?\s*)\\\1\s*\{/g;   // (and across a hyphen: \mathrm{on}-\mathrm{shell})
+  var FONT_RUN = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\s*\{([^{}]*)\}([\s\u0005]*-?[\s\u0005]*)\\\1\s*\{/g;   // (and across a hyphen: \mathrm{on}-\mathrm{shell})
   // a run of one font joined (\mathrm{for}\mathrm{all}); not a script's own group with what follows it (\otimes_\mathbb{Z}\mathbb{R})
   function fontRun(x, f, a, sep, at, all) {
     if (/[_^]\s*$/.test(all.slice(Math.max(0, at - 4), at))) return x;
@@ -574,6 +601,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var OLDF = own({rm: "mathrm", bf: "mathbf", it: "mathit", sf: "mathsf", tt: "mathtt", cal: "mathcal",
     textrm: "mathrm", textbf: "mathbf", textit: "mathit", textsf: "mathsf", texttt: "mathtt"});
   var OLDFONT = /\{\s*\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*([^{}]*)\}|\\(?:(textrm|textbf|textit|textsf|texttt))\{([^{}]*)\}/g;
+  var TEXTY = /\\(text|textrm|textit|textbf|textsf|texttt|textsc|textup|textnormal|textmd|textsl|emph|mbox|hbox|fbox|intertext|shortintertext|tag\*?)\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g;
   function texNorm(t) {
     t = t || "";
     var hit = normed.get(t);
@@ -581,7 +609,11 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var was = t;
     t = uniTeX(physics(expand(t)).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
-    t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\long$1arrow ");   // (\xrightarrow{}: drawn as long as \longrightarrow)
+    // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
+    // \mathrm{for all}; at a text's two ends none, \text{ where } as \text{where})
+    // (and a text's dash a dash, not a math's minus: 25\text{–}30 has no -3)
+    t = t.replace(TEXTY, function (x, c, a) { return "\\" + c + "{" + a.replace(/^\s+|\s+$/g, "").replace(/\s+/g, "\u0005").replace(/---/g, "\u2014").replace(/--/g, "\u2013") + "}"; });
+    t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: drawn as long as \rightarrow; with a label, long)
     t = unspaced(cells(t))
       .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
       .replace(LAYOUT, "")                                                              // (\hspace{-0.9cm}, \kern-3em, \phantom{x}: nothing drawn)
@@ -674,6 +706,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // (a space only between a command's name and a letter after it: \mu e, not e_\mu^a e)
     t = t.replace(/ +/g, function (m, at, all) { return /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[A-Za-z]/.test(all.slice(at + m.length)) ? " " : ""; });
     if (normed.size > 20000) normed.clear();
+    t = t.replace(/\u0005/g, " ");                   // (a text's spaces, kept to here)
     normed.set(was, t);
     return t;
   }
@@ -730,4 +763,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.14";
+globalThis.L2M_searchRules.version = "2026-10-25.16";

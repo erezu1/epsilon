@@ -572,6 +572,43 @@ window.L2M_nav = function (opts) {
   var rules = L2M_searchRules(opts.macros, opts.packages), HAS_ACC = rules.HAS_ACC, WORDED = rules.WORDED, SCRIPTED = rules.SCRIPTED,
     findWhat = rules.findWhat, texHas = rules.texHas, glyphsOf = rules.glyphsOf, texNorm = rules.texNorm, wordSeqs =
     rules.wordSeqs, reEsc = rules.reEsc;
+  // a formula as the words round it see it: what it draws, glyph by glyph (a letter in any font as the letter, a digit
+  // as the digit, +=()... as themselves; an accent nothing, any other sign a mark no query has); and for each of its
+  // characters the glyph it is (to mark just those)
+  var PLAIN_ACC = /^(5E|7E|AF|2C9|2D9|A8|2C7|2D8|B4|60|2C6|2DC|20D7|302|303|304|307|308|30C)$/;
+  function plainChar(c) {
+    if (PLAIN_ACC.test(c)) return "";
+    var x = parseInt(c, 16);
+    if (x >= 0x1D400 && x <= 0x1D6A3) { var k = (x - 0x1D400) % 52; return String.fromCharCode(k < 26 ? 65 + k : 71 + k); }
+    if (x >= 0x1D7CE && x <= 0x1D7FF) return String((x - 0x1D7CE) % 10);
+    if (x === 0x210E) return "h";
+    if (x === 0x2212) return "-";
+    if (x === 0x2032) return "'";
+    if (x >= 0x21 && x <= 0x7E) return String.fromCharCode(x);
+    return "\u0002";
+  }
+  function plainOf(el) {
+    if (el.tagName === "L2M-MATH") return null;
+    var lazy = el.hasAttribute("data-lazy") && window.L2M_math;
+    var gl = lazy ? null : el.querySelectorAll("[data-c]");
+    var codes = lazy ? L2M_math.codes(+el.getAttribute("data-n")) : Array.prototype.map.call(gl, function (g) { return g.getAttribute("data-c"); });
+    if (!codes || !codes.length) return null;
+    var s = "", idx = [];
+    for (var k = 0; k < codes.length; k++) { var ch = plainChar(codes[k]); if (ch) { s += ch; idx.push(k); } }
+    return s ? {s: s, idx: idx, gl: gl} : null;
+  }
+  // words as a pattern: any spacing between words; round a sign none or any (C=2 is, C = 2 is: both)
+  function plainRe(q) {
+    var ws = q.trim().split(/\s+/), out = "";
+    ws.forEach(function (w, n) {
+      if (n) out += /[a-z0-9]$/i.test(ws[n - 1]) && /^[a-z0-9]/i.test(w) ? "\\s+" : "\\s*";
+      for (var c = 0; c < w.length; c++) {
+        if (c && !(/[a-z0-9]/i.test(w.charAt(c)) && /[a-z0-9]/i.test(w.charAt(c - 1)))) out += "\\s*";
+        out += reEsc(w.charAt(c));
+      }
+    });
+    return out;
+  }
   function findRun() {
     foundBack();
     findClear();
@@ -589,8 +626,13 @@ window.L2M_nav = function (opts) {
     }});
     for (var n = walk.nextNode(); n; n = walk.nextNode()) {
       if (n.nodeType === 1) {                          // a formula: its place in the text, and what it has
-        forms.push({el: n, at: text.length});
-        text += "\u0000";
+        // (for words: what it draws, C for $C$, so that "C is a cylinder" is found through it; a block of its own,
+        // a display, apart from the text round it)
+        var fb = n.closest(BLOCK);
+        if (fb !== lastBlock) { text += "\u0001"; lastBlock = fb; }
+        var pl = what.text ? plainOf(n) : null;
+        forms.push({el: n, at: text.length, len: pl ? pl.s.length : 1, plain: pl});
+        text += pl ? pl.s : "\u0000";
         continue;
       }
       var blk = n.parentNode.closest(BLOCK);
@@ -601,16 +643,49 @@ window.L2M_nav = function (opts) {
     var found = [];                                     // {at, range} | {at, el, glyph} | {at, el}
     if (what.text) {
       // any spacing (a space, a line's end, a no-break space before a citation) as any other
-      var low = text.toLowerCase(), q = what.text, re = new RegExp(reEsc(q.trim()).replace(/\s+/g, "\\s+"), "g"), mm = re.exec(low), i = mm ? mm.index : -1, len = mm ? mm[0].length : 0;
+      var low = text.toLowerCase(), re = new RegExp(plainRe(what.text), "g"), mm = re.exec(low), i = mm ? mm.index : -1, len = mm ? mm[0].length : 0;
       function pos(k) {                                 // the text node and offset of the k-th character
         var lo = 0, hi = starts.length - 1;
         while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= k) lo = mid; else hi = mid - 1; }
         return {node: nodes[lo], off: Math.min(k - starts[lo], nodes[lo].data.length)};
       }
+      var fi = 0;                                       // (the formulas, in order: the first that may reach a hit)
       while (i >= 0 && found.length < 1500) {
-        var a = pos(i), b = pos(i + len);
-        try { var r = document.createRange(); r.setStart(a.node, a.off); r.setEnd(b.node, b.off); found.push({at: i, range: r}); } catch (e) {}
+        if (!len) { re.lastIndex++; mm = re.exec(low); i = mm ? mm.index : -1; len = mm ? mm[0].length : 0; continue; }
+        var j = i + len, over = [];
+        while (fi < forms.length && forms[fi].at + forms[fi].len <= i) fi++;
+        for (var fk = fi; fk < forms.length && forms[fk].at < j; fk++) if (forms[fk].plain) over.push(forms[fk]);
+        if (!over.length) {
+          var a = pos(i), b = pos(j);
+          try { var r = document.createRange(); r.setStart(a.node, a.off); r.setEnd(b.node, b.off); found.push({at: i, range: r}); } catch (e) {}
+        } else if (!(over.length === 1 && over[0].at <= i && over[0].at + over[0].len >= j)) {   // (one formula's own: its search's)
+          var h = throughForms(i, j, over);
+          if (h) found.push(h);
+        }
         mm = re.exec(low); i = mm ? mm.index : -1; len = mm ? mm[0].length : 0;
+      }
+      // a hit through text and formulas: its words (as ranges) and the formulas' glyphs it covers, one hit
+      function throughForms(i, j, over) {
+        var bits = [], whole = document.createRange(), lo = 0, hi = starts.length - 1;
+        while (lo < hi) { var mid = (lo + hi + 1) >> 1; if (starts[mid] <= i) lo = mid; else hi = mid - 1; }
+        for (var t = lo; t < nodes.length && starts[t] < j; t++) {
+          var s0 = Math.max(0, i - starts[t]), s1 = Math.min(nodes[t].data.length, j - starts[t]);
+          if (s1 <= s0) continue;
+          var rr = document.createRange(); rr.setStart(nodes[t], s0); rr.setEnd(nodes[t], s1); bits.push({at: starts[t] + s0, b: rr});
+        }
+        over.forEach(function (f) {
+          var c0 = Math.max(i, f.at) - f.at, c1 = Math.min(j, f.at + f.len) - f.at;
+          if (!f.plain.gl) { bits.push({at: f.at + c0, b: f.el}); return; }      // (not drawn yet: the formula whole)
+          for (var c = c0; c < c1; c++) bits.push({at: f.at + c, b: f.plain.gl[f.plain.idx[c]]});
+        });
+        if (!bits.length) return null;
+        bits.sort(function (x, y) { return x.at - y.at; });
+        var first = bits[0], last = bits[bits.length - 1];
+        try {
+          if (first.b.nodeType === 1) whole.setStartBefore(first.b.closest("mjx-container") || first.b); else whole.setStart(first.b.startContainer, first.b.startOffset);
+          if (last.b.nodeType === 1) whole.setEndAfter(last.b.closest("mjx-container") || last.b); else whole.setEnd(last.b.endContainer, last.b.endOffset);
+        } catch (e) { return null; }
+        return {at: i, range: whole, bits: bits.map(function (x) { return x.b; })};
       }
     }
     if (what.cite) {
