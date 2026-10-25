@@ -1267,9 +1267,10 @@
     ind.style.transform = "translateX(" + (sw.offsetLeft + set.offsetLeft + on.offsetLeft) + "px)";
     if (instant) { void ind.offsetWidth; ind.classList.remove("no-anim"); }
   }
-  function slide(group) {                  // the highlight of a segmented control or option list
+  function slide(group, instant) {         // the highlight of a segmented control or option list (instant: put, not slid)
     var ind = group.querySelector(".sel-ind"), on = group.querySelector('[aria-checked="true"]');
     if (!ind || !on) return;
+    if (instant) ind.classList.add("no-anim");
     ind.style.width = on.offsetWidth + "px";
     if (group.classList.contains("app-tabs")) {      // the bar's tabs: a line under the current one
       ind.style.transform = "translateX(" + on.offsetLeft + "px)";
@@ -1278,6 +1279,7 @@
     }
     ind.style.height = on.offsetHeight + "px";
     ind.style.transform = "translate(" + on.offsetLeft + "px," + on.offsetTop + "px)";
+    if (instant) { void ind.offsetWidth; ind.classList.remove("no-anim"); }
   }
   // search: the field takes the whole bar; it filters the library as you type
   function filterLibrary() {
@@ -1414,8 +1416,9 @@
     shell.querySelector(which === "add" ? "#app-plus" : "#app-gear").setAttribute("aria-expanded", "true");
     panelOpen = which;
     if (isPage(current)) joinBar(current);         // the bar lets go of a pinned header, shrinking as the panel comes down
+    // the highlights where the chosen options are, from the start (made anew, they would slide in from the left)
+    Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), function (g) { slide(g, true); });
     requestAnimationFrame(function () {
-      Array.prototype.forEach.call(inner.querySelectorAll(".seg, .opt-list"), slide);
       var f = inner.querySelector("#add-id");
       if (f) f.focus();
     });
