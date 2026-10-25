@@ -44,15 +44,14 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var SAME = own({varepsilon: "epsilon", varphi: "phi", vartheta: "theta", varrho: "rho", varsigma: "sigma", varpi: "pi",
     varkappa: "kappa", varGamma: "Gamma", varDelta: "Delta", varTheta: "Theta", varLambda: "Lambda", varXi: "Xi", varPi: "Pi",
     varSigma: "Sigma", varUpsilon: "Upsilon", varPhi: "Phi", varPsi: "Psi", varOmega: "Omega", hslash: "hbar",
-    varnothing: "emptyset", le: "leq", leqslant: "leq", ge: "geq", geqslant: "geq", ne: "neq", to: "rightarrow",
-    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Rightarrow", iff: "Leftrightarrow",
-    longrightarrow: "rightarrow", Longrightarrow: "Rightarrow", longleftarrow: "leftarrow", Longleftarrow: "Leftarrow",   // (an arrow and its long form one: publishers swap them)
-    longleftrightarrow: "leftrightarrow", Longleftrightarrow: "Leftrightarrow", longmapsto: "mapsto",
+    // (an arrow, a relation, an operator: one only with what MathJax draws the same, \le and \leq, \implies and
+    // \Longrightarrow; a long arrow and its short form, a slanted ≤, a big ∪ are other signs, found apart: Erez, Oct 2026)
+    varnothing: "emptyset", le: "leq", ge: "geq", ne: "neq", to: "rightarrow",
+    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "ldots",
-  dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bigsqcup: "sqcup", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
+  dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
   mathds: "mathbb", mathbbm: "mathbb",   // (every row of dots one sign: readers write \ldots for all)
     backslash: "setminus", smallsetminus: "setminus", bot: "perp", dag: "dagger", ddag: "ddagger", leadsto: "rightsquigarrow",
-    bigwedge: "wedge", bigvee: "vee", bigcap: "cap", bigcup: "cup", bigoplus: "oplus", bigotimes: "otimes", bigodot: "odot",
     widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
     Check: "check", Breve: "breve", Acute: "acute", Grave: "grave", dbinom: "binom", tbinom: "binom", pmb: "mathbf",
     text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm", textsc: "mathrm", emph: "mathrm",
@@ -193,7 +192,11 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // command, in the query as it is matched and as its glyphs are read
   var BARE_CMD = new RegExp("(^|[^A-Za-z\\\\])(" + ACCS + "|sqrt|frac|dfrac|tfrac|binom|overline|underline)(?=\\{)", "g");
   // (and <=, >=, != as typed: \leq, \geq, \neq; only in a query: in a formula's TeX they are what they are, <a,b>=0 or n!=1)
-  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq "); }
+  // (and a symbol's name so typed with formula TeX after it: psi(t,x), alpha_1, phi^2, partial_mu; a word alone, phi, a word)
+  var BARE_SYM = new RegExp("(^|[^A-Za-z\\\\])(" + Object.keys(GLYPH).filter(function (n) { return n.length > 1; })
+    .sort(function (a, b) { return b.length - a.length; }).join("|") + ")(?=[(_^0-9=+\\-*/<>|,\\\\{\\[])", "g");
+  var BARE_SCRIPT = new RegExp("([_^])(" + BARE_SYM.source.split("(")[2].split(")")[0] + ")(?![A-Za-z])", "g");   // (as a script: partial_mu)
+  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(BARE_SYM, "$1\\$2").replace(BARE_SCRIPT, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq "); }
   function texHas(tex, q) {
     q = texNorm(bareCmds(q));
     var t = plainly(texNorm(tex), q), i;
@@ -234,7 +237,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     longleftrightarrow: "27F7", Longrightarrow: "27F9", Longleftarrow: "27F8", Longleftrightarrow: "27FA", uparrow: "2191",
     downarrow: "2193", perp: "22A5", prec: "227A", succ: "227B", preceq: "2AAF", succeq: "2AB0", lesssim: "2272", gtrsim: "2273",
     setminus: "2216", ddagger: "2021", diamond: "22C4", square: "25A1", angle: "2220", vdots: "22EE", ddots: "22F1",
-    lfloor: "230A", rfloor: "230B", lceil: "2308", rceil: "2309", bigcup: "22C3", bigcap: "22C2", bigoplus: "2A01",
+    lfloor: "230A", rfloor: "230B", lceil: "2308", rceil: "2309", bigcup: "22C3", bigcap: "22C2", bigvee: "22C1", bigwedge: "22C0", bigsqcup: "2A06", bigoplus: "2A01",
     bigotimes: "2A02", bigodot: "2A00", coprod: "2210", ominus: "2296", odot: "2299", oslash: "2298", vdash: "22A2",
     models: "22A8", div: "F7", iint: "222C", iiint: "222D", top: "22A4", coloneqq: "2254", triangle: "25B3", sqcup: "2294", sqcap: "2293",
     // (the AMS symbols: relations, arrows, brackets)
@@ -325,6 +328,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
             for (var d2 = 0, e2 = i; e2 < q.length; e2++) { if (q.charAt(e2) === "{") d2++; else if (q.charAt(e2) === "}" && !--d2) break; }
             body = q.slice(i + 1, e2); i = e2 + 1;
           } else if ((m = /^(\\[A-Za-z]+|.)/.exec(q.slice(i)))) { body = m[1]; i += m[0].length; }
+          if (body === undefined) return null;         // (\sqrt with nothing under it yet, (\sqrt: what it is over is not asked)
           var bg = body ? glyphsOf(body) : [], ig = idx ? glyphsOf(idx) : [];
           if (!bg || !ig) return null;
           out.push.apply(out, bg); out.push(alts("sqrt")); out.push.apply(out, ig);
@@ -436,6 +440,22 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var normed = new Map();
   // TeX's spacing (\, \; \: \! \  ~ \quad ...): none, as a space is none; a row's end, \\, kept
   var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:! \/]|(?:qquad|quad|enspace|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
+  // A table's cells and rows, and the lines of a display, as drawn: in a matrix, an array, cases, a cell apart from the
+  // next and a row from the next (SEP, which no query has: nothing found across it); an array's columns' letters
+  // ({cc}) nothing drawn; in an aligned display & nothing (an alignment point: x&=y is x=y), and a line apart from the
+  // next unless it goes on the one before (a line starting or the one before ending with a sign: a+\\ +b is a++b)
+  var SEP = "\u001f", TABLES = /\\begin\s*\{(matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|cases|dcases|rcases|tabular|subarray)(\*?)\}([\s\S]*?)\\end\s*\{\1\2\}/g;
+  var ROW = /\\\\(?:\s*\[[^\]]*\])?|\\cr(?![A-Za-z])/g;
+  var GOES_ON = /^(?:\s|&|\\(?:quad|qquad|[,;:! ]))*(?:[-+=<>]|\\(?:cdot|times|pm|mp|leq?|geq?|neq?|approx|equiv|sim|simeq|to|rightarrow|Rightarrow|longrightarrow|Longrightarrow)(?![A-Za-z]))/;
+  function cells(t) {
+    if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
+    t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
+    t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(ROW, SEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
+    t = t.replace(ROW, function (x, at, all) {
+      return GOES_ON.test(all.slice(at + x.length)) || /[-+=,]\s*&?\s*$/.test(all.slice(Math.max(0, at - 12), at)) ? " " : SEP;
+    });
+    return t.replace(/\\&/g, "\u0003").replace(/&/g, "").replace(/\u0003/g, "\\&");   // (\& a drawn &)
+  }
   function unspaced(t) {
     for (var k = 0; k < 4 && t.search(SPACING) >= 0; k++) t = t.replace(SPACING, "$1$2 ");
     return t.replace(/\\~/g, "\u0002").replace(/~/g, " ").replace(/\u0002/g, "\\~");   // (every ~, ~~ too; a text accent \~ kept)
@@ -561,11 +581,11 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var was = t;
     t = uniTeX(physics(expand(t)).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
-    t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: a plain \rightarrow)
-    t = unspaced(t)
+    t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\long$1arrow ");   // (\xrightarrow{}: drawn as long as \longrightarrow)
+    t = unspaced(cells(t))
       .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
       .replace(LAYOUT, "")                                                              // (\hspace{-0.9cm}, \kern-3em, \phantom{x}: nothing drawn)
-      .replace(/\\\\(?:\s*\[[^\]]*\])?|\\(?:newline|nonumber|notag)(?![A-Za-z])/g, "")   // (a row's end: rows joined, a display broken elsewhere being the same)
+      .replace(/\\(?:newline|nonumber|notag)(?![A-Za-z])/g, "")   // (rows: cells(), above)
       .replace(/\\tensor\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1$2")   // (\tensor{\eta}{_\mu}: \eta_\mu)
       .replace(/\\indices\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1")
       .replace(/[_^]\s*\{\s*\}/g, "")                                                  // (an empty script, \eta^{*}{}^{}: none)
@@ -582,8 +602,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\([ij])math(?![A-Za-z])\s*/g, "$1")                                     // (\imath: i)
       .replace(/\\up(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?![A-Za-z])/g, "\\$1")   // (\upbeta: \beta)
       .replace(/\\(overset|underset|stackrel)\s*(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^\s{}\\])\s*(\\[A-Za-z]+|[^\s{}\\])(?![A-Za-z])/g, function (x, c, a, b) { return "\\" + c + (a.charAt(0) === "{" ? a : "{" + a + "}") + "{" + b + "}"; })   // (\overset{n\to\infty}\longrightarrow: its second part braced)
-      .replace(/\\x(right|left)arrow\s*\[([^\]]*)\]\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$3}{\\underset{$2}{\\$1arrow}}")   // (\xrightarrow[b]{a}: a over, b under)
-      .replace(/\\x(right|left)arrow\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$2}{\\$1arrow}")   // (\xrightarrow{\Phi}: \overset{\Phi}{\rightarrow})
+      .replace(/\\x(right|left)arrow\s*\[([^\]]*)\]\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$3}{\\underset{$2}{\\long$1arrow}}")   // (\xrightarrow[b]{a}: a over, b under; drawn long)
+      .replace(/\\x(right|left)arrow\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$2}{\\long$1arrow}")   // (\xrightarrow{\Phi}: \overset{\Phi}{\longrightarrow}, as long at least)
       .replace(/\\boldsymbol\s*\{\s*([0-9]+)\s*\}/g, "\\mathbf{$1}")                     // (\boldsymbol{1}: \mathbf{1}, a digit set bold)
       .replace(/\\math(?:rm|it)\s*\{\s*(\\[A-Za-z]+)\s*\}/g, function (x, c) { return GLYPH[c.slice(1)] ? c + " " : x; })   // (\mathrm{\theta}: \theta)
       .replace(/\\mathrm\s*\{\s*([0-9.]+)([A-Za-z][^{}]*)\}/g, "$1\\mathrm{$2}")       // (\mathrm{1pt}: 1\mathrm{pt}, digits taking no font)
@@ -710,4 +730,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.13";
+globalThis.L2M_searchRules.version = "2026-10-25.14";
