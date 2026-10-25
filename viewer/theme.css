@@ -2153,9 +2153,14 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 /* (a panel open, the flat bar keeps its own ground over the panel's, not clear: it stays the page's colour, the panel
    tinted under it; square below while the panel is open or closing, so no corner of the panel shows beside it) */
 :root[data-skin="flat"] .l2m-bar { transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s 300ms,
-  border-color 0s 300ms, border-radius 0s 300ms; }
+  border-color 0s 300ms, border-radius 0s 300ms, background-image 0s 300ms; transition-behavior: allow-discrete; }
 :root[data-skin="flat"] .l2m-bar.menu-open { background-color: var(--g-fill); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s, border-radius 0s; }
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s, border-radius 0s, background-image 0s;
+  transition-behavior: allow-discrete; }
+/* (a list's pinned date, in the bar: under a panel it is the panel's, tinted as it is, and the date gives way) */
+:root[data-skin="flat"] .app-bar.joined.menu-open { background-image: linear-gradient(to bottom, transparent var(--l2m-bar-h, 64px), var(--g-frame) 0); }
+:root[data-skin="flat"] .app-bar-day > span { transition: opacity 200ms ease; }
+:root[data-skin="flat"] .app-bar.joined.menu-open .app-bar-day > span { opacity: 0; }   /* (its words: the strip's opacity is app.js's) */
 /* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */
 .l2m-note-tex.display { display: block; overflow-x: auto; overflow-y: hidden; text-align: center; margin: 0.3em 0; }
 .l2m-note-tex mjx-container[jax="SVG"] { margin: 0 !important; }
