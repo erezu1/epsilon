@@ -48,7 +48,10 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // \Longrightarrow; a long arrow and its short form, a slanted ≤, a big ∪ are other signs, found apart: Erez, Oct 2026)
     varnothing: "emptyset", le: "leq", ge: "geq", ne: "neq", to: "rightarrow",
     leqslant: "leq", geqslant: "geq",   // (but ≤ and ⩽ one: a paper's font draws all its \le one way, Erez, Oct 25)
-    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
+    gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Rightarrow", iff: "Leftrightarrow",
+    // (an arrow one with its long form: a publisher's font draws arrows its own length, \to at 1.6 em; Erez, Oct 25)
+    longrightarrow: "rightarrow", Longrightarrow: "Rightarrow", longleftarrow: "leftarrow", Longleftarrow: "Leftarrow",
+    longleftrightarrow: "leftrightarrow", Longleftrightarrow: "Leftrightarrow", longmapsto: "mapsto",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "ldots",
   dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
   mathds: "mathbb", mathbbm: "mathbb",   // (every row of dots one sign: readers write \ldots for all)
@@ -294,9 +297,12 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     for (var k = 0; k < qs.length; k++) if (texHas(tex, qs[k])) return k;
     return -1;
   }
+  // (a space, a text's or one made between words, matched anywhere or nowhere: \text{Res str} is \mathrm{Res}\;\text{str};
+  // one after a command's name, \alpha x, kept)
+  function despace(x) { return x.indexOf(" ") < 0 ? x : x.replace(/(\\[A-Za-z]+)?( +)/g, function (m, c, sp, at, all) { return c && /[A-Za-z]/.test(all.charAt(at + m.length)) ? c + " " : c || ""; }); }
   function texHas(tex, q) {
-    q = texNorm(bareCmds(q)).replace(SCRIPT1, script1);   // (a one-symbol script's braces gone, as plainly takes them from the formula's)
-    var t = plainly(texNorm(tex), q), i;
+    q = despace(texNorm(bareCmds(q)).replace(SCRIPT1, script1));   // (a one-symbol script's braces gone, as plainly takes them from the formula's)
+    var t = despace(plainly(texNorm(tex), q)), i;
     if (!/[_^]/.test(q)) t = flat(t);
     // a letter inside a command's name is none of the formula's: a is not in \frac, q not in \sqrt (\log is drawn as
     // its letters, and found so by its own rule)
@@ -543,14 +549,11 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // next unless it goes on the one before (a line starting or the one before ending with a sign: a+\\ +b is a++b)
   var SEP = "\u001f", TABLES = /\\begin\s*\{(matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|cases|dcases|rcases|tabular|subarray)(\*?)\}([\s\S]*?)\\end\s*\{\1\2\}/g;
   var ROW = /\\\\(?:\s*\[[^\]]*\])?|\\cr(?![A-Za-z])/g;
-  var GOES_ON = /^(?:\s|&|\\(?:quad|qquad|[,;:! ]))*(?:[-+=<>]|\\(?:cdot|times|pm|mp|leq?|geq?|neq?|approx|equiv|sim|simeq|to|rightarrow|Rightarrow|longrightarrow|Longrightarrow)(?![A-Za-z]))/;
   function cells(t) {
     if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
     t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
     t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(ROW, SEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
-    t = t.replace(ROW, function (x, at, all) {
-      return GOES_ON.test(all.slice(at + x.length)) || /[-+=,]\s*&?\s*$/.test(all.slice(Math.max(0, at - 12), at)) ? " " : SEP;
-    });
+    t = t.replace(ROW, " ");                          // (a display's lines, a limit's two: one, as a display broken anywhere is the same)
     return t.replace(/\\&/g, "\u0003").replace(/&/g, "").replace(/\u0003/g, "\\&");   // (\& a drawn &)
   }
   function unspaced(t) {
@@ -684,10 +687,10 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // \mathrm{for all}; at a text's two ends none, \text{ where } as \text{where})
     // (and a text's dash a dash, not a math's minus: 25\text{–}30 has no -3)
     // (text in any style, plain, italic, bold, as text; one bold letter, \textbf{p}, a bold symbol, a vector)
-    t = t.replace(/\\textbf\s*\{\s*([A-Za-z])\s*\}/g, "\\mathbf{$1}");
-    // (and a space made in an upright group, \mathrm{B \; USD}, a space as a text's)
-    t = t.replace(/\\mathrm\s*\{([^{}]*)\}/g, function (x, a) { return /\\[,;: ]|\\q?quad|~/.test(a) ? "\\text{" + a.replace(/\s*(?:\\[,;: ]|\\q?quad(?![A-Za-z])|~)\s*/g, " ") + "}" : x; });
-    t = t.replace(TEXTY, function (x, c, a) { return "\\" + c + "{" + a.replace(/^\s+|\s+$/g, "").replace(/\s+/g, "\u0005").replace(/---/g, "\u2014").replace(/--/g, "\u2013") + "}"; });
+    t = t.replace(/\\textbf\s*\{\s*([A-Za-z])\s*\}/g, "\\mathbf{$1}").replace(/\\(?:mathbf|bf)\s*\{([A-Za-z]{3,})\}/g, "\\text{$1}");   // (and a bold word, \mathbf{susy}, text)
+    // (and a space made in an upright group, \mathrm{B \; USD}, nothing: a math's space, matched anywhere or nowhere)
+    t = t.replace(/\\mathrm\s*\{([^{}]*)\}/g, function (x, a) { return /\\[,;: ]|\\q?quad|~/.test(a) ? "\\mathrm{" + a.replace(/\s*(?:\\[,;: ]|\\q?quad(?![A-Za-z])|~)\s*/g, "") + "}" : x; });
+    t = t.replace(TEXTY, function (x, c, a) { a = a.replace(/\\[,;: ]|\\q?quad(?![A-Za-z])|~/g, " "); return "\\" + c + "{" + a.replace(/^\s+|\s+$/g, "").replace(/\s+/g, "\u0005").replace(/---/g, "\u2014").replace(/--/g, "\u2013") + "}"; });
     t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: drawn as long as \rightarrow; with a label, long)
     t = unspaced(cells(t))
       .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
@@ -753,7 +756,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       return b.split(/([^A-Za-z\s]+)/).map(function (y, k) { return k % 2 ? y : y.trim() ? "\\" + f + "{" + y + "}" : ""; }).join("");
     });
     // an upright letter alone: the letter (\mathrm{d}x: dx, \mathrm{I}_A, \chi_{\rm r}: \chi_r), and italic text as italic letters
-    t = t.replace(/\\(?:mathrm\s*\{\s*([A-Za-z])\s*\}|mathit\s*\{((?:[^{}]|\{[^{}]*\})*)\})/g, function (x, c, it, at, all) { var v = c || it; return (/^[A-Za-z]/.test(v) && /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) ? " " : "") + v; });
+    t = t.replace(/\\(?:mathrm\s*\{\s*([A-Za-z])\s*\}|mathit\s*\{((?:[^{}]|\{[^{}]*\})*)\})/g, function (x, c, it, at, all) { var v = c || it; if (c && (/^\u0005*\\mathrm\{/.test(all.slice(at + x.length)) || /\}\u0005+$/.test(all.slice(Math.max(0, at - 3), at)))) return x;   /* (a letter among a text's words, \text{B USD}: its group) */ return (/^[A-Za-z]/.test(v) && /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) ? " " : "") + v; });
     t = t.replace(/\\math(?:bb|bf)\s*\{\s*1\s*\}/g, "1");                                   // (\mathbb{1}: 1, an indicator's one)
     // an operator's name as upright text (\mathrm{dim}: \dim); arg min and ess sup as TeX draws them
     t = t.replace(/\\mathrm\s*\{\s*([A-Za-z]+)\s*\}/g, function (x, n) { return OPNAME.test(n) && !/^(tr|Tr)$/.test(n) ? "\\" + n + " " : x; })
@@ -838,4 +841,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.17";
+globalThis.L2M_searchRules.version = "2026-10-25.18";
