@@ -2139,10 +2139,11 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
   --g-edge-top: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 -0.5px 0 0 var(--g-hair);
   --g-edge-bottom: inset 0.5px 0 0 0 var(--g-hair), inset -0.5px 0 0 0 var(--g-hair), inset 0 0.5px 0 0 var(--g-hair); } }
 /* (the peek's head: the panels' tint, its edge line all round, the one under it parting it from the text it scrolls
-   over; on a wide screen the peek is a sheet that floats as the bar does, off the screen's foot by a little, round at
-   every corner, its edge line all round: as the PDF viewer's peek) */
+   over; round at all four corners as the peek is, below too, its line following them: as the PDF viewer's head. On a
+   wide screen the peek is a sheet that floats as the bar does, off the screen's foot by a little, round at every
+   corner, its edge line all round: as the PDF viewer's peek) */
 :root[data-skin="flat"] .peek-head { --g-fill: var(--g-frame); --g-fill-solid: var(--g-frame); box-shadow: inset 0 0 0 0.5px var(--g-hair);
-  border-radius: var(--g-r) var(--g-r) 0 0; }
+  border-radius: var(--g-r); }
 :root[data-skin="flat"] .l2m-peek { bottom: var(--peek-lift); box-shadow: var(--g-shadow), var(--peek-edge); }
 @media (min-width: 800px) {
   :root[data-skin="flat"] { --peek-lift: 12px; --peek-edge: var(--g-edge-round); }
