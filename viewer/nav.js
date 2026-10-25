@@ -571,7 +571,7 @@ window.L2M_nav = function (opts) {
   // the search's rules (search-rules.js, shared with the PDF viewer for Chrome), with this paper's own macros
   var rules = L2M_searchRules(opts.macros, opts.packages), HAS_ACC = rules.HAS_ACC, WORDED = rules.WORDED, SCRIPTED = rules.SCRIPTED,
     findWhat = rules.findWhat, texHas = rules.texHas, glyphsOf = rules.glyphsOf, texNorm = rules.texNorm, wordSeqs =
-    rules.wordSeqs, reEsc = rules.reEsc;
+    rules.wordSeqs, reEsc = rules.reEsc, texHasAny = rules.texHasAny;
   // a formula as the words round it see it: what it draws, glyph by glyph (a letter in any font as the letter, a digit
   // as the digit, +=()... as themselves; an accent nothing, any other sign a mark no query has); and for each of its
   // characters the glyph it is (to mark just those)
@@ -705,14 +705,18 @@ window.L2M_nav = function (opts) {
       });
     }
     if (what.glyph || what.tex) {
-      var seq = what.glyph ? [what.glyph] : glyphsOf(texNorm(what.tex)), qn = what.tex ? texNorm(what.tex) : "";
+      var seq1 = what.glyph ? [what.glyph] : glyphsOf(texNorm(what.tex)), qn = what.tex ? texNorm(what.tex) : "";
+      // (a query read more than one way, its places as typed or as TeX: a formula found by any reading, marked by the
+      // first that finds it)
+      var reads = [what.tex].concat(!what.glyph && what.alts ? what.alts : []), seqs = [seq1].concat(reads.slice(1).map(function (t) { return glyphsOf(texNorm(t)); }));
       // (an accent's or a prime's drawing passed over, unless asked for: B>1 finds \bar{B}>1 and B'>1)
       var ACC_C = /^(5E|7E|AF|2C9|2D9|A8|2C7|2D8|B4|60|2C6|2DC|20D7)$/, plainAcc = !HAS_ACC.test(qn), plainPrime = !/'|\\prime/.test(qn);
       var over = function (c) { return (plainAcc && ACC_C.test(c)) || (plainPrime && c === "2032"); };
       forms.forEach(function (f) {
         var drawn = f.el.tagName !== "L2M-MATH", tex = opts.tex ? opts.tex(f.el.getAttribute("data-n") || f.el.getAttribute("n")) : "";
         // a single symbol: wherever it is drawn (a paper's own macros for it too); more TeX: in formulas whose TeX has it
-        if (!what.glyph && !texHas(tex, what.tex)) return;
+        var ri = what.glyph ? 0 : texHasAny(tex, reads), seq = seqs[ri];
+        if (ri < 0) return;
         var got = 0, lazy = drawn && f.el.hasAttribute("data-lazy") && window.L2M_math;
         if (drawn && seq) {
           // a formula not drawn yet is searched in its drawing as kept (its marks come when it is drawn)
@@ -745,7 +749,7 @@ window.L2M_nav = function (opts) {
         }
         // the formula as a whole: its glyphs not found in a row; but a query whose glyphs cannot be read (one ending in a
         // bare accent, +\bar), in a drawn formula: nothing, not the whole formula for it
-        if (!got && (seq || !drawn) && (!what.glyph || texHas(tex, what.tex))) {
+        if (!got && (seq || !drawn) && (!what.glyph || texHas(tex, what.tex))) {   // (its TeX has it: the test above)
           found.push({at: f.at, el: f.el});      // (marked as it is drawn in, near the view; the one gone to, at once)
         }
       });

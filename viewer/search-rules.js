@@ -47,6 +47,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // (an arrow, a relation, an operator: one only with what MathJax draws the same, \le and \leq, \implies and
     // \Longrightarrow; a long arrow and its short form, a slanted ≤, a big ∪ are other signs, found apart: Erez, Oct 2026)
     varnothing: "emptyset", le: "leq", ge: "geq", ne: "neq", to: "rightarrow",
+    leqslant: "leq", geqslant: "geq",   // (but ≤ and ⩽ one: a paper's font draws all its \le one way, Erez, Oct 25)
     gets: "leftarrow", dfrac: "frac", tfrac: "frac", cfrac: "frac", implies: "Longrightarrow", iff: "Longleftrightarrow",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "ldots",
   dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
@@ -55,7 +56,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
     Check: "check", Breve: "breve", Acute: "acute", Grave: "grave", dbinom: "binom", tbinom: "binom", pmb: "mathbf",
     text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm", textsc: "mathrm", emph: "mathrm",
-    textmd: "mathrm", textbf: "mathbf", textit: "mathit", textsl: "mathit", texttt: "mathtt", textsf: "mathsf"});   // (text as its font: upright \mathrm, bold \mathbf, as \textbf{p} a bold vector; italic \mathit)
+    textmd: "mathrm", textbf: "mathrm", textit: "mathrm", textsl: "mathrm", texttt: "mathtt", textsf: "mathsf"});   // (text as its font: upright \mathrm, bold \mathbf, as \textbf{p} a bold vector; italic \mathit)
   function alts(name) {
     var one = SAME[name] || name, out = [];
     [one].concat(Object.keys(SAME).filter(function (k) { return SAME[k] === one; })).forEach(function (n) {
@@ -104,7 +105,23 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     if (q.slice(last).trim()) parts.push({t: q.slice(last)});
     if (parts.length > 1 && parts.some(function (x) { return x.f != null; })) return {mixed: parts};
     q = bareCmds(q);                                  // (sqrt{2}: \sqrt{2}, matched and its glyphs read as one)
-    if (q.charAt(0) !== "$") q = typedTeX(q);         // (psi(t,x), F_14: as meant; in $...$, TeX as written)
+    // A query read every way its places read (spots, readings): a formula found by any; tex the most typed reading, alts
+    // the others, TeX as written last. In $...$: TeX only (Erez, Oct 25)
+    if (q.charAt(0) === "$") return readWhat(q);
+    var rs = readings(q);
+    if (rs.length === 1) return readWhat(q);
+    var ws = rs.map(readWhat), w = null;
+    ws.forEach(function (x) {
+      if (!x) return;
+      if (!w) { w = x; return; }
+      if (x.tex && x.tex !== w.tex && (w.alts || (w.alts = [])).indexOf(x.tex) < 0) w.alts.push(x.tex);
+      if (x.text && !w.text) w.text = x.text;
+      if (x.word && !w.word) w.word = x.word;
+    });
+    if (w && w.alts) w.tex2 = w.alts[w.alts.length - 1];   // (TeX as written: tex2, for a reader of one other reading)
+    return w;
+  }
+  function readWhat(q) {
     if (q.charAt(0) === "$") {                       // "$...": the formulas only (the rest read as TeX)
       q = q.slice(1).replace(/\$$/, "").trim();
       if (!q) return null;
@@ -199,7 +216,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // (a query that is a formula as typed, with =, _, ^, \\, brackets, digits...: a run of letters that is wholly symbols'
   // names is them, psi(t,x), 1/rho, = L psi, munu; and a script of more than one digit or letter is all of it, F_14,
   // delta_ij; a word alone, phi, or among words, the phi meson: a word)
-  var NAMES = Object.keys(GLYPH).filter(function (n) { return n.length > 1; });
+  var NAMES = Object.keys(GLYPH).filter(function (n) { return n.length > 1; }).concat(["sum", "prod", "int", "iint", "oint", "coprod"]);   // (and the big signs: sum_i)
   var NAMED = own({}); NAMES.forEach(function (n) { NAMED[n] = 1; });
   function asNames(run) {                          // run as names one after another (munu: mu nu), or null
     var at = [[]];
@@ -210,22 +227,75 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     return at[run.length];
   }
   var FORMULA_LIKE = /[_^\\{}=+*\/<>()\[\]|0-9]/;
-  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/(^|[^\\])!=/g, "$1\\neq "); }   // (\!= is a thin space less and =)
+  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, function (x, at, all) { return /<[^<>]*$/.test(all.slice(0, at)) ? x : "\\geq "; }).replace(/(^|[^\\])!=/g, "$1\\neq "); }   // (<a,b>=0: a bracket's end)   // (\!= is a thin space less and =)
   // (a query typed, not in $...$, TeX as written: its names and scripts as a person means them)
-  function typedTeX(q) {
-    if (!FORMULA_LIKE.test(q)) return q;
-    return q.replace(/(\\?)([A-Za-z]+)/g, function (x, sl, run, at, all) {
+  // The places in a query that read two ways, as typed or as TeX (Erez, Oct 25): a run of letters wholly symbols'
+  // names (psi, munu: \psi, \mu\nu; as TeX, letters), a script of more than one digit or of letters of one case (F_14,
+  // x_ij: all of it; as TeX, its first); each place either way, in the same query (x_ij + alpha: x_i j + \alpha too)
+  function spots(q) {
+    var out = [];
+    if (!FORMULA_LIKE.test(q)) return out;
+    q.replace(/(\\?)([A-Za-z]+)/g, function (x, sl, run, at, all) {
       if (sl) return x;                                // (a command's own name)
       if (/\\(text[a-z]*|math[a-z]+|operatorname|mbox|begin|end)\s*\{$/.test(all.slice(Math.max(0, at - 20), at))) return x;   // (words in a font's or a text's braces)
       var ns = asNames(run);
       if (!ns) return x;
       var r = ns.map(function (n) { return "\\" + n; }).join("");
-      if (ns.length > 1 && /[_^]$/.test(all.slice(0, at))) return "{" + r + "}";   // (^munu: ^{\mu\nu})
-      return r + (/^[A-Za-z]/.test(all.charAt(at + x.length)) ? " " : "");
-    }).replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9\\{_^])/g, "$1{$2}");   // (F_14, delta_ij, T_AB: all of it; alpha_iH_R: i only)
+      if (ns.length > 1 && /[_^]$/.test(all.slice(0, at))) r = "{" + r + "}";   // (^munu: ^{\mu\nu})
+      else if (/^[A-Za-z]/.test(all.charAt(at + x.length))) r += " ";
+      out.push({at: at, len: x.length, typed: r});
+      return x;
+    });
+    q.replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9\\{_^])/g, function (x, s1, run, at) {
+      var a = at + 1;
+      if (!out.some(function (o) { return a < o.at + o.len && o.at < a + run.length; })) out.push({at: a, len: run.length, typed: "{" + run + "}"});
+      return x;
+    });
+    return out.sort(function (x, y) { return x.at - y.at; });
+  }
+  // the query's readings: every way of reading its places, the most typed first and TeX as written last (beyond four
+  // places: those two)
+  function readings(q) {
+    var sp = spots(q), n = sp.length, out = [];
+    if (!n) return [q];
+    var masks = [];
+    if (n <= 4) for (var m = (1 << n) - 1; m >= 0; m--) masks.push(m); else masks = [(1 << n) - 1, 0];
+    masks.forEach(function (m) {
+      var r = "", last = 0;
+      sp.forEach(function (o, i) { r += q.slice(last, o.at) + (m & (1 << i) ? o.typed : q.substr(o.at, o.len)); last = o.at + o.len; });
+      r += q.slice(last);
+      if (out.indexOf(r) < 0) out.push(r);
+    });
+    return out;
+  }
+
+  // A formula and a query's readings (tex, then its alts): the first reading the formula has, or -1. Its readings
+  // differ only in how their places are spelled (\alpha or alpha, {ij} or ij): without \, braces and spaces they are
+  // one skeleton, which the formula's own (as the query reads it) must hold for any reading to be in it: tried once
+  var skelQ = new Map(), skelT = new Map();
+  function skeleton(x) { return x.replace(/[\\{}\s\u0005]/g, ""); }
+  function texHasAny(tex, qs) {
+    if (qs.length === 1 || qs[0].indexOf("?") >= 0) { for (var j = 0; j < qs.length; j++) if (texHas(tex, qs[j])) return j; return -1; }
+    var q0 = texNorm(bareCmds(qs[0])).replace(SCRIPT1, script1), key = (HAS_FONT.test(q0) ? 1 : 0) + (HAS_ACC.test(q0) ? 2 : 0) + (/'|\\prime/.test(q0) ? 4 : 0) + (/[_^]/.test(q0) ? 8 : 0);
+    var sk = skelT.get(key + "|" + tex);
+    if (sk === undefined) {
+      var t = plainly(texNorm(tex), q0);
+      sk = skeleton(key & 8 ? t : flat(t));
+      if (skelT.size > 40000) skelT.clear();
+      skelT.set(key + "|" + tex, sk);
+    }
+    var any = false;
+    for (var i = 0; i < qs.length && !any; i++) {
+      var s0 = skelQ.get(qs[i]);
+      if (s0 === undefined) { s0 = skeleton(texNorm(bareCmds(qs[i])).replace(SCRIPT1, script1)); skelQ.set(qs[i], s0); }
+      any = sk.indexOf(s0) >= 0;
+    }
+    if (!any) return -1;
+    for (var k = 0; k < qs.length; k++) if (texHas(tex, qs[k])) return k;
+    return -1;
   }
   function texHas(tex, q) {
-    q = texNorm(bareCmds(q));
+    q = texNorm(bareCmds(q)).replace(SCRIPT1, script1);   // (a one-symbol script's braces gone, as plainly takes them from the formula's)
     var t = plainly(texNorm(tex), q), i;
     if (!/[_^]/.test(q)) t = flat(t);
     // a letter inside a command's name is none of the formula's: a is not in \frac, q not in \sqrt (\log is drawn as
@@ -609,9 +679,14 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var was = t;
     t = uniTeX(physics(expand(t)).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
+    t = t.replace(/\}\s+\{/g, "}{").replace(/(\\[A-Za-z]+)\s+\{/g, "$1{");   // (\frac<line's end>{a}<line's end>{b}: its arguments, as drawn; TeX takes no space after a command's name)
     // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
     // \mathrm{for all}; at a text's two ends none, \text{ where } as \text{where})
     // (and a text's dash a dash, not a math's minus: 25\text{–}30 has no -3)
+    // (text in any style, plain, italic, bold, as text; one bold letter, \textbf{p}, a bold symbol, a vector)
+    t = t.replace(/\\textbf\s*\{\s*([A-Za-z])\s*\}/g, "\\mathbf{$1}");
+    // (and a space made in an upright group, \mathrm{B \; USD}, a space as a text's)
+    t = t.replace(/\\mathrm\s*\{([^{}]*)\}/g, function (x, a) { return /\\[,;: ]|\\q?quad|~/.test(a) ? "\\text{" + a.replace(/\s*(?:\\[,;: ]|\\q?quad(?![A-Za-z])|~)\s*/g, " ") + "}" : x; });
     t = t.replace(TEXTY, function (x, c, a) { return "\\" + c + "{" + a.replace(/^\s+|\s+$/g, "").replace(/\s+/g, "\u0005").replace(/---/g, "\u2014").replace(/--/g, "\u2013") + "}"; });
     t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: drawn as long as \rightarrow; with a label, long)
     t = unspaced(cells(t))
@@ -758,9 +833,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
 
   function reEsc(x) { return x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
   return {GLYPH: GLYPH, GREEK: GREEK, SAME: SAME, OPS: OPS, SYM: SYM, OPNAME: OPNAME, HAS_FONT: HAS_FONT, HAS_ACC:
-    HAS_ACC, WORDED: WORDED, SCRIPTED: SCRIPTED, alts: alts, uniTeX: uniTeX, findWhat: findWhat, plainly: plainly,
+    HAS_ACC, WORDED: WORDED, SCRIPTED: SCRIPTED, alts: alts, uniTeX: uniTeX, findWhat: findWhat, texHasAny: texHasAny, plainly: plainly,
     texHas: texHas, glyphsOf: glyphsOf, fontGlyph: fontGlyph, texNorm: texNorm, wordsIn: wordsIn, wordSeqs: wordSeqs,
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.16";
+globalThis.L2M_searchRules.version = "2026-10-25.17";
