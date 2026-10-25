@@ -2146,19 +2146,24 @@ body::after { content: ""; display: block; height: env(keyboard-inset-height, 0p
 /* (flat, its layers: the bar on the page's own ground; a panel under it (contents, settings) a faintly tinted ground,
    what is chosen in it a pill of the page's ground, as a segmented control's chosen option, and under the pointer a
    faint grey, not the link's tint) */
-:root[data-skin="flat"] .l2m-menu { --g-fill: var(--g-frame); --g-fill-solid: var(--g-frame);
-  --bar-hover: color-mix(in srgb, var(--ink) var(--frame-a), transparent); --bar-current: var(--seg-on); }
+:root[data-skin="flat"] .l2m-menu { --bar-hover: color-mix(in srgb, var(--ink) var(--frame-a), transparent); --bar-current: var(--seg-on);
+  transition: translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 300ms, background-color 300ms ease; }
+/* (it comes down in the page's ground, as before, and takes its tint as it does, giving it back as it goes up: else
+   an empty grey sheet would sweep down over the list before its contents showed) */
+:root[data-skin="flat"] .l2m-menu.open { --g-fill: var(--g-frame); --g-fill-solid: var(--g-frame);
+  transition: translate 300ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s, background-color 300ms ease; }
 :root[data-skin="flat"] .l2m-menu :is(a.current, .sel-ind, .opt[aria-checked="true"]) { box-shadow: var(--seg-on-shadow); }
 :root[data-skin="flat"] .l2m-menu .opt-list .opt[aria-checked="true"] { box-shadow: none; }   /* (there the pill is the .sel-ind behind it) */
 /* (a panel open, the flat bar keeps its own ground over the panel's, not clear: it stays the page's colour, the panel
    tinted under it; square below while the panel is open or closing, so no corner of the panel shows beside it) */
 :root[data-skin="flat"] .l2m-bar { transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s 300ms,
-  border-color 0s 300ms, border-radius 0s 300ms, background-image 0s 300ms; transition-behavior: allow-discrete; }
+  border-color 0s 300ms, border-radius 0s 300ms, --g-strip 300ms ease; }
 :root[data-skin="flat"] .l2m-bar.menu-open { background-color: var(--g-fill); border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s, border-radius 0s, background-image 0s;
-  transition-behavior: allow-discrete; }
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, box-shadow 0s, border-color 0s, border-radius 0s, --g-strip 300ms ease; }
 /* (a list's pinned date, in the bar: under a panel it is the panel's, tinted as it is, and the date gives way) */
-:root[data-skin="flat"] .app-bar.joined.menu-open { background-image: linear-gradient(to bottom, transparent var(--l2m-bar-h, 64px), var(--g-frame) 0); }
+@property --g-strip { syntax: "<color>"; inherits: false; initial-value: transparent; }   /* (a colour, so that it fades) */
+:root[data-skin="flat"] .app-bar.joined { background-image: linear-gradient(to bottom, transparent var(--l2m-bar-h, 64px), var(--g-strip) 0); }
+:root[data-skin="flat"] .app-bar.joined.menu-open { --g-strip: var(--g-frame); }
 :root[data-skin="flat"] .app-bar-day > span { transition: opacity 200ms ease; }
 :root[data-skin="flat"] .app-bar.joined.menu-open .app-bar-day > span { opacity: 0; }   /* (its words: the strip's opacity is app.js's) */
 /* a note's formulas: in the line, the text's size; on their own, a line each, scrolling sideways when too wide */
