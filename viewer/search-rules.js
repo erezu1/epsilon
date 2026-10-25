@@ -144,16 +144,43 @@ globalThis.L2M_searchRules = function (MACROS) {
   }
   // ? in a query: any one symbol, or (as {?}) anything in braces: Z_? is any Z with something under it
   var GROUP = "\\{(?:[^{}]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})*\\}", TOKEN = "(?:\\\\[A-Za-z]+(?![A-Za-z])|\\\\[^A-Za-z]|" + GROUP + "|[^{}\\\\])";   // (a command whole: \\alpha is one symbol, never \\al and then pha)
+  // a query with no script in it (no _ or ^): a symbol found wherever it sits, on the line, under or over (q3 finds
+  // q_3, q^3 and q3; x2 finds x_2 and x^2); the formula read with its scripts' marks and braces gone
+  var flatMemo = new Map();
+  function flat(t) {
+    var was = flatMemo.get(t);
+    if (was !== undefined) return was;
+    var f = t, k = 0, g;
+    while (k++ < 8 && (g = f.replace(/[_^]\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1")) !== f) f = g;
+    f = f.replace(/[_^]/g, "");
+    if (flatMemo.size > 20000) flatMemo.clear();
+    flatMemo.set(t, f);
+    return f;
+  }
   function texHas(tex, q) {
     q = texNorm(q);
     var t = plainly(texNorm(tex), q), i;
+    if (!/[_^]/.test(q)) t = flat(t);
+    // a letter inside a command's name is none of the formula's: a is not in \frac, q not in \sqrt (\log is drawn as
+    // its letters, and found so by its own rule)
+    function inName(at) {
+      if (!/[A-Za-z]/.test(t.charAt(at))) return false;
+      var b = /\\([A-Za-z]*)$/.exec(t.slice(Math.max(0, at - 40), at));
+      if (!b) return false;
+      var name = b[1] + /^[A-Za-z]*/.exec(t.slice(at))[0];
+      if (OPNAME.test(name)) return false;                      // (one drawn as its letters: theirs)
+      // (the whole name, its backslash left out, and more after it: sqrt{2}; a bare name, in or xi, is no command's)
+      return !(b[1] === "" && /^[A-Za-z]*/.exec(q)[0] === name && q.length > name.length);
+    }
     if (q.indexOf("?") >= 0) {
-      return new RegExp(q.split("{?}").map(function (part) { return part.split("?").map(reEsc).join(TOKEN); }).join(GROUP)).test(t);
+      var re = new RegExp(q.split("{?}").map(function (part) { return part.split("?").map(reEsc).join(TOKEN); }).join(GROUP), "g"), m;
+      while ((m = re.exec(t))) { if (!inName(m.index)) return true; re.lastIndex = m.index + 1; }
+      return false;
     }
     i = t.indexOf(q);
     while (i >= 0) {
       // \phi is not the start of \phiup: after a command name the next character is no letter
-      if (!(/\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
+      if (!inName(i) && !(/\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
       i = t.indexOf(q, i + 1);
     }
     return false;
@@ -642,4 +669,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.8";
+globalThis.L2M_searchRules.version = "2026-10-25.10";
