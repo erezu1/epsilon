@@ -89,6 +89,7 @@ globalThis.L2M_searchRules = function (MACROS) {
     }
     if (q.slice(last).trim()) parts.push({t: q.slice(last)});
     if (parts.length > 1 && parts.some(function (x) { return x.f != null; })) return {mixed: parts};
+    q = bareCmds(q);                                  // (sqrt{2}: \sqrt{2}, matched and its glyphs read as one)
     if (q.charAt(0) === "$") {                       // "$...": the formulas only (the rest read as TeX)
       q = q.slice(1).replace(/\$$/, "").trim();
       if (!q) return null;
@@ -126,18 +127,31 @@ globalThis.L2M_searchRules = function (MACROS) {
   function script1(x, s, a, next) { return s + a + (next && a.charAt(0) === "\\" ? " " : ""); }
   // a font's or an accent's group, its command gone: what it held, kept apart from a command before it (\rho\mathit{U}:
   // \rho U, not \rhoU)
-  function unwrap(x, name, inner, at, all) {
-    return (/\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[A-Za-z]/.test(inner) ? " " : "") + inner;
+  // what takes the place of a piece of the TeX taken out (a font's or an accent's wrapping, a prime, a script's marks),
+  // kept apart from a command's name on either side: \varphi^{i} is \varphi i, never \varphii; \phi'R is \phi R
+  function apart(r, at, len, all) {
+    var next = all.charAt(at + len);
+    if (/\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 40), at)) && /^[A-Za-z]/.test(r || next)) r = " " + r;
+    if (/\\[A-Za-z]+$/.test(r) && /[A-Za-z]/.test(next)) r += " ";
+    return r;
   }
+  function unwrap(x, name, inner, at, all) { return apart(inner, at, x.length, all); }
+  // (a removal done one place at a time, each seen with those before it done: \bar{\alpha}\bar{b} is \alpha b)
+  function each(t, re, fn) {
+    var one = new RegExp(re.source, re.flags.replace("g", "")), k = 0, g;
+    while (k++ < 400 && (g = t.replace(one, fn)) !== t) t = g;
+    return t;
+  }
+  function unprime(x, at, all) { return apart("", at, x.length, all); }
   function plainly(t, q) {             // the formula's TeX as a plain query reads it
     var font = HAS_FONT.test(q), acc = HAS_ACC.test(q), prime = /'|\\prime/.test(q);
     var memo = plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] || (plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] = new Map());
     var was = memo.get(t);
     if (was !== undefined) return was;
     var t0 = t;
-    if (!font) t = t.replace(FONTED, unwrap);
-    if (!acc) for (var k = 0; k < 3; k++) t = t.replace(ACCENTED, unwrap);
-    if (!prime) t = t.replace(PRIMED, "");
+    if (!font) t = each(t, FONTED, unwrap);
+    if (!acc) t = each(t, ACCENTED, unwrap);
+    if (!prime) t = each(t, PRIMED, unprime);
     t = t.replace(SCRIPT1, script1);     // (^{\sf F}, the font gone: ^F, as texNorm has it)
     memo.set(t0, t);
     return t;
@@ -151,26 +165,32 @@ globalThis.L2M_searchRules = function (MACROS) {
     var was = flatMemo.get(t);
     if (was !== undefined) return was;
     var f = t, k = 0, g;
-    while (k++ < 8 && (g = f.replace(/[_^]\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1")) !== f) f = g;
-    f = f.replace(/[_^]/g, "");
+    // (one at a time, each seen with the ones before it gone: _{\pi}^{t} is \pi t, not \pit)
+    var one = function (x, a, at, all) { return apart(a, at, x.length, all); };
+    while (k++ < 400 && (g = f.replace(/[_^]\{((?:[^{}]|\{[^{}]*\})*)\}/, one)) !== f) f = g;
+    k = 0;
+    while (k++ < 400 && (g = f.replace(/[_^]/, function (x, at, all) { return apart("", at, 1, all); })) !== f) f = g;
     if (flatMemo.size > 20000) flatMemo.clear();
     flatMemo.set(t, f);
     return f;
   }
+  // a command's name typed without its backslash, with its argument after it (sqrt{2}, frac{1}{2}, hat{x}): the
+  // command, in the query as it is matched and as its glyphs are read
+  var BARE_CMD = new RegExp("(^|[^A-Za-z\\\\])(" + ACCS + "|sqrt|frac|dfrac|tfrac|binom|overline|underline)(?=\\{)", "g");
+  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2"); }
   function texHas(tex, q) {
-    q = texNorm(q);
+    q = texNorm(bareCmds(q));
     var t = plainly(texNorm(tex), q), i;
     if (!/[_^]/.test(q)) t = flat(t);
     // a letter inside a command's name is none of the formula's: a is not in \frac, q not in \sqrt (\log is drawn as
     // its letters, and found so by its own rule)
+    // (nor the | of \| or any other mark of a control symbol, nor the letters of an environment's name, \begin{pmatrix})
     function inName(at) {
-      if (!/[A-Za-z]/.test(t.charAt(at))) return false;
-      var b = /\\([A-Za-z]*)$/.exec(t.slice(Math.max(0, at - 40), at));
-      if (!b) return false;
-      var name = b[1] + /^[A-Za-z]*/.exec(t.slice(at))[0];
-      if (OPNAME.test(name)) return false;                      // (one drawn as its letters: theirs)
-      // (the whole name, its backslash left out, and more after it: sqrt{2}; a bare name, in or xi, is no command's)
-      return !(b[1] === "" && /^[A-Za-z]*/.exec(q)[0] === name && q.length > name.length);
+      var before = t.slice(Math.max(0, at - 40), at);
+      if (!/[A-Za-z]/.test(t.charAt(at))) return /(^|[^\\])(\\\\)*\\$/.test(before);   // (a control symbol's mark, \|)
+      if (/\\(begin|end)\{[A-Za-z]*$/.test(before)) return true;
+      var b = /\\([A-Za-z]*)$/.exec(before);
+      return !!b && !OPNAME.test(b[1] + /^[A-Za-z]*/.exec(t.slice(at))[0]);   // (one drawn as its letters: theirs)
     }
     if (q.indexOf("?") >= 0) {
       var re = new RegExp(q.split("{?}").map(function (part) { return part.split("?").map(reEsc).join(TOKEN); }).join(GROUP), "g"), m;
@@ -480,7 +500,8 @@ globalThis.L2M_searchRules = function (MACROS) {
   function fontRun(x, f, a, sep, at, all) {
     if (/[_^]\s*$/.test(all.slice(Math.max(0, at - 4), at))) return x;
     if (/-/.test(sep) && !(f === "mathrm" && /^[A-Za-z\s]*$/.test(a) && /^[A-Za-z]/.test(all.slice(at + x.length)))) return x;   // (a minus between two bold symbols: no word)
-    return "\\" + f + "{" + a + sep;
+    // (a command's name kept apart from the letter the next group starts with: \mathcal{\beta}\mathcal{c} is \mathcal{\beta c})
+    return "\\" + f + "{" + a + (!sep && /\\[A-Za-z]+$/.test(a) && /^[A-Za-z]/.test(all.slice(at + x.length)) ? " " : sep);
   }
   // a letter's two scripts in one order, its subscript first: x^a_b is x_b^a
   function scriptOrder(t) {
@@ -669,4 +690,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.10";
+globalThis.L2M_searchRules.version = "2026-10-25.11";
