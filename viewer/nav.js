@@ -1855,10 +1855,11 @@ window.L2M_nav = function (opts) {
     if (marks) marks.peekClosed();
     clearTimeout(peekCloseTimer);
     var main = document.querySelector("main"), T = reduced ? 0 : 340, half = reduced ? 0 : 150;
+    var lift = parseFloat(getComputedStyle(peek).bottom) || 0;      // (where it stands off the screen's foot, a skin's)
     peek.classList.add("expanding");
     main.classList.add("l2m-fading");
     if (fromDrag) {                                   // its bottom stays at the screen's: grown by as much as it is slid
-      var slid = peek.getBoundingClientRect().top - (window.innerHeight - peek.offsetHeight);
+      var slid = peek.getBoundingClientRect().top - (window.innerHeight - lift - peek.offsetHeight);
       peek.style.transition = "none";
       peek.style.height = (peek.offsetHeight - slid) + "px";
       peek.style.transform = "";
@@ -1891,6 +1892,8 @@ window.L2M_nav = function (opts) {
       peek.style.transition = "none";
       peek.classList.remove("open", "expanding");
       peek.setAttribute("aria-hidden", "true");
+      void peek.offsetWidth;                         // (put away now: on a busy page the 60ms below can come before a frame,
+                                                     // and it would slide down in sight as its motion came back)
       setTimeout(function () { peek.style.transition = ""; peek.style.height = peekH + "px"; expanding = false; peekAside(true); }, 60);
     }, T);
   }
@@ -1928,6 +1931,11 @@ window.L2M_nav = function (opts) {
   function longPress(l) {
     if (navigator.vibrate) { try { navigator.vibrate(12); } catch (e) {} }
     eatClick();
+    linkOther(l);
+  }
+  // a link's other way (a long press, or Cmd/Ctrl+click): a reference peeked at, a citation (a tap peeks) gone to, and
+  // from the peek, the page taken there
+  function linkOther(l) {
     if (peek && peek.contains(l.a)) {           // from the peek: the top view goes there
       closeSheet();
       if (document.getElementById(l.id)) navigate(l.id);
@@ -1976,6 +1984,10 @@ window.L2M_nav = function (opts) {
     if (au && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openAuthor(au); }
   });
   on(document, "click", function (e) {
+    if (!e.defaultPrevented && e.button === 0 && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {   // as a long press
+      var ol = internalLink(e.target);
+      if (ol) { e.preventDefault(); linkOther(ol); return; }
+    }
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var a = e.target.closest ? e.target.closest("a[href^='#']") : null;
     // in the peek: a note opens its sheet, a figure its viewer, any other link moves the peek (not the page)
