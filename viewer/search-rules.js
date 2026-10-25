@@ -35,10 +35,14 @@ globalThis.L2M_searchRules = function (MACROS) {
     longrightarrow: "rightarrow", Longrightarrow: "Rightarrow", longleftarrow: "leftarrow", Longleftarrow: "Leftarrow",   // (an arrow and its long form one: publishers swap them)
     longleftrightarrow: "leftrightarrow", Longleftrightarrow: "Leftrightarrow", longmapsto: "mapsto",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "ldots",
-  dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bigsqcup: "sqcup", bm: "boldsymbol", mathscr: "mathcal",
+  dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bigsqcup: "sqcup", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
   mathds: "mathbb", mathbbm: "mathbb",   // (every row of dots one sign: readers write \ldots for all)
+    backslash: "setminus", smallsetminus: "setminus", bot: "perp", dag: "dagger", ddag: "ddagger", leadsto: "rightsquigarrow",
+    bigwedge: "wedge", bigvee: "vee", bigcap: "cap", bigcup: "cup", bigoplus: "oplus", bigotimes: "otimes", bigodot: "odot",
+    widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
+    Check: "check", Breve: "breve", Acute: "acute", Grave: "grave", dbinom: "binom", tbinom: "binom", pmb: "mathbf",
     text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm", textsc: "mathrm", emph: "mathrm",
-    textmd: "mathrm", textbf: "mathbf", textit: "mathit", textsl: "mathit"});   // (text as its font: upright \mathrm, bold \mathbf, as \textbf{p} a bold vector; italic \mathit)
+    textmd: "mathrm", textbf: "mathbf", textit: "mathit", textsl: "mathit", texttt: "mathtt", textsf: "mathsf"});   // (text as its font: upright \mathrm, bold \mathbf, as \textbf{p} a bold vector; italic \mathit)
   function alts(name) {
     var one = SAME[name] || name, out = [];
     [one].concat(Object.keys(SAME).filter(function (k) { return SAME[k] === one; })).forEach(function (n) {
@@ -118,7 +122,7 @@ globalThis.L2M_searchRules = function (MACROS) {
   var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
   var plainMemo = [];                  // (by how the query reads: with or without fonts, accents, primes)
   // a script of one token, its braces off (x^{2}: x^2), a command kept apart from a letter after it (^{\infty}n: ^\infty n)
-  var SCRIPT1 = /([_^])\{([^{}\\]|\\[A-Za-z]+)\}(?=([A-Za-z])?)/g;
+  var SCRIPT1 = /([_^])\{([^{}\\]|\\[A-Za-z]+|\\[^A-Za-z])\}(?=([A-Za-z])?)/g;
   function script1(x, s, a, next) { return s + a + (next && a.charAt(0) === "\\" ? " " : ""); }
   // a font's or an accent's group, its command gone: what it held, kept apart from a command before it (\rho\mathit{U}:
   // \rho U, not \rhoU)
@@ -179,7 +183,11 @@ globalThis.L2M_searchRules = function (MACROS) {
     nexists: "2204", boxplus: "229E", boxtimes: "22A0", boxminus: "229F", boxdot: "22A1", curlyvee: "22CE", curlywedge: "22CF",
     rightsquigarrow: "21DD", leftrightsquigarrow: "21AD", hookrightarrow: "21AA", hookleftarrow: "21A9", twoheadrightarrow: "21A0",
     rightarrowtail: "21A3", rightleftharpoons: "21CC", leftrightharpoons: "21CB", rightharpoonup: "21C0", nrightarrow: "219B",
-    leftleftarrows: "21C7", rightrightarrows: "21C9", llbracket: "27E6", rrbracket: "27E7", varpropto: "221D", mho: "2127"});
+    leftleftarrows: "21C7", rightrightarrows: "21C9", llbracket: "27E6", rrbracket: "27E7", varpropto: "221D", mho: "2127",
+    asymp: "224D", rtimes: "22CA", ltimes: "22C9", sharp: "266F", flat: "266D", natural: "266E", fint: "2A0F", spadesuit: "2660",
+    clubsuit: "2663", heartsuit: "2661", diamondsuit: "2662", lrcorner: "231F", llcorner: "231E", ulcorner: "231C", urcorner: "231D",
+    lessgtr: "2276", gtrless: "2277", intercal: "22BA", Subset: "22D0", Supset: "22D1", lhd: "22B2", rhd: "22B3", unlhd: "22B4",
+    unrhd: "22B5", pitchfork: "22D4", wr: "2240", amalg: "2A3F", smile: "2323", frown: "2322"});
   // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
   var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"]});
   var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
@@ -202,13 +210,15 @@ globalThis.L2M_searchRules = function (MACROS) {
     else if (base) codes.push(hex(base + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
     if (font === "mathcal") codes.push.apply(codes, fontGlyph("mathscr", c).slice(1));   // (a script letter: \mathscr's too)
     if (font === "boldsymbol" || font === "bm") codes.push(hex(FROM.mathbf[at] + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));
+    if (font === "mathbf") codes.push(hex(FROM.boldsymbol[at] + k - (at === 2 ? 48 : at === 0 ? 65 : 97)));   // (bold italic too, \boldsymbol being \mathbf)
     if (font === "mathit" && at < 2) codes.push(c === "h" ? "210E" : hex((at ? 0x1D44E : 0x1D434) + k - (at ? 97 : 65)));   // (an italic h: Planck's)
     return codes;
   }
   // an accent's drawing, after what it is over (as TeX's PDF and MathJax both draw it)
   var ACC_DRAWN = own({hat: ["5E", "2C6", "302"], widehat: ["5E", "2C6", "302"], bar: ["AF", "2C9", "304"], tilde: ["7E", "2DC", "303"],
     widetilde: ["7E", "2DC", "303"], vec: ["20D7", "2192"], dot: ["2D9", "307"], ddot: ["A8", "308"], check: ["2C7", "30C"],
-    breve: ["2D8", "306"], acute: ["B4", "2CA", "301"], grave: ["60", "2CB", "300"], slashed: ["2F", "338"]});
+    breve: ["2D8", "306"], acute: ["B4", "2CA", "301"], grave: ["60", "2CB", "300"], slashed: ["2F", "338"], mathring: ["2DA", "30A"],
+    overrightarrow: ["2192", "27F6", "20D7"], overleftarrow: ["2190", "27F5", "20D6"], overleftrightarrow: ["2194", "27F7", "20E1"]});
   function glyphsOf(q) {
     var out = [], i = 0, m, fontTo = -1, font = "";   // letters in \mathcal{...} and the like: drawn in their own fonts
     while (i < q.length) {
@@ -267,8 +277,8 @@ globalThis.L2M_searchRules = function (MACROS) {
       if (i - 1 < fontTo && /[A-Za-z0-9]/.test(c)) { out.push(fontGlyph(font, c)); continue; }
       if (/[A-Za-z]/.test(c)) {
         var k = c.charCodeAt(0), it = c === "h" ? "210E" : hex((c < "a" ? 0x1D434 + k - 65 : 0x1D44E + k - 97));
-        out.push([it, hex(k)].concat(Object.keys(FROM).map(function (f) { return fontGlyph(f, c)[1]; })));   // (and in any font)
-      } else if (/[0-9]/.test(c)) out.push([hex(c.charCodeAt(0))]);
+        out.push([it, hex(k)].concat(Object.keys(FROM).map(function (f) { return fontGlyph(f, c)[1]; }), c === "i" ? ["131", "1D6A4"] : c === "j" ? ["237", "1D6A5"] : []));   // (and in any font; i and j dotless too)
+      } else if (/[0-9]/.test(c)) out.push([hex(c.charCodeAt(0))].concat(Object.keys(FROM).map(function (f) { return fontGlyph(f, c)[1]; }).filter(function (x, k, a) { return x && a.indexOf(x) === k; })));   // (and in any font, \mathbf{1})
       else if (SYM[c]) out.push([SYM[c]].concat(c === "-" ? ["2D"] : c === "|" ? ["2223"] : []));
       else if (/[\s_^{}&~]/.test(c)) continue;
       else return null;
@@ -338,12 +348,12 @@ globalThis.L2M_searchRules = function (MACROS) {
     }
     return out + t.slice(i);
   }
-  var SIZES = /\\(left|right|middle|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|bigm|Bigm)(?![A-Za-z])\s*\.?/g;
-  var NAMED_FA = new RegExp("\\\\(" + FONTS + "|" + ACCS + ")\\s*([A-Za-z0-9]|\\\\[A-Za-z]+)(?![A-Za-z])", "g");
+  var SIZES = /\\(left|right|middle|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|bigm|Bigm|displaystyle|textstyle|scriptstyle|scriptscriptstyle|limits|nolimits)(?![A-Za-z])\s*\.?/g;   // (and the style switches, \limits)
+  var NAMED_FA = new RegExp("\\\\(" + FONTS + "|" + ACCS + ")(?![A-Za-z])\\s*([A-Za-z0-9]|\\\\[A-Za-z]+(?![A-Za-z]))", "g");   // (\mathrm dx: \mathrm{d}x, a letter one token)
   function fracBraces(t) {             // \frac12, \frac a{b}: \frac{1}{2}, \frac{a}{b}
-    var out = "", i = 0, m, re = /\\frac(?![A-Za-z])/g;
+    var out = "", i = 0, m, re = /\\(?:frac|binom)(?![A-Za-z])/g;   // (\binom q{w+1} too)
     while ((re.lastIndex = i, m = re.exec(t))) {
-      var at = m.index + 5;
+      var at = m.index + m[0].length;
       out += t.slice(i, at);
       for (var a = 0; a < 2; a++) {
         while (t.charAt(at) === " ") at++;
@@ -362,7 +372,7 @@ globalThis.L2M_searchRules = function (MACROS) {
   var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:! \/]|(?:qquad|quad|enspace|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
   function unspaced(t) {
     for (var k = 0; k < 4 && t.search(SPACING) >= 0; k++) t = t.replace(SPACING, "$1$2 ");
-    return t.replace(/(^|[^\\])~/g, "$1 ");
+    return t.replace(/\\~/g, "\u0002").replace(/~/g, " ").replace(/\u0002/g, "\\~");   // (every ~, ~~ too; a text accent \~ kept)
   }
   // braces round a piece after a sign or an opening, or at the start, which group nothing (+{r^2}d\Omega): none
   // whether the group closed at j is the first argument of a command of two (\frac{a}{b}: a)
@@ -377,7 +387,7 @@ globalThis.L2M_searchRules = function (MACROS) {
   // whether braces at i are a command's argument (\hat{x}) or a script's ({x}^2 after _ or ^): not after a symbol, \times{\mathbb Z}
   function argAt(t, i) {
     var before = t.slice(Math.max(0, i - 30), i), c = /\\([A-Za-z]+)$/.exec(before);
-    if (c) return c[1] === "sqrt" || !(GLYPH[c[1]] || OPS[c[1]] || SAME[c[1]] && (GLYPH[SAME[c[1]]] || OPS[SAME[c[1]]]));   // (\sqrt: a sign that takes one)
+    if (c) return c[1] === "sqrt" || !(GLYPH[c[1]] || OPS[c[1]] || OPNAME.test(c[1]) || SAME[c[1]] && (GLYPH[SAME[c[1]]] || OPS[SAME[c[1]]]));   // (\sqrt: a sign that takes one)
     return /[_^}]$/.test(before);
   }
   function groupEnd(t, i) {               // the "}" that closes the "{" at i (t.length when none)
@@ -397,12 +407,12 @@ globalThis.L2M_searchRules = function (MACROS) {
     var before = t.slice(Math.max(0, i - 40), i).replace(/\s+$/, ""), inner = t.slice(i + 1, e);
     if (!inner) return false;
     if (/\\(?:over|atop|choose|above|brack|brace)(?![A-Za-z])/.test(inner)) return false;   // ({1\over 2}: the braces are the fraction's)
-    if (/[_^]$/.test(before) || /[A-Za-z]$/.test(before) && !/\\[A-Za-z]+$/.test(before)) return false;
+    if (/[_^]$/.test(before) || /(?:^|[^A-Za-z\\])[A-Za-z]{2,}$/.test(before) && !/^\\/.test(inner)) return false;
     var cmd = /\\([A-Za-z]+)\*?$/.exec(before);
     if (cmd && argAt(t, i)) return false;
     if (/\\[A-Za-z]+\*?\s*\[[^\]]*\]$/.test(before)) return false;               // (\sqrt[3]{y}, \xrightarrow[a]{b})
     if (/\}$/.test(before) && !/\\\}$/.test(before) && firstOfTwo(t, t.lastIndexOf("}", i - 1))) return false;
-    var atom = /^(?:\\[A-Za-z]+\*?(?:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*|\\.|[^{}\\\s])$/.test(inner);
+    var atom = /^(?:\\[A-Za-z]+\*?(?:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*|\\.|[^{}\\\s])(?:[_^'](?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s]))*$/.test(inner);   // (one thing, with its own scripts)
     if (!atom && /^\s*[_^']/.test(t.slice(e + 1))) return false;
     return true;
   }
@@ -438,7 +448,13 @@ globalThis.L2M_searchRules = function (MACROS) {
   }
   var TWO_SCRIPTS = /([_^])(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])\1(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])/g;
   var FONT_GROUP = /\{(\\(?:mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\{[^{}]*\})\}/g;
-  var FONT_RUN = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\{([^{}]*)\}(-?)\\\1\{/g;   // (and across a hyphen: \mathrm{on}-\mathrm{shell})
+  var FONT_RUN = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\s*\{([^{}]*)\}(\s*-?\s*)\\\1\s*\{/g;   // (and across a hyphen: \mathrm{on}-\mathrm{shell})
+  // a run of one font joined (\mathrm{for}\mathrm{all}); not a script's own group with what follows it (\otimes_\mathbb{Z}\mathbb{R})
+  function fontRun(x, f, a, sep, at, all) {
+    if (/[_^]\s*$/.test(all.slice(Math.max(0, at - 4), at))) return x;
+    if (/-/.test(sep) && !(f === "mathrm" && /^[A-Za-z\s]*$/.test(a) && /^[A-Za-z]/.test(all.slice(at + x.length)))) return x;   // (a minus between two bold symbols: no word)
+    return "\\" + f + "{" + a + sep;
+  }
   // a letter's two scripts in one order, its subscript first: x^a_b is x_b^a
   function scriptOrder(t) {
     if (t.indexOf("^") < 0 || t.indexOf("_") < 0) return t;
@@ -476,8 +492,10 @@ globalThis.L2M_searchRules = function (MACROS) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = uniTeX(physics(expand(t))).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");
+    t = uniTeX(physics(expand(t)).replace(/—/g, "---").replace(/–/g, "--")).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");   // (– and —: -- and ---, in formulas only; a text keeps its dash)
+    t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: a plain \rightarrow)
     t = unspaced(t)
+      .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
       .replace(LAYOUT, "")                                                              // (\hspace{-0.9cm}, \kern-3em, \phantom{x}: nothing drawn)
       .replace(/\\\\(?:\s*\[[^\]]*\])?|\\(?:newline|nonumber|notag)(?![A-Za-z])/g, "")   // (a row's end: rows joined, a display broken elsewhere being the same)
       .replace(/\\tensor\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1$2")   // (\tensor{\eta}{_\mu}: \eta_\mu)
@@ -489,7 +507,13 @@ globalThis.L2M_searchRules = function (MACROS) {
       .replace(/\\ensuremath\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, "$1")   // (\ensuremath{X}: X)
       .replace(/\.\.\.+/g, "\\ldots ")                                                // (1...k: 1\ldots k, as typed)
       .replace(/\\(i{2,4})nt(?![A-Za-z])/g, function (x, is) { return new Array(is.length + 1).join("\\int "); })   // (\iint: \int\int, as a PDF can't tell them apart)
-      .replace(/\\colon(?![A-Za-z])/g, ":").replace(/\\%/g, "%")
+      .replace(/\\textsc\s*\{([^{}]*)\}/g, function (x, w) { return "\\mathrm{" + w.toUpperCase() + "}"; })   // (small capitals drawn: capitals)
+      .replace(/\\colon(?![A-Za-z])/g, ":").replace(/\\%/g, "%").replace(/\\#/g, "#").replace(/\\&/g, "&")
+      .replace(/\\(?:boxed|fbox)\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, "$1")             // (\boxed{x}: x, its frame a rule)
+      .replace(/\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*?)\\(over|choose)(?![A-Za-z])((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, function (x, a, k, b) { return (k === "over" ? "\\frac{" : "\\binom{") + a.trim() + "}{" + b.trim() + "}"; })   // ({a\over b}: \frac{a}{b})
+      .replace(/\\([ij])math(?![A-Za-z])\s*/g, "$1")                                     // (\imath: i)
+      .replace(/\\up(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?![A-Za-z])/g, "\\$1")   // (\upbeta: \beta)
+      .replace(/\\(overset|underset|stackrel)\s*(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^\s{}\\])\s*(\\[A-Za-z]+|[^\s{}\\])(?![A-Za-z])/g, function (x, c, a, b) { return "\\" + c + (a.charAt(0) === "{" ? a : "{" + a + "}") + "{" + b + "}"; })   // (\overset{n\to\infty}\longrightarrow: its second part braced)
       .replace(/\\x(right|left)arrow\s*\[([^\]]*)\]\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$3}{\\underset{$2}{\\$1arrow}}")   // (\xrightarrow[b]{a}: a over, b under)
       .replace(/\\x(right|left)arrow\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$2}{\\$1arrow}")   // (\xrightarrow{\Phi}: \overset{\Phi}{\rightarrow})
       .replace(/\\boldsymbol\s*\{\s*([0-9]+)\s*\}/g, "\\mathbf{$1}")                     // (\boldsymbol{1}: \mathbf{1}, a digit set bold)
@@ -500,34 +524,65 @@ globalThis.L2M_searchRules = function (MACROS) {
       .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
       .replace(/\\math(?:op|ord|bin|rel|open|close|punct|inner)(?![A-Za-z])\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?/g, "$1")                             // (\mathop{}\!\mathrm{d}x: \mathrm{d}x; what it holds, as it is)
       .replace(/\\(Re|Im)(?![A-Za-z])/g, "\\mathrm{$1}")                                   // (\Re: Re as the physics package draws it, or ℜ)
-      .replace(/\^\s*\{?\s*((?:\\prime\s*)+)\}?/g, function (x, p) { return p.replace(/\\prime\s*/g, "'"); })   // (y^\prime: y')
+      .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
+      .replace(/\^\s*\\prime(?![A-Za-z])\s*/g, "'")                                         // (y^\prime: y')
+      .replace(/\^\s*\{\s*('+)\s*((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{'k}: '^{k})
       .replace(/\{\s*([A-Za-z])\s*('+)\s*\}(?=\s*[\^_])/g, "$1$2")                  // ({x'}^2: x'^2)
       .replace(/\\substack\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1");                   // (\sum_{\substack{i<j\\ j<N}}: its rows)
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
-    t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"));
+    t = t.replace(new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])\\s*(\\\\(?:" + FONTS + "|mathfrak|mathscr|mathsf|mathtt)\\s*\\{(?:[^{}]|\\{[^{}]*\\})*\\})", "g"), "\\$1{$2}");   // (\tilde \mathcal{C}: \tilde{\mathcal{C}})
+    t = fracBraces(t.replace(NAMED_FA, "\\$1{$2}"))
+      .replace(/([_^])\s*\\frac(\{(?:[^{}]|\{[^{}]*\})*\}\{(?:[^{}]|\{[^{}]*\})*\})/g, "$1{\\frac$2}");   // (p^\frac N2: p^{\frac{N}{2}})
     t = t.replace(/\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*\{([^{}]*)\}/g, function (x, f, a) { return "\\" + OLDF[f] + "{" + a.trim() + "}"; })   // (\rm{UU}: \mathrm{UU})
       .replace(/\\([A-Za-z]+)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, n, a) { return OPNAME.test(n) && !/^(tr|Tr)$/.test(n) ? "\\" + n + " " + a + " " : x; });   // (\sin{\theta}: \sin\theta, no argument)
     t = t.replace(OLDFONT, function (x, f, a, g, b, at, all) {   // (a script's own braces kept: S_{\rm gen} is S_{\mathrm{gen}})
       var y = "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}";
-      return f && /[_^]\s*$/.test(all.slice(Math.max(0, at - 3), at)) ? "{" + y + "}" : y;
+      return f && (/[_^]\s*$/.test(all.slice(Math.max(0, at - 3), at)) || /\\[A-Za-z]+\s*$/.test(all.slice(Math.max(0, at - 30), at)) && argAt(all, at)) ? "{" + y + "}" : y;   // (and an argument's: \tilde{\cal N})
     });
-    // (an upright i, d or e alone, \mathrm{d}: the letter, as the imaginary unit, the differential and Euler's e are set
-    // either way; kept apart from a command before it, \int\mathrm{d}x: \int dx)
-    t = t.replace(/\\mathrm\s*\{\s*([ide])\s*\}/g, function (x, c, at, all) { return (/\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) ? " " : "") + c; });
-    t = t.replace(/([_^])\s*(\\[A-Za-z]+\s*\{[^{}]*\})/g, "$1{$2}");   // (S_\text{gen} as S_{\text{gen}})
+    t = t.replace(/\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*([A-Za-z0-9]+)/g, function (x, f, w) { return "\\" + OLDF[f] + "{" + w + "}"; });   // (\rm eff: \mathrm{eff})
+    // (one font inside the same font: once)
+    t = t.replace(/\\(mathrm|mathbf|mathit|mathcal|mathbb|mathsf|mathtt)\s*\{\s*\\\1\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\}/g, "\\$1{$2}")   // (\mathrm{\rm X}: \mathrm{X})
+      .replace(/\\(mathrm|mathbf|mathit|mathcal|mathbb|mathsf|mathtt)\s*\\\1(?![A-Za-z])/g, "\\$1");
+    for (var kr = 0; kr < 6 && t.search(FONT_RUN) >= 0; kr++) { var t0 = t; t = t.replace(FONT_RUN, fontRun); if (t === t0) break; }   // (a run of one font, joined first: \mathrm{Set}-\mathrm{I})
+    t = t.replace(/\\(mathtt|mathsf|mathbf|mathit)\s*\{\s*\\mathrm\s*\{([^{}]*)\}\s*\}/g, "\\$1{$2}");   // (\texttt{\textup{D}}: \mathtt{D})
+    for (var kn = 0; kn < 3; kn++) t = t.replace(/\\(mathrm|mathbf|mathit|mathsf|mathcal|mathbb|mathfrak)\s*\{([^{}\\]*)\\(mathrm|mathbf|mathit|mathsf|mathcal|mathbb|mathfrak)\s*\{([^{}]*)\}([^{}\\]*)\}/g, function (x, f, a, g, b, c) {
+      return (a.trim() ? "\\" + f + "{" + a + "}" : "") + "\\" + g + "{" + b + "}" + (c.trim() ? "\\" + f + "{" + c + "}" : "");
+    });   // (a font group inside another font's: \mathrm{\mathbf{R}Hom} is \mathbf{R}\mathrm{Hom})
+    // a font round a letter and its scripts (\mathcal{B^*}: \mathcal{B}^*; \mathrm{La_{0.6}Sr_{0.4}}: \mathrm{La}_{0.6}\mathrm{Sr}_{0.4})
+    t = t.replace(/\\(mathfrak|mathcal|mathbb|mathbf|mathrm|mathsf|mathit|mathtt)\s*\{((?:[^{}]|\{[^{}]*\})*[_^](?:[^{}]|\{[^{}]*\})*)\}/g, function (x, f, b) {
+      return b.split(/([_^](?:\{[^{}]*\}|\\[A-Za-z]+|.))/).map(function (y, k) { return k % 2 ? y : y ? "\\" + f + "{" + y + "}" : ""; }).join("");
+    });
+    // brackets, signs and punctuation in an upright or bold group: outside it (\mathrm{(even)}: (\mathrm{even}))
+    t = t.replace(/\\(mathrm|mathbf|mathit|mathsf)\s*\{([^{}\\]*)\}/g, function (x, f, b) {
+      if (/^[A-Za-z\s]*$/.test(b)) return x;
+      return b.split(/([^A-Za-z\s]+)/).map(function (y, k) { return k % 2 ? y : y.trim() ? "\\" + f + "{" + y + "}" : ""; }).join("");
+    });
+    // an upright letter alone: the letter (\mathrm{d}x: dx, \mathrm{I}_A, \chi_{\rm r}: \chi_r), and italic text as italic letters
+    t = t.replace(/\\(?:mathrm\s*\{\s*([A-Za-z])\s*\}|mathit\s*\{((?:[^{}]|\{[^{}]*\})*)\})/g, function (x, c, it, at, all) { var v = c || it; return (/^[A-Za-z]/.test(v) && /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) ? " " : "") + v; });
+    t = t.replace(/\\math(?:bb|bf)\s*\{\s*1\s*\}/g, "1");                                   // (\mathbb{1}: 1, an indicator's one)
+    // an operator's name as upright text (\mathrm{dim}: \dim); arg min and ess sup as TeX draws them
+    t = t.replace(/\\mathrm\s*\{\s*([A-Za-z]+)\s*\}/g, function (x, n) { return OPNAME.test(n) && !/^(tr|Tr)$/.test(n) ? "\\" + n + " " : x; })
+      .replace(/\\arg(min|max)(?![A-Za-z])|\\mathrm\s*\{\s*arg\s*(min|max)\s*\}|\\arg\s*\\(min|max)(?![A-Za-z])/g, function (x, a, b, c) { return "\\arg\\" + (a || b || c) + " "; })
+      .replace(/\\ess(sup|inf)(?![A-Za-z])|\\mathrm\s*\{\s*ess\s*(sup|inf)\s*\}|\\mathrm\s*\{\s*ess\s*\}\s*\\(sup|inf)(?![A-Za-z])/g, function (x, a, b, c) { return "\\mathrm{ess}\\" + (a || b || c) + " "; });
+    // an operator's limit under it (\underset{x}{\min}: \min_{x})
+    t = t.replace(/\\underset\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{\s*(\\[A-Za-z]+(?:\s*\\[A-Za-z]+)?)\s*\}/g, function (x, a, op) { var n = op.replace(/^\\|\s.*$/g, ""); return OPNAME.test(n) || OPS[n] || /^(arg|mathrm)/.test(n) ? op + "_{" + a + "}" : x; });
+    t = t.replace(/([_^])\s*(\\([A-Za-z]+)\s*\{[^{}]*\})/g, function (x, s1, g, n) { return GLYPH[n] || OPS[n] || OPNAME.test(n) ? x : s1 + "{" + g + "}"; });   // (S_\text{gen} as S_{\text{gen}}; ^\infty{1} not)
     t = t.replace(/(\\[A-Za-z]+)\s+(?=[A-Za-z])/g, "$1\u0001").replace(/\s+/g, "").replace(/\u0001/g, " ");
     t = t.replace(SCRIPT1, script1);
-    t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])?(\\[A-Za-z]+|[^{\\\s\[])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
-    for (var k = 0; k < 4; k++) t = t.replace(FONT_RUN, "\\$1{$2$3");   // (\mathrm{for}\mathrm{all}: \mathrm{forall}, as \text{for all})
+    t = t.replace(/\\sqrt(?![A-Za-z])(\[[^\]]*\])? ?(\\[A-Za-z]+|[^{\\\s\[])/g, "\\sqrt$1{$2}");   // (\sqrt2, √2: \sqrt{2})
+    for (var k = 0; k < 4; k++) t = t.replace(FONT_RUN, fontRun);   // (\mathrm{for}\mathrm{all}: \mathrm{forall}, as \text{for all})
     t = t.replace(FONT_GROUP, function (x, g, at, all) { return argAt(all, at) ? x : g; });   // ({\mathbb R}^2: \mathbb{R}^2; an argument, \hat{\mathbf{n}}, kept)
     t = t.replace(/\\mathrm\{(\\math(?:tt|sf|bf|it|cal|bb|frak)\{[^{}]*\})\}/g, "$1")      // (\textup{\texttt{Eff}}: \mathtt{Eff})
       .replace(/\{([,.])\}/g, "$1")                                                     // (50{,}000)
       .replace(TWO_SCRIPTS, function (x, s, a, b) { return s + "{" + a.replace(/^\{|\}$/g, "") + b.replace(/^\{|\}$/g, "") + "}"; })   // (\eta^{*}{}^{\mu}: \eta^{*\mu})
       .replace(/\\overline(?![A-Za-z])/g, "\\bar")
       .replace(new RegExp("\\\\(mathbf|boldsymbol|mathrm|mathit|mathcal|mathbb)\\{\\\\(" + ACCS + ")\\{([^{}]*)\\}\\}", "g"), "\\$2{\\$1{$3}}")   // (\boldsymbol{\hat{r}}: \hat{\boldsymbol{r}})                      // (\overline as \bar: a bar over what it holds, either way; a paper's own \bar may be \overline)
-      .replace(/([A-Za-z])('+)_(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\])/g, "$1_$3$2");          // (e'_i: e_i', its prime after its subscript)
+      .replace(/([A-Za-z}])('+)_(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\])/g, "$1_$3$2");          // (e'_i: e_i', its prime after its subscript)
+    t = t.replace(new RegExp("\\\\(" + ACCS + ")\\{\\\\(mathfrak|mathcal|mathbb|mathbf|mathrm|mathsf|mathit|mathscr)\\{([A-Za-z])([A-Za-z]+)\\}\\}", "g"), "\\$1{\\$2{$3}}\\$2{$4}");   // (\dot{\mathfrak{gl}}: the dot over the g, as a PDF reads it)
     t = loose(t);
-    t = scriptOrder(t);
+    for (var kl = 0; kl < 4; kl++) t = t.replace(FONT_RUN, fontRun);   // (and runs whose braces loose() took off: \mathbf{X}{\boldsymbol{w}})
+    t = t.replace(TWO_SCRIPTS, function (x, s, a, b) { return s + "{" + a.replace(/^\{|\}$/g, "") + b.replace(/^\{|\}$/g, "") + "}"; });   // ({x^a}^b, its braces gone: x^{ab})
+    t = scriptOrder(t).replace(/('+)_(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\])/g, "_$2$1");
     // (a space only between a command's name and a letter after it: \mu e, not e_\mu^a e)
     t = t.replace(/ +/g, function (m, at, all) { return /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[A-Za-z]/.test(all.slice(at + m.length)) ? " " : ""; });
     if (normed.size > 20000) normed.clear();
@@ -587,4 +642,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-24.10";
+globalThis.L2M_searchRules.version = "2026-10-25.8";
