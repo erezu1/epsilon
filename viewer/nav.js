@@ -569,7 +569,7 @@ window.L2M_nav = function (opts) {
     };
   }
   // the search's rules (search-rules.js, shared with the PDF viewer for Chrome), with this paper's own macros
-  var rules = L2M_searchRules(opts.macros), HAS_ACC = rules.HAS_ACC, WORDED = rules.WORDED, SCRIPTED = rules.SCRIPTED,
+  var rules = L2M_searchRules(opts.macros, opts.packages), HAS_ACC = rules.HAS_ACC, WORDED = rules.WORDED, SCRIPTED = rules.SCRIPTED,
     findWhat = rules.findWhat, texHas = rules.texHas, glyphsOf = rules.glyphsOf, texNorm = rules.texNorm, wordSeqs =
     rules.wordSeqs, reEsc = rules.reEsc;
   function findRun() {
@@ -668,7 +668,9 @@ window.L2M_nav = function (opts) {
             i += seq.length - 1;
           }
         }
-        if (!got && (!what.glyph || texHas(tex, what.tex))) {                                // the formula as a whole
+        // the formula as a whole: its glyphs not found in a row; but a query whose glyphs cannot be read (one ending in a
+        // bare accent, +\bar), in a drawn formula: nothing, not the whole formula for it
+        if (!got && (seq || !drawn) && (!what.glyph || texHas(tex, what.tex))) {
           found.push({at: f.at, el: f.el});      // (marked as it is drawn in, near the view; the one gone to, at once)
         }
       });

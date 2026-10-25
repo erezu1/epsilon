@@ -2,14 +2,28 @@
 // Chrome (epsilon_pdf_reader: pdf-search.mjs, through epsilon-search.mjs): what a query looks for (findWhat), a
 // formula's TeX read the same however it is written (texNorm, plainly), whether a formula has a query (texHas), the
 // glyphs a query draws (glyphsOf), in the drawing's codes (hex Unicode, as MathJax's data-c), and a word as a formula
-// writes it (wordsIn, wordSeqs). L2M_searchRules(macros) gives them for a paper whose own macros are macros ({name:
-// its TeX}; a PDF has none). A plain script: loaded as one by the app, imported by the viewer (globalThis either way).
-globalThis.L2M_searchRules = function (MACROS) {
+// writes it (wordsIn, wordSeqs). L2M_searchRules(macros, packages) gives them for a paper whose own macros are macros
+// ({name: its TeX}; a PDF has none) and whose MathJax packages are packages (["physics", ...]; a PDF: the ones always
+// on). A plain script: loaded as one by the app, imported by the viewer (globalThis either way).
+globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   MACROS = MACROS || {};
   // the tables below hold no built-in names: a query "constructor" or "\\toString" is no symbol, and "hasOwnProperty"
   // or "__proto__" kept as a query's reading can't break the next search
   function own(o) { var m = Object.create(null); Object.keys(o).forEach(function (k) { m[k] = o[k]; }); return m; }
   function macro(n) { return Object.prototype.hasOwnProperty.call(MACROS, n) && typeof MACROS[n] === "string" ? MACROS[n] : null; }
+  // The commands MathJax draws as letters of their own (\lim: lim, \varprojlim: lim with an arrow, \bmod: mod), as
+  // MathJax has them: every other command is one symbol, its name no letters of the formula (ac is not in \frac). For
+  // the packages always on, and what each other package adds or changes (physics: \Re is Re, \Tr is Tr); a name with
+  // # takes arguments (\pmod{x}: mod), its letters its own.
+  // ---- drawn names: written by tools/drawn-names.js from MathJax 3.2.2; not to be edited by hand
+  var DRAWN_ALWAYS = {"LaTeX":"LATEX","Pr":"Pr","TeX":"TEX","arccos":"arccos","arcsin":"arcsin","arctan":"arctan","arg":"arg","bmod":"mod","cos":"cos","cosh":"cosh","cot":"cot","coth":"coth","csc":"csc","deg":"deg","det":"det","dim":"dim","exp":"exp","gcd":"gcd","hom":"hom","inf":"inf","injlim":"injlim","ker":"ker","lg":"lg","lim":"lim","liminf":"liminf","limsup":"limsup","ln":"ln","log":"log","max":"max","min":"min","mod#":"mod","pmod#":"mod","projlim":"projlim","sec":"sec","sin":"sin","sinh":"sinh","sup":"sup","tan":"tan","tanh":"tanh","varinjlim":"lim","varliminf":"lim","varlimsup":"lim","varprojlim":"lim"};
+  var DRAWN_PACKAGES = {"physics":{"Im":"Im","PV":"PV","Probability":"Pr","Re":"Re","Res":"Res","Residue":"Res","Tr":"Tr","Trace":"Tr","acos":"acos","acosecant":"acsc","acosine":"acos","acot":"acot","acotangent":"acot","acsc":"acsc","arccosecant":"arccsc","arccosine":"arccos","arccot":"arccot","arccotangent":"arccot","arccsc":"arccsc","arcsec":"arcsec","arcsecant":"arcsec","arcsine":"arcsin","arctangent":"arctan","asec":"asec","asecant":"asec","asin":"asin","asine":"asin","atan":"atan","atangent":"atan","cosecant":"csc","cosine":"cos","cotangent":"cot","csch":"csch","dd":"d","derivative#":"dd","determinant":"det","diffd":"d","differential":"d","dv#":"dd","erf":"erf","exponential":"exp","hypcosecant":"csch","hypcosine":"cosh","hypcotangent":"coth","hypsecant":"sech","hypsine":"sinh","hyptangent":"tanh","logarithm":"log","naturallogarithm":"ln","order#":"O","principalvalue":"P","pv":"P","qall":"all","qand":"and","qas":"as","qassume":"assume","qcc":"cc","qelse":"else","qeven":"even","qfor":"for","qgiven":"given","qif":"if","qin":"in","qinteger":"integer","qlet":"let","qodd":"odd","qor":"or","qotherwise":"otherwise","qsince":"since","qthen":"then","qunless":"unless","qusing":"using","rank":"rank","secant":"sec","sech":"sech","sine":"sin","tangent":"tan","tr":"tr","trace":"tr"}};
+  // ---- end of drawn names
+  var DRAWN = own(DRAWN_ALWAYS), ROMAN_RE = !PACKAGES || PACKAGES.indexOf("physics") >= 0;
+  (PACKAGES || []).forEach(function (p) {
+    var o = Object.prototype.hasOwnProperty.call(DRAWN_PACKAGES, p) ? DRAWN_PACKAGES[p] : null;
+    if (o) Object.keys(o).forEach(function (k) { if (o[k]) DRAWN[k] = o[k]; else delete DRAWN[k]; });
+  });
   var GLYPH = own({alpha: "1D6FC", beta: "1D6FD", gamma: "1D6FE", delta: "1D6FF", epsilon: "1D716", varepsilon: "1D700", zeta: "1D701",
     eta: "1D702", theta: "1D703", vartheta: "1D717", iota: "1D704", kappa: "1D705", varkappa: "1D718", lambda: "1D706", mu: "1D707",
     nu: "1D708", xi: "1D709", pi: "1D70B", varpi: "1D71B", rho: "1D70C", varrho: "1D71A", sigma: "1D70E", varsigma: "1D70D",
@@ -74,8 +88,9 @@ globalThis.L2M_searchRules = function (MACROS) {
     });
   }
   // what a query looks for: {text} (words), {tex} (TeX in formulas), {glyph} (a symbol, as drawn: its drawings)
-  // operators drawn as upright words (\log, \sin, ...): their letters, as drawn
-  var OPNAME = /^(log|ln|lg|exp|sin|cos|tan|cot|sec|csc|sinh|cosh|tanh|coth|arcsin|arccos|arctan|det|dim|ker|deg|hom|lim|liminf|limsup|max|min|sup|inf|arg|gcd|Pr|Tr|tr)$/;
+  // a command drawn as its own name's letters (\log, \sin, \lim ...), as MathJax has it (and \Tr, \tr: a paper's own,
+  // \mathrm{Tr}, drawn so)
+  var OPNAME = {test: function (n) { return DRAWN[n] === n || n === "Tr" || n === "tr"; }};
   function findWhat(q) {
     q = q.trim();
     if (!q) return null;
@@ -177,7 +192,8 @@ globalThis.L2M_searchRules = function (MACROS) {
   // a command's name typed without its backslash, with its argument after it (sqrt{2}, frac{1}{2}, hat{x}): the
   // command, in the query as it is matched and as its glyphs are read
   var BARE_CMD = new RegExp("(^|[^A-Za-z\\\\])(" + ACCS + "|sqrt|frac|dfrac|tfrac|binom|overline|underline)(?=\\{)", "g");
-  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2"); }
+  // (and <=, >=, != as typed: \leq, \geq, \neq; only in a query: in a formula's TeX they are what they are, <a,b>=0 or n!=1)
+  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq "); }
   function texHas(tex, q) {
     q = texNorm(bareCmds(q));
     var t = plainly(texNorm(tex), q), i;
@@ -236,7 +252,8 @@ globalThis.L2M_searchRules = function (MACROS) {
     lessgtr: "2276", gtrless: "2277", intercal: "22BA", Subset: "22D0", Supset: "22D1", lhd: "22B2", rhd: "22B3", unlhd: "22B4",
     unrhd: "22B5", pitchfork: "22D4", wr: "2240", amalg: "2A3F", smile: "2323", frown: "2322"});
   // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
-  var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"]});
+  var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"],
+    neq: ["338"]});   // (\neq drawn as \not=: its slash, over the =)
   var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
   var SYM = own({"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
     "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"});
@@ -288,7 +305,9 @@ globalThis.L2M_searchRules = function (MACROS) {
               parts.push(q.slice(i + 1, e3)); i = e3 + 1;
             } else if ((m = /^(\\[A-Za-z]+|.)/.exec(q.slice(i)))) { parts.push(m[1]); i += m[0].length; }
           }
-          if (parts.length < (two ? 2 : 1)) return null;     // (an accent asked for alone, \hat: the whole formula)
+          // (an accent asked for alone, \hat: its mark; at the end of more, +\bar, nothing to tell: what it is over is not asked)
+          if (!parts.length && ACC_DRAWN[name] && !out.length && i >= q.length) { out.push(ACC_DRAWN[name]); continue; }
+          if (parts.length < (two ? 2 : 1)) return null;
           parts = parts.map(function (x) { return glyphsOf(x) || null; });
           if (parts.some(function (x) { return !x; })) return null;
           if (ACC_DRAWN[name]) gA = parts[0].concat([ACC_DRAWN[name]]);
@@ -540,7 +559,8 @@ globalThis.L2M_searchRules = function (MACROS) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = uniTeX(physics(expand(t)).replace(/—/g, "---").replace(/–/g, "--")).replace(/<=/g, "\\leq ").replace(/>=/g, "\\geq ").replace(/!=/g, "\\neq ").replace(SIZES, "");   // (– and —: -- and ---, in formulas only; a text keeps its dash)
+    t = uniTeX(physics(expand(t)).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "")
+      .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
     t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: a plain \rightarrow)
     t = unspaced(t)
       .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
@@ -571,7 +591,7 @@ globalThis.L2M_searchRules = function (MACROS) {
       .replace(/\\not\s*=/g, "\\neq ").replace(/\\not\s*\\in(?![A-Za-z])/g, "\\notin ")
       .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
       .replace(/\\math(?:op|ord|bin|rel|open|close|punct|inner)(?![A-Za-z])\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?/g, "$1")                             // (\mathop{}\!\mathrm{d}x: \mathrm{d}x; what it holds, as it is)
-      .replace(/\\(Re|Im)(?![A-Za-z])/g, "\\mathrm{$1}")                                   // (\Re: Re as the physics package draws it, or ℜ)
+      .replace(/\\(Re|Im)(?![A-Za-z])/g, ROMAN_RE ? "\\mathrm{$1}" : "$&")               // (\Re: Re as the physics package draws it; with no package said, as a PDF, Re or ℜ)
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
       .replace(/\^\s*\\prime(?![A-Za-z])\s*/g, "'")                                         // (y^\prime: y')
       .replace(/\^\s*\{\s*('+)\s*((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{'k}: '^{k})
@@ -690,4 +710,4 @@ globalThis.L2M_searchRules = function (MACROS) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.11";
+globalThis.L2M_searchRules.version = "2026-10-25.13";
