@@ -70,7 +70,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     return out;
   }
   // a query typed with the symbols themselves (a phone's keys): α, ≤, x², ... read as their TeX
-  var UNI = own({"≤": "leq", "≥": "geq", "≠": "neq", "≈": "approx", "∼": "sim", "≡": "equiv", "∝": "propto", "∫": "int",
+  var UNI = own({"ℝ": "mathbb{R}", "ℤ": "mathbb{Z}", "ℕ": "mathbb{N}", "ℂ": "mathbb{C}", "ℚ": "mathbb{Q}", "∅": "emptyset", "↔": "leftrightarrow",
+    "≤": "leq", "≥": "geq", "≠": "neq", "≈": "approx", "∼": "sim", "≡": "equiv", "∝": "propto", "∫": "int",
     "∮": "oint", "∑": "sum", "∏": "prod", "√": "sqrt", "→": "rightarrow", "←": "leftarrow", "⊗": "otimes", "⊕": "oplus",
     "∈": "in", "⊂": "subset", "±": "pm", "∓": "mp", "×": "times", "·": "cdot", "⋅": "cdot", "⟨": "langle", "⟩": "rangle",
     "†": "dagger", "…": "ldots", "⋯": "cdots", "∧": "wedge", "∨": "vee", "∩": "cap", "∪": "cup", "∘": "circ", "∗": "ast",
@@ -219,7 +220,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // (a query that is a formula as typed, with =, _, ^, \\, brackets, digits...: a run of letters that is wholly symbols'
   // names is them, psi(t,x), 1/rho, = L psi, munu; and a script of more than one digit or letter is all of it, F_14,
   // delta_ij; a word alone, phi, or among words, the phi meson: a word)
-  var NAMES = Object.keys(GLYPH).filter(function (n) { return n.length > 1; }).concat(["sum", "prod", "int", "iint", "oint", "coprod"]);   // (and the big signs: sum_i)
+  var NAMES = Object.keys(GLYPH).filter(function (n) { return n.length > 1; }).concat(["sum", "prod", "int", "iint", "oint", "coprod"])   // (and the big signs: sum_i)
+    .concat(Object.keys(DRAWN).filter(function (n) { return DRAWN[n] === n && n.length > 1; }));   // (and max, log, sin: t_max, cos theta)
   var NAMED = own({}); NAMES.forEach(function (n) { NAMED[n] = 1; });
   function asNames(run) {                          // run as names one after another (munu: mu nu), or null
     var at = [[]];
@@ -229,7 +231,6 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     }
     return at[run.length];
   }
-  var FORMULA_LIKE = /[_^\\{}=+*\/<>()\[\]|0-9]/;
   function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, function (x, at, all) { return /<[^<>]*$/.test(all.slice(0, at)) ? x : "\\geq "; }).replace(/(^|[^\\])!=/g, "$1\\neq "); }   // (<a,b>=0: a bracket's end)   // (\!= is a thin space less and =)
   // (a query typed, not in $...$, TeX as written: its names and scripts as a person means them)
   // The places in a query that read two ways, as typed or as TeX (Erez, Oct 25): a run of letters wholly symbols'
@@ -237,7 +238,19 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // x_ij: all of it; as TeX, its first); each place either way, in the same query (x_ij + alpha: x_i j + \alpha too)
   function spots(q) {
     var out = [];
-    if (!FORMULA_LIKE.test(q)) return out;
+    function add(at, len, opts) { if (!out.some(function (o) { return at < o.at + o.len && o.at < at + len; })) out.push({at: at, len: len, opts: opts}); }
+    function named(run) { var ns = asNames(run); return ns ? ns.map(function (n) { return "\\" + n; }).join("") : null; }
+    function atom(x) { return /^\d+$|^\\[A-Za-z]+$|^[A-Za-z]$/.test(x) ? x : named(x); }
+    // a/b of one thing each: \frac{a}{b} (1/2, pi/2, 1/beta)
+    q.replace(/(^|[^A-Za-z0-9\\])(\d+|\\[A-Za-z]+|[A-Za-z]+)\/(\d+|\\[A-Za-z]+|[A-Za-z]+)(?![A-Za-z0-9])/g, function (x, pre, a, b, at, all) {
+      if (/[_^]-?$/.test(all.slice(0, at + pre.length))) return x;   // (f_-2/r: the 2 a script's)
+      var A = atom(a), B = atom(b);
+      if (A && B) add(at + pre.length, x.length - pre.length, ["\\frac{" + A + "}{" + B + "}"].concat(A + "/" + B !== a + "/" + b ? [A + "/" + B] : []));   // (and 1/rho as 1/\rho)
+      return x;
+    });
+    q.replace(/-->|->/g, function (x, at) { add(at, x.length, [x.length > 2 ? "\\longrightarrow " : "\\to "]); return x; });   // (t->\infty)
+    q.replace(/=>/g, function (x, at) { add(at, 2, ["\\Rightarrow "]); return x; });
+    q.replace(/([_^])-(\d+|[A-Za-z])/g, function (x, s1, r, at) { add(at + 1, x.length - 1, ["{-" + r + "}"]); return x; });   // (c^-1)
     q.replace(/(\\?)([A-Za-z]+)/g, function (x, sl, run, at, all) {
       if (sl) return x;                                // (a command's own name)
       if (/\\(text[a-z]*|math[a-z]+|operatorname|mbox|begin|end)\s*\{$/.test(all.slice(Math.max(0, at - 20), at))) return x;   // (words in a font's or a text's braces)
@@ -246,31 +259,35 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       var r = ns.map(function (n) { return "\\" + n; }).join("");
       if (ns.length > 1 && /[_^]$/.test(all.slice(0, at))) r = "{" + r + "}";   // (^munu: ^{\mu\nu})
       else if (/^[A-Za-z]/.test(all.charAt(at + x.length))) r += " ";
-      out.push({at: at, len: x.length, typed: r});
+      add(at, x.length, [r]);
       return x;
     });
-    q.replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9\\{_^])/g, function (x, s1, run, at) {
-      var a = at + 1;
-      if (!out.some(function (o) { return a < o.at + o.len && o.at < a + run.length; })) out.push({at: a, len: run.length, typed: "{" + run + "}"});
-      return x;
-    });
+    q.replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9{])/g, function (x, s1, run, at) { add(at + 1, run.length, ["{" + run + "}"]); return x; });   // (x_ij^2, rho_AB)
+    q.replace(/\*/g, function (x, at) { add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v)
+    q.replace(/(\S)(\s+)x(\s+)(?=\S)/g, function (x, a, s1, s2, at) { add(at + 1 + s1.length, 1, ["\\times "]); return x; });   // (2 x 10^3, N x M)
     return out.sort(function (x, y) { return x.at - y.at; });
   }
-  // the query's readings: every way of reading its places, the most typed first and TeX as written last (beyond four
-  // places: those two)
+  // the query's readings: every way of reading its places (each as written, or as one of its typed readings), the
+  // most typed first and TeX as written last (beyond 32 ways: those two)
   function readings(q) {
-    var sp = spots(q), n = sp.length, out = [];
+    var sp = spots(q), n = sp.length, out = [], total = 1;
     if (!n) return [q];
-    var masks = [];
-    if (n <= 4) for (var m = (1 << n) - 1; m >= 0; m--) masks.push(m); else masks = [(1 << n) - 1, 0];
-    masks.forEach(function (m) {
+    sp.forEach(function (o) { total *= o.opts.length + 1; });
+    var choices = [];
+    if (total <= 32) {
+      for (var k = 0; k < total; k++) { var c = [], r = k; sp.forEach(function (o) { var m = o.opts.length + 1; c.push(r % m); r = Math.floor(r / m); }); choices.push(c); }
+      choices.sort(function (x, y) { return zeros(x) - zeros(y); });   // (the most typed first)
+    } else choices = [sp.map(function () { return 1; }), sp.map(function () { return 0; })];
+    function zeros(c) { return c.filter(function (v) { return v === 0; }).length; }
+    choices.forEach(function (c) {
       var r = "", last = 0;
-      sp.forEach(function (o, i) { r += q.slice(last, o.at) + (m & (1 << i) ? o.typed : q.substr(o.at, o.len)); last = o.at + o.len; });
+      sp.forEach(function (o, i) { r += q.slice(last, o.at) + (c[i] ? o.opts[c[i] - 1] : q.substr(o.at, o.len)); last = o.at + o.len; });
       r += q.slice(last);
       if (out.indexOf(r) < 0) out.push(r);
     });
     return out;
   }
+
 
   // A formula and a query's readings (tex, then its alts): the first reading the formula has, or -1. Its readings
   // differ only in how their places are spelled (\alpha or alpha, {ij} or ij): without \, braces and spaces they are
@@ -691,6 +708,21 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // (and a space made in an upright group, \mathrm{B \; USD}, nothing: a math's space, matched anywhere or nowhere)
     t = t.replace(/\\mathrm\s*\{([^{}]*)\}/g, function (x, a) { return /\\[,;: ]|\\q?quad|~/.test(a) ? "\\mathrm{" + a.replace(/\s*(?:\\[,;: ]|\\q?quad(?![A-Za-z])|~)\s*/g, "") + "}" : x; });
     t = t.replace(TEXTY, function (x, c, a) { a = a.replace(/\\[,;: ]|\\q?quad(?![A-Za-z])|~/g, " "); return "\\" + c + "{" + a.replace(/^\s+|\s+$/g, "").replace(/\s+/g, "\u0005").replace(/---/g, "\u2014").replace(/--/g, "\u2013") + "}"; });
+    // (drawn alike, written apart: an accent over a letter that has a script, as over the letter (\vec{p_3}: \vec{p}_3);
+    // \prime in a superscript as '; a pre-superscript \prescript{a}X as {}^{a}X, a font round it outside; an empty
+    // script's script as the script (\sigma_{_N}: \sigma_N); two scripts of one kind as one, as TeX draws them
+    // (X^{a}^2: X^{a2}); a dash between numbers a hyphen (2673–2900))
+    t = t.replace(new RegExp("\\\\(" + ACCS + ")\\s*\\{\\s*((?:\\\\[A-Za-z]+\\s*\\{[^{}]*\\}|\\\\[A-Za-z]+|[A-Za-z0-9]))((?:\\s*[_^]\\s*(?:\\{[^{}]*\\}|\\\\[A-Za-z]+|[A-Za-z0-9]))+)\\s*\\}", "g"), "\\$1{$2}$3")
+      .replace(/\^\s*\{([^{}]*)\}/g, function (x, a) { return /\\prime(?![A-Za-z])/.test(a) ? "^{" + a.replace(/\s*\\prime(?![A-Za-z])\s*/g, "'") + "}" : x; })
+      .replace(/\\(math[a-z]+|cal|bf|rm)\s*\{\s*\\prescript\s*\{([^{}]*)\}\s*([A-Za-z])\s*\}/g, "{}^{$2}\\$1{$3}")
+      .replace(/\\prescript\s*\{([^{}]*)\}\s*(?!\{)/g, "{}^{$1}")
+      .replace(/([_^])\s*\{\s*([_^])\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\}/g, function (x, a, b, c) { return a === b ? a + "{" + c + "}" : x; })
+      .replace(/([_^])\s*\{\s*([_^])\s*([^{}\s])\s*\}/g, function (x, a, b, c) { return a === b ? a + c : x; });
+    for (var dk = 0; dk < 3; dk++) t = t.replace(/([_^])\s*(\{[^{}]*\}|\\[A-Za-z]+|[A-Za-z0-9])\s*\1\s*(\{[^{}]*\}|\\[A-Za-z]+|[A-Za-z0-9])/g, function (x, s1, a, b) {
+      a = a.charAt(0) === "{" ? a.slice(1, -1) : a; b = b.charAt(0) === "{" ? b.slice(1, -1) : b;
+      return s1 + "{" + a + (/\\[A-Za-z]+$/.test(a) && /^[A-Za-z]/.test(b) ? " " : "") + b + "}";
+    });
+    t = t.replace(/(\d)\s*--\s*(?=\d)/g, "$1-");
     t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: drawn as long as \rightarrow; with a label, long)
     t = unspaced(cells(t))
       .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
@@ -841,4 +873,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.18";
+globalThis.L2M_searchRules.version = "2026-10-25.19";
