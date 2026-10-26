@@ -156,6 +156,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // B' > 1, for B>1); asked for in a font, with an accent or a prime, only so
   var FONTS = "mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm";
   var ACCS = "hat|bar|tilde|vec|dot|ddot|check|breve|acute|grave|widehat|widetilde|overline|underline|mathring";
+  var ACC_GRP = "\\{(?:[^{}]|\\{[^{}]*\\})*\\}", ACC_SCRIPT = new RegExp("\\\\(" + ACCS + ")\\s*\\{\\s*((?:\\\\[A-Za-z]+\\s*" + ACC_GRP + "|\\\\[A-Za-z]+|[A-Za-z0-9]))((?:\\s*[_^]\\s*(?:" + ACC_GRP + "|\\\\[A-Za-z]+|[^\\s{}\\\\_^])|\\s*'+)+)\\s*\\}", "g");
   var INSIDE = "((?:[^{}]|\\{[^{}]*\\})*)";      // (what a font or an accent holds: a group within too, \bar{\mathbf{a}})
   var FONTED = new RegExp("\\\\(" + FONTS + ")\\{" + INSIDE + "\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{" + INSIDE + "\\}", "g");
   var HAS_FONT = new RegExp("\\\\(" + FONTS + ")(?![A-Za-z])"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])");   // (\mathrm alone too)
@@ -263,7 +264,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       return x;
     });
     q.replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9{])/g, function (x, s1, run, at) { add(at + 1, run.length, ["{" + run + "}"]); return x; });   // (x_ij^2, rho_AB)
-    q.replace(/\*/g, function (x, at) { add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v)
+    q.replace(/\*/g, function (x, at, all) { if (!/[_^]\s*\{?\s*$|\\(begin|end)\s*\{[A-Za-z]*$/.test(all.slice(Math.max(0, at - 20), at))) add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v; a script's star, r_*, and eqnarray* not)
     q.replace(/(\S)(\s+)x(\s+)(?=\S)/g, function (x, a, s1, s2, at) { add(at + 1 + s1.length, 1, ["\\times "]); return x; });   // (2 x 10^3, N x M)
     return out.sort(function (x, y) { return x.at - y.at; });
   }
@@ -708,12 +709,11 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // (and a space made in an upright group, \mathrm{B \; USD}, nothing: a math's space, matched anywhere or nowhere)
     t = t.replace(/\\mathrm\s*\{([^{}]*)\}/g, function (x, a) { return /\\[,;: ]|\\q?quad|~/.test(a) ? "\\mathrm{" + a.replace(/\s*(?:\\[,;: ]|\\q?quad(?![A-Za-z])|~)\s*/g, "") + "}" : x; });
     t = t.replace(TEXTY, function (x, c, a) { a = a.replace(/\\[,;: ]|\\q?quad(?![A-Za-z])|~/g, " "); return "\\" + c + "{" + a.replace(/^\s+|\s+$/g, "").replace(/\s+/g, "\u0005").replace(/---/g, "\u2014").replace(/--/g, "\u2013") + "}"; });
-    // (drawn alike, written apart: an accent over a letter that has a script, as over the letter (\vec{p_3}: \vec{p}_3);
-    // \prime in a superscript as '; a pre-superscript \prescript{a}X as {}^{a}X, a font round it outside; an empty
-    // script's script as the script (\sigma_{_N}: \sigma_N); two scripts of one kind as one, as TeX draws them
-    // (X^{a}^2: X^{a2}); a dash between numbers a hyphen (2673–2900))
-    t = t.replace(new RegExp("\\\\(" + ACCS + ")\\s*\\{\\s*((?:\\\\[A-Za-z]+\\s*\\{[^{}]*\\}|\\\\[A-Za-z]+|[A-Za-z0-9]))((?:\\s*[_^]\\s*(?:\\{[^{}]*\\}|\\\\[A-Za-z]+|[A-Za-z0-9]))+)\\s*\\}", "g"), "\\$1{$2}$3")
-      .replace(/\^\s*\{([^{}]*)\}/g, function (x, a) { return /\\prime(?![A-Za-z])/.test(a) ? "^{" + a.replace(/\s*\\prime(?![A-Za-z])\s*/g, "'") + "}" : x; })
+    // (drawn alike, written apart: \prime in a superscript as ' (^{D^\prime}: ^{D'}); a pre-superscript \prescript{a}X
+    // as {}^{a}X, a font round it outside; an empty script's script as the script (\sigma_{_N}: \sigma_N); two scripts
+    // of one kind as one, as TeX draws them (X^{a}^2: X^{a2}); a dash between numbers a hyphen (2673–2900); an accent
+    // over a letter with a script: below, once fonts and accents are spelled one way)
+    t = t.replace(/\^\s*\{([^{}]*)\}/g, function (x, a) { return /\\prime(?![A-Za-z])/.test(a) ? "^{" + a.replace(/\^\s*\\prime(?![A-Za-z])\s*/g, "'").replace(/\s*\\prime(?![A-Za-z])\s*/g, "'") + "}" : x; })
       .replace(/\\(math[a-z]+|cal|bf|rm)\s*\{\s*\\prescript\s*\{([^{}]*)\}\s*([A-Za-z])\s*\}/g, "{}^{$2}\\$1{$3}")
       .replace(/\\prescript\s*\{([^{}]*)\}\s*(?!\{)/g, "{}^{$1}")
       .replace(/([_^])\s*\{\s*([_^])\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\}/g, function (x, a, b, c) { return a === b ? a + "{" + c + "}" : x; })
@@ -757,7 +757,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
       .replace(/\^\s*\\prime(?![A-Za-z])\s*/g, "'")                                         // (y^\prime: y')
       .replace(/\^\s*\{\s*('+)\s*((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{'k}: '^{k})
-      .replace(/\{\s*([A-Za-z])\s*('+)\s*\}(?=\s*[\^_])/g, "$1$2")                  // ({x'}^2: x'^2)
+      .replace(/(\\[A-Za-z]+\s*)?\{\s*([A-Za-z])\s*('+)\s*\}(?=\s*[\^_])/g, function (x, c, l, p) { return c ? x : l + p; })   // ({x'}^2: x'^2; \hat{p'}_3 kept)
       .replace(/\\substack\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1");                   // (\sum_{\substack{i<j\\ j<N}}: its rows)
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
     t = t.replace(new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])\\s*(\\\\(?:" + FONTS + "|mathfrak|mathscr|mathsf|mathtt)\\s*\\{(?:[^{}]|\\{[^{}]*\\})*\\})", "g"), "\\$1{$2}");   // (\tilde \mathcal{C}: \tilde{\mathcal{C}})
@@ -790,6 +790,10 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // an upright letter alone: the letter (\mathrm{d}x: dx, \mathrm{I}_A, \chi_{\rm r}: \chi_r), and italic text as italic letters
     t = t.replace(/\\(?:mathrm\s*\{\s*([A-Za-z])\s*\}|mathit\s*\{((?:[^{}]|\{[^{}]*\})*)\})/g, function (x, c, it, at, all) { var v = c || it; if (c && (/^\u0005*\\mathrm\{/.test(all.slice(at + x.length)) || /\}\u0005+$/.test(all.slice(Math.max(0, at - 3), at)))) return x;   /* (a letter among a text's words, \text{B USD}: its group) */ return (/^[A-Za-z]/.test(v) && /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) ? " " : "") + v; });
     t = t.replace(/\\math(?:bb|bf)\s*\{\s*1\s*\}/g, "1");                                   // (\mathbb{1}: 1, an indicator's one)
+    // an accent over a letter that has a script, as over the letter (\vec{p_3}: \vec{p}_3; \overline{\mathcal D_\gamma}:
+    // \bar{\mathcal{D}}_\gamma), the script kept apart from a letter after it (\overline{a_\alpha}L: \bar{a}_\alpha L)
+    t = t.replace(new RegExp("\\\\(" + ACCS + ")\\s*\\{\\s*\\{((?:[^{}]|" + ACC_GRP + ")*)\\}\\s*\\}", "g"), "\\$1{$2}")   // (\tilde{{\mathcal{O}^{IJ}_\Delta}}: its group once)
+      .replace(ACC_SCRIPT, function (x, a, b, s, at, all) { return "\\" + a + "{" + b + "}" + s + (/\\[A-Za-z]+$/.test(s) && /^[A-Za-z]/.test(all.charAt(at + x.length)) ? " " : ""); });
     // an operator's name as upright text (\mathrm{dim}: \dim); arg min and ess sup as TeX draws them
     t = t.replace(/\\mathrm\s*\{\s*([A-Za-z]+)\s*\}/g, function (x, n) { return OPNAME.test(n) && !/^(tr|Tr)$/.test(n) ? "\\" + n + " " : x; })
       .replace(/\\arg(min|max)(?![A-Za-z])|\\mathrm\s*\{\s*arg\s*(min|max)\s*\}|\\arg\s*\\(min|max)(?![A-Za-z])/g, function (x, a, b, c) { return "\\arg\\" + (a || b || c) + " "; })
@@ -873,4 +877,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-25.19";
+globalThis.L2M_searchRules.version = "2026-10-26.1";
