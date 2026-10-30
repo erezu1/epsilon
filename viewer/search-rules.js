@@ -264,7 +264,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       return x;
     });
     q.replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9{])/g, function (x, s1, run, at) { add(at + 1, run.length, ["{" + run + "}"]); return x; });   // (x_ij^2, rho_AB)
-    q.replace(/\*/g, function (x, at, all) { if (!/[_^]\s*\{?\s*$|\\(begin|end)\s*\{[A-Za-z]*$/.test(all.slice(Math.max(0, at - 20), at))) add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v; a script's star, r_*, and eqnarray* not)
+    q.replace(/\*/g, function (x, at, all) { if (!/[_^]\s*\{?\s*$|\\(begin|end)\s*\{[A-Za-z]*$|(^|[^\\])(\\\\)+$/.test(all.slice(Math.max(0, at - 20), at))) add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v; a script's star, r_*, eqnarray* and a row's end \\* not)
     q.replace(/(\S)(\s+)x(\s+)(?=\S)/g, function (x, a, s1, s2, at) { add(at + 1 + s1.length, 1, ["\\times "]); return x; });   // (2 x 10^3, N x M)
     return out.sort(function (x, y) { return x.at - y.at; });
   }
@@ -566,7 +566,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // ({cc}) nothing drawn; in an aligned display & nothing (an alignment point: x&=y is x=y), and a line apart from the
   // next unless it goes on the one before (a line starting or the one before ending with a sign: a+\\ +b is a++b)
   var SEP = "\u001f", TABLES = /\\begin\s*\{(matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|cases|dcases|rcases|tabular|subarray)(\*?)\}([\s\S]*?)\\end\s*\{\1\2\}/g;
-  var ROW = /\\\\(?:\s*\[[^\]]*\])?|\\cr(?![A-Za-z])/g;
+  // (a row's end, \\ or \\*, with its spacing, [2pt] [-1ex] [0.5\baselineskip]; brackets holding anything else drawn:
+  // in an align, \\ [Q,V] is a row starting with [Q,V])
+  var ROW = /\\\\\*?(?:\s*\[\s*(?:[-+]?(?:\d+\.?\d*|\.\d+)\s*(?:pt|em|ex|mm|cm|in|bp|mu|pc|dd|cc|sp|\\[A-Za-z]+)|\\[A-Za-z]+)\s*\])?|\\cr(?![A-Za-z])/g;
   function cells(t) {
     if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
     t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
@@ -877,4 +879,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-26.1";
+globalThis.L2M_searchRules.version = "2026-10-30.1";
