@@ -56,6 +56,13 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "ldots",
   dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
   mathds: "mathbb", mathbbm: "mathbb",   // (every row of dots one sign: readers write \ldots for all)
+    // (amssymb's, latexsym's and stmaryrd's second names of one sign, MathJax drawing both alike: Nov 2026)
+    vartriangle: "triangle", smallsmile: "smile", smallfrown: "frown", thicksim: "sim", thickapprox: "approx", varpropto: "propto",
+    centerdot: "cdot", vDash: "models", Join: "bowtie", unlhd: "trianglelefteq", unrhd: "trianglerighteq", lvertneqq: "lneqq",
+    gvertneqq: "gneqq", varsubsetneq: "subsetneq", varsupsetneq: "supsetneq", varsubsetneqq: "subsetneqq", varsupsetneqq: "supsetneqq",
+    varotimes: "otimes", varoplus: "oplus", varodot: "odot", varominus: "ominus", varoslash: "oslash", varoast: "circledast",
+    varocircle: "circledcirc", varbigcirc: "bigcirc", varcurlyvee: "curlyvee", varcurlywedge: "curlywedge",
+    shortleftarrow: "leftarrow", shortrightarrow: "rightarrow", shortuparrow: "uparrow", shortdownarrow: "downarrow",
     backslash: "setminus", smallsetminus: "setminus", bot: "perp", dag: "dagger", ddag: "ddagger", leadsto: "rightsquigarrow",
     widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
     Check: "check", Breve: "breve", Acute: "acute", Grave: "grave", dbinom: "binom", tbinom: "binom", pmb: "mathbf",
@@ -520,8 +527,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // |\psi\rangle, and |\psi\rangle finds \ket{\psi} (a paper's own definition of one of them wins: written out first)
   var PHYS = own({ket: [1, 1], bra: [1, 1], braket: [1, 2], ketbra: [2, 2], expval: [1, 2], ev: [1, 2], mel: [3, 3], abs: [1, 1], norm: [1, 1],
     dv: [1, 2], pdv: [1, 3], order: [1, 1], comm: [2, 2], acomm: [2, 2], dd: [1, 1], vb: [1, 1], vu: [1, 1], va: [1, 1],
-    grad: [0, 1], div: [0, 1], curl: [0, 1], laplacian: [0, 1], qty: [0, 1], eval: [1, 1], tr: [0, 1], Tr: [0, 1]});
-  var PHYS_RE = /\\(ketbra|ket|braket|bra|expval|ev|mel|abs|norm|dv|pdv|order|acomm|comm|dd|vb|vu|va|grad|div|curl|laplacian|qty|eval|tr|Tr)(?![A-Za-z])\*?/g;
+    grad: [0, 1], div: [0, 1], curl: [0, 1], laplacian: [0, 1], qty: [0, 1], eval: [1, 1], tr: [0, 1], Tr: [0, 1], pb: [2, 2],
+    poissonbracket: [2, 2], commutator: [2, 2], anticommutator: [2, 2]});
+  var PHYS_RE = /\\(ketbra|ket|braket|bra|expval|ev|mel|abs|norm|dv|pdv|order|acomm|comm|pb|poissonbracket|commutator|anticommutator|dd|vb|vu|va|grad|div|curl|laplacian|qty|eval|tr|Tr)(?![A-Za-z])\*?/g;
   // a derivative as drawn: \dv{f}{x} df/dx, \dv[2]{f}{x} d^2f/dx^2, \pdv{f}{x}{y} \partial^2f/\partial x\partial y, \dv{x} d/dx
   function diff(d, a, b, c, pow) {
     var n = c != null ? "2" : pow, top = d + (n ? "^{" + n + "}" : "");
@@ -535,6 +543,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       var name = m[1], at = PHYS_RE.lastIndex, args = [], want = PHYS[name], pow = "";
       if (macro(name) != null) { out += t.slice(i, at); i = at; continue; }
       if (name === "ev") name = "expval";
+      if (name === "commutator") name = "comm";
+      if (name === "anticommutator" || name === "pb" || name === "poissonbracket") name = "acomm";   // (\pb{A}{B}: \{A,B\})
       if (name === "div" && !/^\s*[{(]/.test(t.slice(at))) { out += t.slice(i, at); i = at; continue; }   // (a ÷ b: no argument)
       var om = /^\s*\[([^\]]*)\]/.exec(t.slice(at));      // (\dv[2]{f}{x}, \dd[3]{x}: the power)
       if (om && /^(dv|pdv|dd)$/.test(name)) { pow = om[1]; at += om[0].length; }
@@ -768,7 +778,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/[_^]\s*\{\s*\}/g, "")                                                  // (an empty script, \eta^{*}{}^{}: none)
       .replace(/\{\s*([_^])\s*(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])\s*\}/g, "$1$2")          // (\mathsf{D}{_{\mu}}: \mathsf{D}_{\mu})
       .replace(/\\operatorname\*/g, "\\operatorname").replace(/\{\s*\}/g, "")   // (x\,dx, a,\ b; \Gamma^\mu{}_{\nu\rho}, {}_2F_1)
-      .replace(/\\(?:lvert|rvert|vert|mid)(?![A-Za-z])/g, "|").replace(/\\(?:lVert|rVert|Vert|parallel)(?![A-Za-z])/g, "\\|")
+      .replace(/\\(?:lvert|rvert|vert|mid|shortmid)(?![A-Za-z])/g, "|").replace(/\\(?:lVert|rVert|Vert|parallel|shortparallel)(?![A-Za-z])/g, "\\|")
+      .replace(/\\lbrack(?![A-Za-z])/g, "[").replace(/\\rbrack(?![A-Za-z])/g, "]").replace(/\\surd(?![A-Za-z])/g, "\\sqrt")   // (\surd x: the root's sign, as \sqrt x)
+      .replace(/\\(?:mathrm|operatorname)\s*\{\s*(inj|proj)\s*\}\s*\\lim(?![A-Za-z])/g, "\\$1lim ")   // (\mathrm{inj}\lim: \injlim, as drawn)
       .replace(/\\ensuremath\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, "$1")   // (\ensuremath{X}: X)
       .replace(/\.\.\.+/g, "\\ldots ")                                                // (1...k: 1\ldots k, as typed)
       .replace(/\\(i{2,4})nt(?![A-Za-z])/g, function (x, is) { return new Array(is.length + 1).join("\\int "); })   // (\iint: \int\int, as a PDF can't tell them apart)
@@ -787,6 +799,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\pmod\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\}|(\\[A-Za-z]+|[^\s{\\]))/g, "(\\mathrm{mod}$1$2)").replace(/\\b?mod(?![A-Za-z])/g, "\\mathrm{mod}")   // (\pmod{n}: (mod n))
       .replace(/\\not\s*=/g, "\\neq ").replace(/\\not\s*\\in(?![A-Za-z])/g, "\\notin ")
       .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\Bbbk(?![A-Za-z])/g, "\\mathbb{k}").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\coloneq(?![A-Za-z])/g, COLONEQ).replace(/\\vcentcolon(?![A-Za-z])/g, ":").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
+      .replace(/\\Coloneqq(?![A-Za-z])/g, "::=").replace(/\\Coloneq(?![A-Za-z])/g, ":" + COLONEQ).replace(/\\eqcolon(?![A-Za-z])/g, COLONEQ.split("").reverse().join(""))
+      .replace(/\\Eqqcolon(?![A-Za-z])/g, "=::").replace(/\\Eqcolon(?![A-Za-z])/g, COLONEQ.charAt(1) + "::").replace(/\\dblcolon(?![A-Za-z])/g, "::")
+      .replace(/\\(C|c)olon(sim|approx)(?![A-Za-z])/g, function (x, c, r) { return (c === "C" ? "::" : ":") + "\\" + r + " "; })   // (mathtools' others: \Coloneq ::- with it on, \eqcolon -:, \colonsim :\sim)
       .replace(/\\math(?:op|ord|bin|rel|open|close|punct|inner)(?![A-Za-z])\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?/g, "$1")                             // (\mathop{}\!\mathrm{d}x: \mathrm{d}x; what it holds, as it is)
       .replace(/\\(Re|Im)(?![A-Za-z])/g, ROMAN_RE ? "\\mathrm{$1}" : "$&")               // (\Re: Re as the physics package draws it; with no package said, as a PDF, Re or ℜ)
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
@@ -912,4 +927,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.5";
+globalThis.L2M_searchRules.version = "2026-11-01.6";
