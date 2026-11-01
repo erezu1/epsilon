@@ -62,6 +62,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     gvertneqq: "gneqq", varsubsetneq: "subsetneq", varsupsetneq: "supsetneq", varsubsetneqq: "subsetneqq", varsupsetneqq: "supsetneqq",
     varotimes: "otimes", varoplus: "oplus", varodot: "odot", varominus: "ominus", varoslash: "oslash", varoast: "circledast",
     varocircle: "circledcirc", varbigcirc: "bigcirc", varcurlyvee: "curlyvee", varcurlywedge: "curlywedge",
+    land: "wedge", lor: "vee", lnot: "neg", owns: "ni",   // (LaTeX's \let of each: one sign)
     nshortmid: "nmid", nshortparallel: "nparallel", shortleftarrow: "leftarrow", shortrightarrow: "rightarrow", shortuparrow: "uparrow", shortdownarrow: "downarrow",
     backslash: "setminus", smallsetminus: "setminus", bot: "perp", dag: "dagger", ddag: "ddagger", leadsto: "rightsquigarrow",
     widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
@@ -1002,4 +1003,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.2";
+globalThis.L2M_searchRules.version = "2026-11-02.3";
