@@ -20,6 +20,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var DRAWN_PACKAGES = {"physics":{"Im":"Im","PV":"PV","Probability":"Pr","Re":"Re","Res":"Res","Residue":"Res","Tr":"Tr","Trace":"Tr","acos":"acos","acosecant":"acsc","acosine":"acos","acot":"acot","acotangent":"acot","acsc":"acsc","arccosecant":"arccsc","arccosine":"arccos","arccot":"arccot","arccotangent":"arccot","arccsc":"arccsc","arcsec":"arcsec","arcsecant":"arcsec","arcsine":"arcsin","arctangent":"arctan","asec":"asec","asecant":"asec","asin":"asin","asine":"asin","atan":"atan","atangent":"atan","cosecant":"csc","cosine":"cos","cotangent":"cot","csch":"csch","dd":"d","derivative#":"dd","determinant":"det","diffd":"d","differential":"d","dv#":"dd","erf":"erf","exponential":"exp","hypcosecant":"csch","hypcosine":"cosh","hypcotangent":"coth","hypsecant":"sech","hypsine":"sinh","hyptangent":"tanh","logarithm":"log","naturallogarithm":"ln","order#":"O","principalvalue":"P","pv":"P","qall":"all","qand":"and","qas":"as","qassume":"assume","qcc":"cc","qelse":"else","qeven":"even","qfor":"for","qgiven":"given","qif":"if","qin":"in","qinteger":"integer","qlet":"let","qodd":"odd","qor":"or","qotherwise":"otherwise","qsince":"since","qthen":"then","qunless":"unless","qusing":"using","rank":"rank","secant":"sec","sech":"sech","sine":"sin","tangent":"tan","tr":"tr","trace":"tr"}};
   // ---- end of drawn names
   var DRAWN = own(DRAWN_ALWAYS), ROMAN_RE = !PACKAGES || PACKAGES.indexOf("physics") >= 0;
+  var COLONEQ = PACKAGES && PACKAGES.indexOf("mathtools") >= 0 ? ":-" : ":=";   // (\coloneq: := as most draw it, mathtools' :- where it is on)
   (PACKAGES || []).forEach(function (p) {
     var o = Object.prototype.hasOwnProperty.call(DRAWN_PACKAGES, p) ? DRAWN_PACKAGES[p] : null;
     if (o) Object.keys(o).forEach(function (k) { if (o[k]) DRAWN[k] = o[k]; else delete DRAWN[k]; });
@@ -217,7 +218,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // a command's name typed without its backslash, with its argument after it (sqrt{2}, frac{1}{2}, hat{x}): the
   // command, in the query as it is matched and as its glyphs are read
   var BARE_CMD = new RegExp("(^|[^A-Za-z\\\\])(" + ACCS + "|sqrt|frac|dfrac|tfrac|binom|overline|underline)(?=\\{)", "g");
-  // (and <=, >=, != as typed: \leq, \geq, \neq; only in a query: in a formula's TeX they are what they are, <a,b>=0 or n!=1)
+  // (and <=, >= as typed: \leq, \geq; only in a query: in a formula's TeX they are what they are, <a,b>=0; != a place, spots)
   // (a query that is a formula as typed, with =, _, ^, \\, brackets, digits...: a run of letters that is wholly symbols'
   // names is them, psi(t,x), 1/rho, = L psi, munu; and a script of more than one digit or letter is all of it, F_14,
   // delta_ij; a word alone, phi, or among words, the phi meson: a word)
@@ -232,7 +233,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     }
     return at[run.length];
   }
-  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, function (x, at, all) { return /<[^<>]*$/.test(all.slice(0, at)) ? x : "\\geq "; }).replace(/(^|[^\\])!=/g, "$1\\neq "); }   // (<a,b>=0: a bracket's end)   // (\!= is a thin space less and =)
+  function bareCmds(q) { return q.replace(BARE_CMD, "$1\\$2").replace(/<=/g, "\\leq ").replace(/>=/g, function (x, at, all) { return /<[^<>]*$/.test(all.slice(0, at)) ? x : "\\geq "; }); }   // (<a,b>=0: a bracket's end)
   // (a query typed, not in $...$, TeX as written: its names and scripts as a person means them)
   // The places in a query that read two ways, as typed or as TeX (Erez, Oct 25): a run of letters wholly symbols'
   // names (psi, munu: \psi, \mu\nu; as TeX, letters), a script of more than one digit or of letters of one case (F_14,
@@ -251,6 +252,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     });
     q.replace(/-->|->/g, function (x, at) { add(at, x.length, [x.length > 2 ? "\\longrightarrow " : "\\to "]); return x; });   // (t->\infty)
     q.replace(/=>/g, function (x, at) { add(at, 2, ["\\Rightarrow "]); return x; });
+    q.replace(/(^|[^\\])!=/g, function (x, pre, at) { add(at + pre.length, 2, ["\\neq "]); return x; });   // (a!=b: \neq, or as TeX, d!=n, a factorial; \!= a thin space less and =)
     q.replace(/([_^])-(\d+|[A-Za-z])/g, function (x, s1, r, at) { add(at + 1, x.length - 1, ["{-" + r + "}"]); return x; });   // (c^-1)
     q.replace(/(\\?)([A-Za-z]+)/g, function (x, sl, run, at, all) {
       if (sl) return x;                                // (a command's own name)
@@ -753,7 +755,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\mathrm\s*\{\s*([0-9.]+)([A-Za-z][^{}]*)\}/g, "$1\\mathrm{$2}")       // (\mathrm{1pt}: 1\mathrm{pt}, digits taking no font)
       .replace(/\\pmod\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\}|(\\[A-Za-z]+|[^\s{\\]))/g, "(\\mathrm{mod}$1$2)").replace(/\\b?mod(?![A-Za-z])/g, "\\mathrm{mod}")   // (\pmod{n}: (mod n))
       .replace(/\\not\s*=/g, "\\neq ").replace(/\\not\s*\\in(?![A-Za-z])/g, "\\notin ")
-      .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
+      .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\coloneq(?![A-Za-z])/g, COLONEQ).replace(/\\vcentcolon(?![A-Za-z])/g, ":").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
       .replace(/\\math(?:op|ord|bin|rel|open|close|punct|inner)(?![A-Za-z])\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?/g, "$1")                             // (\mathop{}\!\mathrm{d}x: \mathrm{d}x; what it holds, as it is)
       .replace(/\\(Re|Im)(?![A-Za-z])/g, ROMAN_RE ? "\\mathrm{$1}" : "$&")               // (\Re: Re as the physics package draws it; with no package said, as a PDF, Re or ℜ)
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
@@ -879,4 +881,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-10-30.1";
+globalThis.L2M_searchRules.version = "2026-11-01.1";
