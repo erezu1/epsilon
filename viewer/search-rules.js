@@ -335,7 +335,21 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     while (rows.length > 1 && rows[rows.length - 1].join("") === "") rows.pop();   // (a last row ended with \\)
     return rows;
   }
+  // a cases query: whole rows of a cases, one after another (its brace on the same side: rcases apart)
+  var CASES = /^\\begin\{(d?cases|rcases)\*?\}((?:(?!\\begin\{)[\s\S])*)\\end\{(?:d?cases|rcases)\*?\}$/;
+  function casesHas(t, q) {
+    var qm = CASES.exec(q);
+    if (!qm || qm[2].indexOf(RSEP) < 0 && qm[2].indexOf(SEP) < 0) return false;
+    var Q = grid(qm[2]).map(function (r) { return r.join(SEP); }), side = qm[1] === "rcases", TB = /\\begin\{(d?cases|rcases)\*?\}((?:(?!\\begin\{)[\s\S])*?)\\end\{\1\*?\}/g, m;
+    while ((m = TB.exec(t))) {
+      if ((m[1] === "rcases") !== side) continue;
+      var H = grid(m[2]).map(function (r) { return r.join(SEP); });
+      for (var r0 = 0; r0 + Q.length <= H.length; r0++) if (Q.every(function (row, r) { return H[r0 + r] === row; })) return true;
+    }
+    return false;
+  }
   function gridHas(t, q) {
+    if (casesHas(t, q)) return true;
     var qm = GRID.exec(q);
     if (!qm || (qm[1].indexOf(SEP) < 0 && qm[1].indexOf(RSEP) < 0)) return false;
     var Q = grid(qm[1]), TB = /\\begin\{([A-Za-z]+)\*?\}((?:(?!\\begin\{)[\s\S])*?)\\end\{\1\*?\}/g, m;
@@ -376,6 +390,31 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       // \phi is not the start of \phiup: after a command name the next character is no letter
       if (!inName(i) && !(/\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
       i = t.indexOf(q, i + 1);
+    }
+    return HAS_FONT.test(q) && HAS_FONT.test(t) && q.indexOf("?") < 0 && fontLoose(t, q);
+  }
+  // a query in a font in part (\nabla\cdot\mathbf{E}): its plain symbols found in any font, as a plain query's are,
+  // within a run of one font too (\mathbf{\nabla\cdot E}, bold throughout); its symbols in a font only in that font
+  var FONT_SIMPLE = new RegExp("\\\\(" + FONTS + ")\\{((?:\\\\[A-Za-z]+ ?|\\\\[^A-Za-z]|[^{}\\\\_^ ])+)\\}", "g");
+  var LOOSE_TOKEN = /\\(?:mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm)\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+ ?|\\[^A-Za-z]|[\s\S]/g;
+  function fontSplit(t) {              // (\mathbf{\nabla\cdot E}: \mathbf{\nabla}\mathbf{\cdot}\mathbf{E}, a symbol each)
+    return t.replace(FONT_SIMPLE, function (x, f, inner) {
+      return inner.match(/\\[A-Za-z]+ ?|\\[^A-Za-z]|[^{}\\_^ ]/g).map(function (k) { return "\\" + f + "{" + k.trim() + "}"; }).join("");
+    });
+  }
+  function fontLoose(t, q) {
+    var st = fontSplit(t), anyFont = "\\\\(?:" + FONTS + ")\\{";
+    var re = new RegExp(fontSplit(q).match(LOOSE_TOKEN).map(function (k) {
+      if (k.charAt(0) === "\\" && /^\\[A-Za-z]+ ?$/.test(k) && HAS_FONT.test(k)) return reEsc(k);
+      if (/^(\\[A-Za-z]+ ?|\\[^A-Za-z]|[^{}_^\\\s])$/.test(k)) {
+        var c = k.trim(), name = /^\\[A-Za-z]+$/.test(c);
+        return "(?:" + reEsc(c) + (name ? "(?![A-Za-z]) ?" : "") + "|" + anyFont + reEsc(c) + "\\})";
+      }
+      return reEsc(k);
+    }).join(""), "g"), m;
+    while ((m = re.exec(st))) {
+      if (!(/[A-Za-z]/.test(st.charAt(m.index)) && /\\[A-Za-z]*$/.test(st.slice(Math.max(0, m.index - 40), m.index)))) return true;
+      re.lastIndex = m.index + 1;
     }
     return false;
   }
@@ -571,7 +610,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
         name === "norm" ? "\\|" + a + "\\|" : name === "order" ? "\\mathcal{O}(" + a + ")" : name === "comm" ? "[" + a + "," + b + "]" :
         name === "acomm" ? "\\{" + a + "," + b + "\\}" : name === "dd" ? "\\mathrm{d}" + (pow ? "^{" + pow + "}" : "") + a :
         name === "vb" ? "\\mathbf{" + a + "}" : name === "vu" ? "\\hat{\\mathbf{" + a + "}}" : name === "va" ? "\\vec{\\mathbf{" + a + "}}" :
-        name === "grad" ? "\\nabla " + (a || "") : name === "div" ? "\\nabla\\cdot " + (a || "") : name === "curl" ? "\\nabla\\times " + (a || "") :
+        name === "grad" ? "\\boldsymbol{\\nabla}" + (a || "") : name === "div" ? "\\boldsymbol{\\nabla}\\boldsymbol{\\cdot}" + (a || "") :   // (bold, as physics draws them)
+        name === "curl" ? "\\boldsymbol{\\nabla}\\boldsymbol{\\times}" + (a || "") :
         name === "laplacian" ? "\\nabla^2 " + (a || "") : name === "qty" ? (braced ? "\\{" + a + "\\}" : "") : name === "eval" ? a + "|" :
         name === "tr" || name === "Tr" ? "\\mathrm{" + name + "}" + (braced ? "\\{" + a + "\\}" : "") :
         diff(name === "dv" ? "\\mathrm{d}" : "\\partial ", a, b, c, pow);
@@ -612,9 +652,13 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var ROW = /\\\\\*?(?:\s*\[\s*(?:[-+]?(?:\d+\.?\d*|\.\d+)\s*(?:pt|em|ex|mm|cm|in|bp|mu|pc|dd|cc|sp|\\[A-Za-z]+)|\\[A-Za-z]+)\s*\])?|\\cr(?![A-Za-z])/g;
   // (a table's rules between rows, \hline, \cline{2-3}, booktabs' and arydshln's: no cell's)
   var RULE = /\\(?:hline|hdashline|toprule|midrule|bottomrule|(?:c|cmid)line(?:\s*\([^)]*\))?\s*\{[^{}]*\})(?![A-Za-z])/g;
+  // (an array in brackets, \left(\begin{array}{cc}..\end{array}\right): the matrix of those brackets, as drawn)
+  var BRACKETED = /(?:\\left\s*)?(\\\{|\\\||\(|\[|\|)\s*\\begin\{array\}((?:(?!\\begin\{array\})[\s\S])*?)\\end\{array\}\s*(?:\\right\s*)?(\\\}|\\\||\)|\]|\|)/g;
+  var PAIRED = own({"()": "pmatrix", "[]": "bmatrix", "||": "vmatrix", "\\|\\|": "Vmatrix", "\\{\\}": "Bmatrix"});
   function cells(t) {
     if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
     t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
+    t = t.replace(BRACKETED, function (x, o, body, c) { var env = PAIRED[o + c]; return env ? "\\begin{" + env + "}" + body + "\\end{" + env + "}" : x; });
     t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(RULE, "").replace(ROW, RSEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
     t = t.replace(ROW, " ");                          // (a display's lines, a limit's two: one, as a display broken anywhere is the same)
     return t.replace(/\\&/g, "\u0003").replace(/&/g, "").replace(/\u0003/g, "\\&");   // (\& a drawn &)
@@ -927,4 +971,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.6";
+globalThis.L2M_searchRules.version = "2026-11-01.8";
