@@ -376,13 +376,15 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     asymp: "224D", rtimes: "22CA", ltimes: "22C9", sharp: "266F", flat: "266D", natural: "266E", fint: "2A0F", spadesuit: "2660",
     clubsuit: "2663", heartsuit: "2661", diamondsuit: "2662", lrcorner: "231F", llcorner: "231E", ulcorner: "231C", urcorner: "231D",
     lessgtr: "2276", gtrless: "2277", intercal: "22BA", Subset: "22D0", Supset: "22D1", lhd: "22B2", rhd: "22B3", unlhd: "22B4",
-    unrhd: "22B5", pitchfork: "22D4", wr: "2240", amalg: "2A3F", smile: "2323", frown: "2322"});
+    unrhd: "22B5", pitchfork: "22D4", wr: "2240", amalg: "2A3F", smile: "2323", frown: "2322",
+    checkmark: "2713", nearrow: "2197", searrow: "2198", swarrow: "2199", nwarrow: "2196", blacktriangle: "25B4", blacktriangledown: "25BE",
+    blacktriangleright: "25B8", blacktriangleleft: "25C2"});
   // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
   var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"],
-    neq: ["338"]});   // (\neq drawn as \not=: its slash, over the =)
+    neq: ["338"], blacktriangleright: ["25B6"], blacktriangleleft: ["25C0"], blacktriangle: ["25B2"], blacktriangledown: ["25BC"]});   // (\neq drawn as \not=: its slash, over the =)
   var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
   var SYM = own({"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
-    "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E"});
+    "/": "2F", "<": "3C", ">": "3E", "|": "7C", "'": "2032", "*": "2217", ".": "2E", "%": "25", "#": "23", "&": "26"});
   function hex(c) { return c.toString(16).toUpperCase(); }
   var FONTCMD = /^(mathcal|mathbb|mathfrak|mathscr|boldsymbol|bm|mathbf|mathsf|mathtt|mathit|mathrm|operatorname)$/;
   // a letter or digit in \mathcal{...} and the like, as drawn: the codes it may have (the drawing's own: \mathcal's
@@ -462,6 +464,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
         else if (OPS[name]) out.push(alts(name));
         else if (name === "{" || name === "}") out.push([hex(name.charCodeAt(0))]);
         else if (name === "|") out.push(["2016", "2225"]);
+        else if (/^[%#&$_]$/.test(name)) out.push([hex(name.charCodeAt(0))]);   // (\$, \_: the sign drawn)
         else if (!QUIET.test(name)) return null;
         continue;
       }
@@ -755,7 +758,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\mathrm\s*\{\s*([0-9.]+)([A-Za-z][^{}]*)\}/g, "$1\\mathrm{$2}")       // (\mathrm{1pt}: 1\mathrm{pt}, digits taking no font)
       .replace(/\\pmod\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\}|(\\[A-Za-z]+|[^\s{\\]))/g, "(\\mathrm{mod}$1$2)").replace(/\\b?mod(?![A-Za-z])/g, "\\mathrm{mod}")   // (\pmod{n}: (mod n))
       .replace(/\\not\s*=/g, "\\neq ").replace(/\\not\s*\\in(?![A-Za-z])/g, "\\notin ")
-      .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\coloneq(?![A-Za-z])/g, COLONEQ).replace(/\\vcentcolon(?![A-Za-z])/g, ":").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
+      .replace(/\\ast(?![A-Za-z])/g, "*").replace(/\\Bbbk(?![A-Za-z])/g, "\\mathbb{k}").replace(/\\coloneqq(?![A-Za-z])/g, ":=").replace(/\\coloneq(?![A-Za-z])/g, COLONEQ).replace(/\\vcentcolon(?![A-Za-z])/g, ":").replace(/\\eqqcolon(?![A-Za-z])/g, "=:")
       .replace(/\\math(?:op|ord|bin|rel|open|close|punct|inner)(?![A-Za-z])\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?/g, "$1")                             // (\mathop{}\!\mathrm{d}x: \mathrm{d}x; what it holds, as it is)
       .replace(/\\(Re|Im)(?![A-Za-z])/g, ROMAN_RE ? "\\mathrm{$1}" : "$&")               // (\Re: Re as the physics package draws it; with no package said, as a PDF, Re or ℜ)
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
@@ -881,4 +884,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.1";
+globalThis.L2M_searchRules.version = "2026-11-01.2";
