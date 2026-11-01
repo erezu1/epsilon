@@ -103,7 +103,18 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // a command drawn as its own name's letters (\log, \sin, \lim ...), as MathJax has it (and \Tr, \tr: a paper's own,
   // \mathrm{Tr}, drawn so)
   var OPNAME = {test: function (n) { return DRAWN[n] === n || n === "Tr" || n === "tr"; }};
+  // physics' \grad, \div, \curl asked for: their ∇ bold or plain (a font with no bold symbols, Times, draws it plain)
+  var PHYS_BOLD = /\\(grad|div|curl)(?![A-Za-z])(?=\s*[{(])|\\grad(?![A-Za-z])/g;
   function findWhat(q) {
+    var w = findWhat1(q);
+    if (w && w.tex && !w.mixed && macro("grad") == null && PHYS_BOLD.test(w.tex)) {
+      var plain = w.tex.replace(PHYS_BOLD, function (x, n) { return n === "div" ? "\\nabla\\cdot " : n === "curl" ? "\\nabla\\times " : "\\nabla "; });
+      (w.alts || (w.alts = [])).push(plain);
+    }
+    PHYS_BOLD.lastIndex = 0;
+    return w;
+  }
+  function findWhat1(q) {
     q = q.trim();
     if (!q) return null;
     var dm = /^\\\[([\s\S]*)\\\]$/.exec(q);
@@ -971,4 +982,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.8";
+globalThis.L2M_searchRules.version = "2026-11-01.9";
