@@ -600,10 +600,12 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // (a row's end, \\ or \\*, with its spacing, [2pt] [-1ex] [0.5\baselineskip]; brackets holding anything else drawn:
   // in an align, \\ [Q,V] is a row starting with [Q,V])
   var ROW = /\\\\\*?(?:\s*\[\s*(?:[-+]?(?:\d+\.?\d*|\.\d+)\s*(?:pt|em|ex|mm|cm|in|bp|mu|pc|dd|cc|sp|\\[A-Za-z]+)|\\[A-Za-z]+)\s*\])?|\\cr(?![A-Za-z])/g;
+  // (a table's rules between rows, \hline, \cline{2-3}, booktabs' and arydshln's: no cell's)
+  var RULE = /\\(?:hline|hdashline|toprule|midrule|bottomrule|(?:c|cmid)line(?:\s*\([^)]*\))?\s*\{[^{}]*\})(?![A-Za-z])/g;
   function cells(t) {
     if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
     t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
-    t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(ROW, RSEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
+    t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(RULE, "").replace(ROW, RSEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
     t = t.replace(ROW, " ");                          // (a display's lines, a limit's two: one, as a display broken anywhere is the same)
     return t.replace(/\\&/g, "\u0003").replace(/&/g, "").replace(/\u0003/g, "\\&");   // (\& a drawn &)
   }
@@ -910,4 +912,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.3";
+globalThis.L2M_searchRules.version = "2026-11-01.4";
