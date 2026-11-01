@@ -298,7 +298,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var skelQ = new Map(), skelT = new Map();
   function skeleton(x) { return x.replace(/[\\{}\s\u0005]/g, ""); }
   function texHasAny(tex, qs) {
-    if (qs.length === 1 || qs[0].indexOf("?") >= 0) { for (var j = 0; j < qs.length; j++) if (texHas(tex, qs[j])) return j; return -1; }
+    if (qs.length === 1 || qs[0].indexOf("?") >= 0 || /\\begin\s*\{/.test(qs[0])) { for (var j = 0; j < qs.length; j++) if (texHas(tex, qs[j])) return j; return -1; }
     var q0 = texNorm(bareCmds(qs[0])).replace(SCRIPT1, script1), key = (HAS_FONT.test(q0) ? 1 : 0) + (HAS_ACC.test(q0) ? 2 : 0) + (/'|\\prime/.test(q0) ? 4 : 0) + (/[_^]/.test(q0) ? 8 : 0);
     var sk = skelT.get(key + "|" + tex);
     if (sk === undefined) {
@@ -320,10 +320,35 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // (a space, a text's or one made between words, matched anywhere or nowhere: \text{Res str} is \mathrm{Res}\;\text{str};
   // one after a command's name, \alpha x, kept)
   function despace(x) { return x.indexOf(" ") < 0 ? x : x.replace(/(\\[A-Za-z]+)?( +)/g, function (m, c, sp, at, all) { return c && /[A-Za-z]/.test(all.charAt(at + m.length)) ? c + " " : c || ""; }); }
+  // A query that is one matrix (as copied from a part of one, its cells a rectangle): in a table of the formula whose
+  // rows from some row on and columns from some column on are its, cell for cell (the table's brackets not asked)
+  var GRID = /^\\begin\{(?:[pbBvV]?matrix|smallmatrix|array|subarray)\*?\}((?:(?!\\begin\{)[\s\S])*)\\end\{(?:[pbBvV]?matrix|smallmatrix|array|subarray)\*?\}$/;
+  function grid(body) {
+    var rows = body.split(RSEP).map(function (r) { return r.split(SEP).map(function (c) { return c.trim(); }); });
+    while (rows.length > 1 && rows[rows.length - 1].join("") === "") rows.pop();   // (a last row ended with \\)
+    return rows;
+  }
+  function gridHas(t, q) {
+    var qm = GRID.exec(q);
+    if (!qm || (qm[1].indexOf(SEP) < 0 && qm[1].indexOf(RSEP) < 0)) return false;
+    var Q = grid(qm[1]), TB = /\\begin\{([A-Za-z]+)\*?\}((?:(?!\\begin\{)[\s\S])*?)\\end\{\1\*?\}/g, m;
+    while ((m = TB.exec(t))) {
+      var H = grid(m[2]);
+      for (var r0 = 0; r0 + Q.length <= H.length; r0++) {
+        for (var c0 = 0; c0 < H[r0].length; c0++) {
+          var ok = true;
+          for (var r = 0; r < Q.length && ok; r++) for (var c = 0; c < Q[r].length && ok; c++) ok = H[r0 + r][c0 + c] === Q[r][c];
+          if (ok) return true;
+        }
+      }
+    }
+    return false;
+  }
   function texHas(tex, q) {
     q = despace(texNorm(bareCmds(q)).replace(SCRIPT1, script1));   // (a one-symbol script's braces gone, as plainly takes them from the formula's)
     var t = despace(plainly(texNorm(tex), q)), i;
     if (!/[_^]/.test(q)) t = flat(t);
+    if (gridHas(t, q)) return true;
     // a letter inside a command's name is none of the formula's: a is not in \frac, q not in \sqrt (\log is drawn as
     // its letters, and found so by its own rule)
     // (nor the | of \| or any other mark of a control symbol, nor the letters of an environment's name, \begin{pmatrix})
@@ -417,6 +442,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       var c = q.charAt(i);
       if ((m = /^\\([A-Za-z]+|.)/.exec(q.slice(i)))) {
         var name = m[1]; i += m[0].length;
+        if (name === "begin" || name === "end") { var be = /^\s*\{[^{}]*\}/.exec(q.slice(i)); if (be) i += be[0].length; continue; }   // (an environment's name: nothing drawn)
         if (FONTCMD.test(name)) {
           font = name === "operatorname" ? "mathrm" : name;
           if (q.charAt(i) === "{") {
@@ -476,7 +502,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
         out.push([it, hex(k)].concat(Object.keys(FROM).map(function (f) { return fontGlyph(f, c)[1]; }), c === "i" ? ["131", "1D6A4"] : c === "j" ? ["237", "1D6A5"] : []));   // (and in any font; i and j dotless too)
       } else if (/[0-9]/.test(c)) out.push([hex(c.charCodeAt(0))].concat(Object.keys(FROM).map(function (f) { return fontGlyph(f, c)[1]; }).filter(function (x, k, a) { return x && a.indexOf(x) === k; })));   // (and in any font, \mathbf{1})
       else if (SYM[c]) out.push([SYM[c]].concat(c === "-" ? ["2D"] : c === "|" ? ["2223"] : []));
-      else if (/[\s_^{}&~]/.test(c)) continue;
+      else if (/[\s_^{}&~\u001e\u001f]/.test(c)) continue;
       else return null;
     }
     return out.length ? out : null;
@@ -567,17 +593,17 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // TeX's spacing (\, \; \: \! \  ~ \quad ...): none, as a space is none; a row's end, \\, kept
   var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:! \/]|(?:qquad|quad|enspace|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
   // A table's cells and rows, and the lines of a display, as drawn: in a matrix, an array, cases, a cell apart from the
-  // next and a row from the next (SEP, which no query has: nothing found across it); an array's columns' letters
+  // next (SEP) and a row from the next (RSEP), which no query has as typed: nothing found across them; an array's columns' letters
   // ({cc}) nothing drawn; in an aligned display & nothing (an alignment point: x&=y is x=y), and a line apart from the
   // next unless it goes on the one before (a line starting or the one before ending with a sign: a+\\ +b is a++b)
-  var SEP = "\u001f", TABLES = /\\begin\s*\{(matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|cases|dcases|rcases|tabular|subarray)(\*?)\}([\s\S]*?)\\end\s*\{\1\2\}/g;
+  var SEP = "\u001f", RSEP = "\u001e", TABLES = /\\begin\s*\{(matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|smallmatrix|array|cases|dcases|rcases|tabular|subarray)(\*?)\}([\s\S]*?)\\end\s*\{\1\2\}/g;
   // (a row's end, \\ or \\*, with its spacing, [2pt] [-1ex] [0.5\baselineskip]; brackets holding anything else drawn:
   // in an align, \\ [Q,V] is a row starting with [Q,V])
   var ROW = /\\\\\*?(?:\s*\[\s*(?:[-+]?(?:\d+\.?\d*|\.\d+)\s*(?:pt|em|ex|mm|cm|in|bp|mu|pc|dd|cc|sp|\\[A-Za-z]+)|\\[A-Za-z]+)\s*\])?|\\cr(?![A-Za-z])/g;
   function cells(t) {
     if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
     t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
-    t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(ROW, SEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
+    t = t.replace(TABLES, function (x, env, star, body) { return "\\begin{" + env + star + "}" + body.replace(ROW, RSEP).replace(/&/g, SEP) + "\\end{" + env + star + "}"; });
     t = t.replace(ROW, " ");                          // (a display's lines, a limit's two: one, as a display broken anywhere is the same)
     return t.replace(/\\&/g, "\u0003").replace(/&/g, "").replace(/\u0003/g, "\\&");   // (\& a drawn &)
   }
@@ -884,4 +910,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.2";
+globalThis.L2M_searchRules.version = "2026-11-01.3";
