@@ -62,7 +62,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     gvertneqq: "gneqq", varsubsetneq: "subsetneq", varsupsetneq: "supsetneq", varsubsetneqq: "subsetneqq", varsupsetneqq: "supsetneqq",
     varotimes: "otimes", varoplus: "oplus", varodot: "odot", varominus: "ominus", varoslash: "oslash", varoast: "circledast",
     varocircle: "circledcirc", varbigcirc: "bigcirc", varcurlyvee: "curlyvee", varcurlywedge: "curlywedge",
-    shortleftarrow: "leftarrow", shortrightarrow: "rightarrow", shortuparrow: "uparrow", shortdownarrow: "downarrow",
+    nshortmid: "nmid", nshortparallel: "nparallel", shortleftarrow: "leftarrow", shortrightarrow: "rightarrow", shortuparrow: "uparrow", shortdownarrow: "downarrow",
     backslash: "setminus", smallsetminus: "setminus", bot: "perp", dag: "dagger", ddag: "ddagger", leadsto: "rightsquigarrow",
     widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
     Check: "check", Breve: "breve", Acute: "acute", Grave: "grave", dbinom: "binom", tbinom: "binom", pmb: "mathbf",
@@ -462,7 +462,11 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     checkmark: "2713", nearrow: "2197", searrow: "2198", swarrow: "2199", nwarrow: "2196", blacktriangle: "25B4", blacktriangledown: "25BE",
     blacktriangleright: "25B8", blacktriangleleft: "25C2"});
   // (and other codes the same sign is drawn with: TeX's fonts, as pdf.js names them)
-  var OPS_TOO = own({circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"],
+  // (and amssymb's and stmaryrd's that had none: Nov 2026; \nleqslant as MathJax draws it, 2A87)
+  OPS.updownarrow = "2195"; OPS.Updownarrow = "21D5"; OPS.lozenge = "25CA"; OPS.Diamond = "25CA"; OPS.bigtriangleup = "25B3";
+  OPS.bigtriangledown = "25BD"; OPS.circleddash = "229D"; OPS.diagup = "2571"; OPS.diagdown = "2572"; OPS.fatbslash = "29F9";
+  OPS.nmid = "2224"; OPS.nparallel = "2226"; OPS.succapprox = "2AB8"; OPS.precapprox = OPS.precapprox || "2AB7"; OPS.nleqslant = "2A87";
+  var OPS_TOO = own({lozenge: ["2662"], Diamond: ["25C7"], nleqslant: ["2270"],circ: ["25E6"], setminus: ["5C"], bullet: ["2022"], neg: ["AC"], notin: ["2208"], square: ["25FB"], perp: ["27C2"],
     neq: ["338"], blacktriangleright: ["25B6"], blacktriangleleft: ["25C0"], blacktriangle: ["25B2"], blacktriangledown: ["25BC"]});   // (\neq drawn as \not=: its slash, over the =)
   var QUIET = /^(frac|dfrac|tfrac|mathrm|mathit|mathbf|mathsf|text|textrm|operatorname|left|right|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|,|;|!|quad|qquad|displaystyle|textstyle|scriptstyle|overline|underline|substack|\\)$/;
   var SYM = own({"+": "2B", "-": "2212", "=": "3D", "(": "28", ")": "29", "[": "5B", "]": "5D", ",": "2C", ";": "3B", ":": "3A", "!": "21",
@@ -998,4 +1002,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.1";
+globalThis.L2M_searchRules.version = "2026-11-02.2";
