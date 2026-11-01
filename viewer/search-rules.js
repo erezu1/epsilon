@@ -580,7 +580,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       for (var a = 0; a < 2; a++) {
         while (t.charAt(at) === " ") at++;
         var c = t.charAt(at), end = at;
-        if (c === "{") { for (var d = 0, e = at; e < t.length; e++) { if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) break; } end = e + 1; out += t.slice(at, end); }
+        if (c === "{") { for (var d = 0, e = at; e < t.length; e++) { if (t.charAt(e) === "{") d++; else if (t.charAt(e) === "}" && !--d) break; } end = e + 1; out += "{" + fracBraces(t.slice(at + 1, e)) + "}"; }   // (\frac1{\binom qr}: the group's own too)
         else if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(at)); end = at + (cm ? cm[0].length : 1); out += "{" + t.slice(at, end) + "}"; }
         else if (c) { end = at + 1; out += "{" + c + "}"; }
         at = end;
@@ -912,4 +912,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-01.4";
+globalThis.L2M_searchRules.version = "2026-11-01.5";
