@@ -124,6 +124,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       (w.alts || (w.alts = [])).push(plain);
     }
     PHYS_BOLD.lastIndex = 0;
+    // (one row of a brace built by hand, its \left\{ closed in a later row, N=\left\{ a, x>0: that row of a cases, too)
+    var open = w && w.tex && !w.mixed ? handOpen(w.tex) : null;
+    if (open) (w.alts || (w.alts = [])).push(open);
     // (a row or rows of a cases, as copied, value & condition: those rows of a cases, too)
     if (w && w.tex && !w.mixed && /(^|[^\\])&/.test(w.tex) && w.tex.indexOf("\\begin") < 0)
       (w.alts || (w.alts = [])).push("\\begin{cases}" + w.tex + "\\end{cases}");
@@ -195,6 +198,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var FONTED = new RegExp("\\\\(" + FONTS + ")\\{" + INSIDE + "\\}", "g"), ACCENTED = new RegExp("\\\\(" + ACCS + ")\\{" + INSIDE + "\\}", "g");
   var HAS_FONT = new RegExp("\\\\(" + FONTS + ")(?![A-Za-z])"), HAS_ACC = new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])");   // (\mathrm alone too)
   var PRIMED = /'+|\^\\prime(?![A-Za-z])|\\prime(?![A-Za-z])/g;
+  var UP_Q = /\\mathup(?![A-Za-z])/, UPRIGHT_G = new RegExp("\\\\(mathup)\\{" + INSIDE + "\\}", "g");
   var plainMemo = [];                  // (by how the query reads: with or without fonts, accents, primes)
   // a script of one token, its braces off (x^{2}: x^2), a command kept apart from a letter after it (^{\infty}n: ^\infty n)
   var SCRIPT1 = /([_^])\{([^{}\\]|\\[A-Za-z]+|\\[^A-Za-z])\}(?=([A-Za-z])?)/g;
@@ -218,12 +222,13 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   }
   function unprime(x, at, all) { return apart("", at, x.length, all); }
   function plainly(t, q) {             // the formula's TeX as a plain query reads it
-    var font = HAS_FONT.test(q), acc = HAS_ACC.test(q), prime = /'|\\prime/.test(q);
-    var memo = plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] || (plainMemo[(font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0)] = new Map());
+    var font = HAS_FONT.test(q), acc = HAS_ACC.test(q), prime = /'|\\prime/.test(q), up = font && !UP_Q.test(q);
+    var key = (font ? 1 : 0) | (acc ? 2 : 0) | (prime ? 4 : 0) | (up ? 8 : 0), memo = plainMemo[key] || (plainMemo[key] = new Map());
     var was = memo.get(t);
     if (was !== undefined) return was;
     var t0 = t;
     if (!font) t = each(t, FONTED, unwrap);
+    else if (up) t = each(t, UPRIGHT_G, unwrap);   // (a query in a font elsewhere, \tau,|V^{\mathrm{CKM}}|: its plain Greek either face still)
     if (!acc) t = each(t, ACCENTED, unwrap);
     if (!prime) t = each(t, PRIMED, unprime);
     t = t.replace(SCRIPT1, script1);     // (^{\sf F}, the font gone: ^F, as texNorm has it)
@@ -417,6 +422,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       if (!inName(i) && !(/\\[A-Za-z]+$/.test(q) && /[A-Za-z]/.test(t.charAt(i + q.length)))) return true;
       i = t.indexOf(q, i + 1);
     }
+    // (a cases begun and not ended, one row of a brace built by hand: in a cases' row, its value and condition apart or not)
+    var oc = q.lastIndexOf("\\begin{cases}");
+    if (oc >= 0 && q.indexOf("\\end{cases}", oc) < 0 && t.indexOf(SEP) >= 0 && t.split(SEP).join("").indexOf(q.split(SEP).join("")) >= 0) return true;
     return HAS_FONT.test(q) && HAS_FONT.test(t) && q.indexOf("?") < 0 && fontLoose(t, q);
   }
   // a query in a font in part (\nabla\cdot\mathbf{E}): its plain symbols found in any font, as a plain query's are,
@@ -708,6 +716,20 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       } else if (c === "{") d++; else if (c === "}") d--;
     }
     return false;
+  }
+  function handOpen(q) {               // (a query's last \left\{ with no \right: a cases begun there, its rows to the end)
+    if (q.indexOf("\\left") < 0) return null;
+    var st = [], m;
+    HAND_LR.lastIndex = 0;
+    while ((m = HAND_LR.exec(q))) { if (m[1] === "left") st.push({at: m.index, end: HAND_LR.lastIndex, d: m[2]}); else st.pop(); }
+    var o = st.pop();
+    if (!o || !/^\\(\{|lbrace)$/.test(o.d)) return null;
+    var rest = q.slice(o.end), e = /^\s*\\begin\{(array|alignedat|aligned|gathered|matrix|smallmatrix)\}/.exec(rest), k;
+    if (e && (k = rest.indexOf("\\end{" + e[1] + "}")) > 0) {
+      var block = rest.slice(0, k + e[1].length + 6), x = HAND_SPEC.exec(block) || HAND_ENV.exec(block);
+      if (x) return q.slice(0, o.at) + "\\begin{cases}" + x[2] + "\\end{cases}" + rest.slice(block.length);
+    }
+    return q.slice(0, o.at) + "\\begin{cases}" + rest;
   }
   function handCases(t) {
     if (t.indexOf("\\left") < 0 || t.indexOf("\\\\") < 0) return t;
@@ -1064,4 +1086,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.7";
+globalThis.L2M_searchRules.version = "2026-11-02.8";
