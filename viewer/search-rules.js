@@ -336,7 +336,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   var skelQ = new Map(), skelT = new Map();
   function skeleton(x) { return x.replace(/[\\{}\s\u0005]/g, ""); }
   function texHasAny(tex, qs) {
-    if (qs.length === 1 || qs[0].indexOf("?") >= 0 || /\\begin\s*\{/.test(qs[0])) { for (var j = 0; j < qs.length; j++) if (texHas(tex, qs[j])) return j; return -1; }
+    if (qs.length === 1 || qs[0].indexOf("?") >= 0 || /\\begin\s*\{/.test(qs[0]) || qs.some(function (x) { return x.indexOf("cases}") >= 0; })) { for (var j = 0; j < qs.length; j++) if (texHas(tex, qs[j])) return j; return -1; }
     var q0 = texNorm(bareCmds(qs[0])).replace(SCRIPT1, script1), key = (HAS_FONT.test(q0) ? 1 : 0) + (HAS_ACC.test(q0) ? 2 : 0) + (/'|\\prime/.test(q0) ? 4 : 0) + (/[_^]/.test(q0) ? 8 : 0);
     var sk = skelT.get(key + "|" + tex);
     if (sk === undefined) {
@@ -423,8 +423,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       i = t.indexOf(q, i + 1);
     }
     // (a cases begun and not ended, one row of a brace built by hand: in a cases' row, its value and condition apart or not)
-    var oc = q.lastIndexOf("\\begin{cases}");
-    if (oc >= 0 && q.indexOf("\\end{cases}", oc) < 0 && t.indexOf(SEP) >= 0 && t.split(SEP).join("").indexOf(q.split(SEP).join("")) >= 0) return true;
+    // (and any cases asked, its rows found whole whatever its cells: a brace built by hand, array{rll}, read as two)
+    if (q.indexOf("cases}") >= 0 && t.indexOf(SEP) >= 0 && t.split(SEP).join("").indexOf(q.split(SEP).join("")) >= 0) return true;
     return HAS_FONT.test(q) && HAS_FONT.test(t) && q.indexOf("?") < 0 && fontLoose(t, q);
   }
   // a query in a font in part (\nabla\cdot\mathbf{E}): its plain symbols found in any font, as a plain query's are,
@@ -718,12 +718,17 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     return false;
   }
   function handOpen(q) {               // (a query's last \left\{ with no \right: a cases begun there, its rows to the end)
-    if (q.indexOf("\\left") < 0) return null;
+    if (q.indexOf("\\{") < 0 && q.indexOf("\\lbrace") < 0) return null;
     var st = [], m;
     HAND_LR.lastIndex = 0;
     while ((m = HAND_LR.exec(q))) { if (m[1] === "left") st.push({at: m.index, end: HAND_LR.lastIndex, d: m[2]}); else st.pop(); }
     var o = st.pop();
-    if (!o || !/^\\(\{|lbrace)$/.test(o.d)) return null;
+    if (!o) {                           // (or a bare \{ never closed: y(b)I_3\rightarrow\{)
+      var b = q.lastIndexOf("\\{");
+      if (b < 0 || q.indexOf("\\}", b) >= 0 || /(^|[^\\])(\\\\)*\\$|\\left\s*$/.test(q.slice(0, b))) return null;   // (not the { after a row's end, \\{)
+      o = {at: b, end: b + 2, d: "\\{"};
+    }
+    if (!/^\\(\{|lbrace)$/.test(o.d)) return null;
     var rest = q.slice(o.end), e = /^\s*\\begin\{(array|alignedat|aligned|gathered|matrix|smallmatrix)\}/.exec(rest), k;
     if (e && (k = rest.indexOf("\\end{" + e[1] + "}")) > 0) {
       var block = rest.slice(0, k + e[1].length + 6), x = HAND_SPEC.exec(block) || HAND_ENV.exec(block);
@@ -1086,4 +1091,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.8";
+globalThis.L2M_searchRules.version = "2026-11-02.9";
