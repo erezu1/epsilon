@@ -637,6 +637,10 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     return out + t.slice(i);
   }
   var SIZES = /\\(left|right|middle|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|bigm|Bigm|displaystyle|textstyle|scriptstyle|scriptscriptstyle|limits|nolimits)(?![A-Za-z])\s*\.?/g;   // (and the style switches, \limits)
+  // upright Greek as Greek: upgreek's \upalpha, \upvarrho, \Upgamma; newtx's \alphaup, \Gammaup
+  var GREEK_LO = "alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|varkappa|lambda|mu|nu|xi|pi|varpi|rho|varrho|sigma|varsigma|tau|upsilon|phi|varphi|chi|psi|omega";
+  var GREEK_UP = "Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega";
+  var UPRIGHT = new RegExp("\\\\(?:up(" + GREEK_LO + "|" + GREEK_UP + ")|Up(" + GREEK_UP.toLowerCase() + ")|(" + GREEK_LO + "|" + GREEK_UP + ")up)(?![A-Za-z])", "g");
   var TEXT_SIZES = /\\(?:tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)(?![A-Za-z])\s*/g;   // (a text size switch: nothing drawn)
   var NAMED_FA = new RegExp("\\\\(" + FONTS + "|" + ACCS + ")(?![A-Za-z])\\s*([A-Za-z0-9]|\\\\[A-Za-z]+(?![A-Za-z]))", "g");   // (\mathrm dx: \mathrm{d}x, a letter one token)
   function fracBraces(t) {             // \frac12, \frac a{b}: \frac{1}{2}, \frac{a}{b}
@@ -860,7 +864,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\(?:boxed|fbox)\s*\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, "$1")             // (\boxed{x}: x, its frame a rule)
       .replace(/\{((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*?)\\(over|choose)(?![A-Za-z])((?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)\}/g, function (x, a, k, b) { return (k === "over" ? "\\frac{" : "\\binom{") + a.trim() + "}{" + b.trim() + "}"; })   // ({a\over b}: \frac{a}{b})
       .replace(/\\([ij])math(?![A-Za-z])\s*/g, "$1")                                     // (\imath: i)
-      .replace(/\\up(alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega)(?![A-Za-z])/g, "\\$1")   // (\upbeta: \beta)
+      .replace(UPRIGHT, function (x, a, b, c) { return "\\" + (a || c || b.charAt(0).toUpperCase() + b.slice(1)); })   // (\upbeta: \beta)
       .replace(/\\(overset|underset|stackrel)\s*(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^\s{}\\])\s*(\\[A-Za-z]+|[^\s{}\\])(?![A-Za-z])/g, function (x, c, a, b) { return "\\" + c + (a.charAt(0) === "{" ? a : "{" + a + "}") + "{" + b + "}"; })   // (\overset{n\to\infty}\longrightarrow: its second part braced)
       .replace(/\\x(right|left)arrow\s*\[([^\]]*)\]\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$3}{\\underset{$2}{\\long$1arrow}}")   // (\xrightarrow[b]{a}: a over, b under; drawn long)
       .replace(/\\x(right|left)arrow\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "\\overset{$2}{\\long$1arrow}")   // (\xrightarrow{\Phi}: \overset{\Phi}{\longrightarrow}, as long at least)
@@ -1004,4 +1008,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.4";
+globalThis.L2M_searchRules.version = "2026-11-02.5";
