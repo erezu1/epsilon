@@ -985,7 +985,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
       .replace(/\^\s*\\prime(?![A-Za-z])\s*/g, "'")                                         // (y^\prime: y')
       .replace(/\^\s*\{\s*('+)\s*((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{'k}: '^{k})
-      .replace(/(\\[A-Za-z]+\s*)?\{\s*([A-Za-z])\s*('+)\s*\}(?=\s*[\^_])/g, function (x, c, l, p) { return c ? x : l + p; })   // ({x'}^2: x'^2; \hat{p'}_3 kept)
+      .replace(/(\\[A-Za-z]+\s*)?\{\s*([A-Za-z])\s*('+)\s*\}(?=\s*[\^_])/g, function (x, c, l, p, at, all) { return c || /[_^]\s*$/.test(all.slice(Math.max(0, at - 3), at)) ? x : l + p; })   // ({x'}^2: x'^2; \hat{p'}_3 kept, and a script's own, x^{D'}_n)
       .replace(/\\substack\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1");                   // (\sum_{\substack{i<j\\ j<N}}: its rows)
     t = t.replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { return n === "lt" ? "<" : n === "gt" ? ">" : SAME[n] ? "\\" + SAME[n] : x; });
     t = t.replace(new RegExp("\\\\(" + ACCS + ")(?![A-Za-z])\\s*(\\\\(?:" + FONTS + "|mathfrak|mathscr|mathsf|mathtt)\\s*\\{(?:[^{}]|\\{[^{}]*\\})*\\})", "g"), "\\$1{$2}");   // (\tilde \mathcal{C}: \tilde{\mathcal{C}})
@@ -1111,4 +1111,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.11";
+globalThis.L2M_searchRules.version = "2026-11-02.12";
