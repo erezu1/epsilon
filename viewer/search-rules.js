@@ -526,7 +526,15 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       var c = q.charAt(i);
       if ((m = /^\\([A-Za-z]+|.)/.exec(q.slice(i)))) {
         var name = m[1]; i += m[0].length;
-        if (name === "begin" || name === "end") { var be = /^\s*\{[^{}]*\}/.exec(q.slice(i)); if (be) i += be[0].length; continue; }   // (an environment's name: nothing drawn)
+        if (name === "begin" || name === "end") {   // (an environment's name: nothing drawn; a cases' brace drawn, { at its start, an rcases' } at its end)
+          var be = /^\s*\{([^{}]*)\}/.exec(q.slice(i));
+          if (be) {
+            i += be[0].length;
+            if (name === "begin" && /^d?cases\*?$/.test(be[1])) out.push(["7B"]);
+            else if (name === "end" && /^rcases\*?$/.test(be[1])) out.push(["7D"]);
+          }
+          continue;
+        }
         if (FONTCMD.test(name)) {
           font = name === "operatorname" ? "mathrm" : name;
           if (q.charAt(i) === "{") {
@@ -1091,4 +1099,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.9";
+globalThis.L2M_searchRules.version = "2026-11-02.10";
