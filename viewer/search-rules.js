@@ -803,8 +803,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     return t.length;
   }
   // braces that group nothing (T_{{b_i}{b_j}}, {\bar{q}}_\pm, 1{-}x, \in{{\mathbb Z}^n}): not a command's argument (\hat{x},
-  // \frac{a}{b}, \sqrt[3]{y}), not a script (^{..}, _{..}), not after a letter (sqrt{2}, typed for \sqrt{2}), and not
-  // several things before a script ({x+y}^2 is not x+y^2)
+  // \frac{a}{b}, \sqrt[3]{y}), not a script (^{..}, _{..}), not after a letter (sqrt{2}, typed for \sqrt{2}); several
+  // things before a script too, as drawn: {x+y}^2 is x+y^2, the script on the last ({\det(A)}^{1/4}: \det(A)^{1/4}; {ab}_c: ab_c)
   function idleBraces(t, i) {
     var e = groupEnd(t, i);
     if (e >= t.length) return false;
@@ -817,9 +817,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     if (/\\[A-Za-z]+\*?\s*\[[^\]]*\]$/.test(before)) return false;               // (\sqrt[3]{y}, \xrightarrow[a]{b})
     if (/\}$/.test(before) && !/\\\}$/.test(before) && firstOfTwo(t, t.lastIndexOf("}", i - 1))) return false;
     var atom = /^(?:\\[A-Za-z]+\*?(?:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*|\\.|[^{}\\\s])(?:[_^'](?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s]))*$/.test(inner);   // (one thing, with its own scripts)
-    if (!atom && /^\s*[_^']/.test(t.slice(e + 1))) return false;
     return true;
   }
+  var SCRIPT_END = /([_^])(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])$/, SCRIPTS_AFTER = /^(?:[_^](?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])){1,2}(?![_^])/;
   function loose(t) {
     for (var k = 0; k < 3; k++) {
       var out = "", i = 0, changed = false;
@@ -828,6 +828,18 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
         if (c === "\\") { var cm = /^\\([A-Za-z]+|.)/.exec(t.slice(i)), tk = cm ? cm[0] : c; out += tk; i += tk.length; continue; }
         if (c === "{" && idleBraces(t, i)) {      // (braces that group nothing: what they hold, as it is)
           var ge = groupEnd(t, i), inner = t.slice(i + 1, ge);
+          var own = SCRIPT_END.exec(inner), next = own && SCRIPTS_AFTER.exec(t.slice(ge + 1));
+          if (next) {                             // ({256.93^{\circ}}_{-6}^{+5}: 256.93_{-6}^{\circ+5}, the group's script and the one after it one)
+            var sc = [], sm, SC = /([_^])(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])/g;
+            while ((sm = SC.exec(next[0]))) sc.push([sm[1], sm[2]]);
+            var same = sc.filter(function (x) { return x[0] === own[1]; });
+            if (same.length === 1 && sc.length - same.length <= 1) {
+              var ga = own[2].replace(/^\{|\}$/g, ""), gb = same[0][1].replace(/^\{|\}$/g, "");
+              inner = inner.slice(0, own.index) + sc.filter(function (x) { return x[0] !== own[1]; }).map(function (x) { return x[0] + x[1]; }).join("") +
+                own[1] + "{" + ga + (/\\[A-Za-z]+$/.test(ga) && /^[A-Za-z]/.test(gb) ? " " : "") + gb + "}";
+              ge += next[0].length;
+            }
+          }
           out += (/^[A-Za-z]/.test(inner) && /\\[A-Za-z]+$/.test(out) ? " " : "") + inner +
             (/\\[A-Za-z]+$/.test(inner) && /^[A-Za-z]/.test(t.charAt(ge + 1)) ? " " : "");   // ({\omega}G: \omega G, never \omegaG)
           i = ge + 1; changed = true; continue;
@@ -1099,4 +1111,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.10";
+globalThis.L2M_searchRules.version = "2026-11-02.11";
