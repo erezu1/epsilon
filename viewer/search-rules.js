@@ -54,7 +54,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     longrightarrow: "rightarrow", Longrightarrow: "Rightarrow", longleftarrow: "leftarrow", Longleftarrow: "Leftarrow",
     longleftrightarrow: "leftrightarrow", Longleftrightarrow: "Leftrightarrow", longmapsto: "mapsto",
   stackrel: "overset", Box: "square", operatorname: "mathrm", dots: "ldots", dotsc: "ldots", dotso: "ldots", dotsb: "ldots",
-  dotsm: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
+  dotsm: "ldots", hdots: "ldots", dotsi: "ldots", cdots: "ldots", smallint: "int", bm: "mathbf", boldsymbol: "mathbf", mathscr: "mathcal",
   mathds: "mathbb", mathbbm: "mathbb",   // (every row of dots one sign: readers write \ldots for all)
     // (amssymb's, latexsym's and stmaryrd's second names of one sign, MathJax drawing both alike: Nov 2026)
     vartriangle: "triangle", smallsmile: "smile", smallfrown: "frown", thicksim: "sim", thickapprox: "approx", varpropto: "propto",
@@ -637,6 +637,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     return out + t.slice(i);
   }
   var SIZES = /\\(left|right|middle|big|Big|bigg|Bigg|bigl|bigr|Bigl|Bigr|biggl|biggr|Biggl|Biggr|bigm|Bigm|displaystyle|textstyle|scriptstyle|scriptscriptstyle|limits|nolimits)(?![A-Za-z])\s*\.?/g;   // (and the style switches, \limits)
+  var TEXT_SIZES = /\\(?:tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE|huge|Huge)(?![A-Za-z])\s*/g;   // (a text size switch: nothing drawn)
   var NAMED_FA = new RegExp("\\\\(" + FONTS + "|" + ACCS + ")(?![A-Za-z])\\s*([A-Za-z0-9]|\\\\[A-Za-z]+(?![A-Za-z]))", "g");   // (\mathrm dx: \mathrm{d}x, a letter one token)
   function fracBraces(t) {             // \frac12, \frac a{b}: \frac{1}{2}, \frac{a}{b}
     var out = "", i = 0, m, re = /\\(?:frac|binom)(?![A-Za-z])/g;   // (\binom q{w+1} too)
@@ -813,7 +814,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "")
+    t = uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "").replace(TEXT_SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
     t = t.replace(/\}\s+\{/g, "}{").replace(/(\\[A-Za-z]+)\s+\{/g, "$1{");   // (\frac<line's end>{a}<line's end>{b}: its arguments, as drawn; TeX takes no space after a command's name)
     // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
@@ -1003,4 +1004,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.3";
+globalThis.L2M_searchRules.version = "2026-11-02.4";
