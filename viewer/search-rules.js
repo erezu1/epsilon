@@ -124,6 +124,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       (w.alts || (w.alts = [])).push(plain);
     }
     PHYS_BOLD.lastIndex = 0;
+    // (a row or rows of a cases, as copied, value & condition: those rows of a cases, too)
+    if (w && w.tex && !w.mixed && /(^|[^\\])&/.test(w.tex) && w.tex.indexOf("\\begin") < 0)
+      (w.alts || (w.alts = [])).push("\\begin{cases}" + w.tex + "\\end{cases}");
     return w;
   }
   function findWhat1(q) {
@@ -690,6 +693,44 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   // (an array in brackets, \left(\begin{array}{cc}..\end{array}\right): the matrix of those brackets, as drawn)
   var BRACKETED = /(?:\\left\s*)?(\\\{|\\\||\(|\[|\|)\s*\\begin\{array\}((?:(?!\\begin\{array\})[\s\S])*?)\\end\{array\}\s*(?:\\right\s*)?(\\\}|\\\||\)|\]|\|)/g;
   var PAIRED = own({"()": "pmatrix", "[]": "bmatrix", "||": "vmatrix", "\\|\\|": "Vmatrix", "\\{\\}": "Bmatrix"});
+  // (a brace built by hand, \left\{ rows \right. or \left. rows \right\}, its rows bare or in an array, aligned, gathered:
+  // as drawn, a cases (an rcases); before \left and \right go)
+  var HAND_SPEC = /^\s*\\begin\{(array|alignedat)\}\s*(?:\[[^\]]*\])?\s*\{(?:[^{}]|\{[^{}]*\})*\}([\s\S]*)\\end\{\1\}\s*$/, HAND_ENV = /^\s*\\begin\{(aligned|gathered|matrix|smallmatrix)\}\s*(?:\[[^\]]*\])?([\s\S]*)\\end\{\1\}\s*$/;
+  var HAND_LR = /\\(left|right)(?![A-Za-z])\s*(\\\{|\\\}|\\lbrace(?![A-Za-z])|\\rbrace(?![A-Za-z])|\\[A-Za-z]+|\\.|[^\s])/g;
+  function topRow(b) {                                  // (a row's end not in braces or an environment of its own)
+    for (var i = 0, d = 0; i < b.length; i++) {
+      var c = b.charAt(i);
+      if (c === "\\") {
+        if (b.charAt(i + 1) === "\\" && !d) return true;
+        var w = /^\\(begin|end)(?![A-Za-z])/.exec(b.slice(i, i + 6));
+        if (w) d += w[1] === "begin" ? 1 : -1;
+        i++;
+      } else if (c === "{") d++; else if (c === "}") d--;
+    }
+    return false;
+  }
+  function handCases(t) {
+    if (t.indexOf("\\left") < 0 || t.indexOf("\\\\") < 0) return t;
+    for (var k = 0; k < 8; k++) {
+      var st = [], best = null, m;
+      HAND_LR.lastIndex = 0;
+      while ((m = HAND_LR.exec(t))) {
+        if (m[1] === "left") { st.push({at: m.index, end: HAND_LR.lastIndex, d: m[2]}); continue; }
+        var o = st.pop();
+        if (!o) continue;
+        var open = /^\\(\{|lbrace)$/.test(o.d), close = /^\\(\}|rbrace)$/.test(m[2]);
+        if (!(open && m[2] === "." || o.d === "." && close)) continue;
+        var body = t.slice(o.end, m.index), e = HAND_SPEC.exec(body) || HAND_ENV.exec(body), rows;
+        if (e && e[2].indexOf("\\end{" + e[1] + "}") < 0) rows = e[2];
+        else if (topRow(body)) rows = body;
+        else continue;
+        if (!best || o.at > best.at) best = {at: o.at, end: HAND_LR.lastIndex, env: open ? "cases" : "rcases", rows: rows};
+      }
+      if (!best) break;
+      t = t.slice(0, best.at) + "\\begin{" + best.env + "}" + best.rows + "\\end{" + best.env + "}" + t.slice(best.end);
+    }
+    return t;
+  }
   function cells(t) {
     if (t.indexOf("&") < 0 && t.indexOf("\\") < 0 && !/\\cr(?![A-Za-z])/.test(t)) return t;
     t = t.replace(/\\begin\s*\{(array|tabular|subarray)\}\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}/g, "\\begin{$1}");
@@ -832,7 +873,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")).replace(SIZES, "").replace(TEXT_SIZES, "")
+    t = handCases(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--"))).replace(SIZES, "").replace(TEXT_SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
     t = t.replace(/\}\s+\{/g, "}{").replace(/(\\[A-Za-z]+)\s+\{/g, "$1{");   // (\frac<line's end>{a}<line's end>{b}: its arguments, as drawn; TeX takes no space after a command's name)
     // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
@@ -1023,4 +1064,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.6";
+globalThis.L2M_searchRules.version = "2026-11-02.7";
