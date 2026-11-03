@@ -695,7 +695,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   }
   var normed = new Map();
   // TeX's spacing (\, \; \: \! \  ~ \quad ...): none, as a space is none; a row's end, \\, kept
-  var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:! \/]|(?:qquad|quad|enspace|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
+  var SPACING = /(^|[^\\])((?:\\\\)*)\\(?:[,;:!> \/]|(?:qquad|quad|enspace|enskip|thinspace|medspace|thickspace|negthinspace|negmedspace|negthickspace)(?![A-Za-z]))/g;
   // A table's cells and rows, and the lines of a display, as drawn: in a matrix, an array, cases, a cell apart from the
   // next (SEP) and a row from the next (RSEP), which no query has as typed: nothing found across them; an array's columns' letters
   // ({cc}) nothing drawn; in an aligned display & nothing (an alignment point: x&=y is x=y), and a line apart from the
@@ -743,6 +743,25 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       if (x) return q.slice(0, o.at) + "\\begin{cases}" + x[2] + "\\end{cases}" + rest.slice(block.length);
     }
     return q.slice(0, o.at) + "\\begin{cases}" + rest;
+  }
+  // plain TeX's tables, \pmatrix{a&b\cr c&d}, \matrix, \cases: LaTeX's; \eqalign{..\cr..}, \eqalignno (its last column a
+  // number, not drawn in the formula): aligned; \displaylines: gathered
+  var PLAIN_TABLE = /\\(pmatrix|matrix|cases|eqalign|eqalignno|leqalignno|displaylines)\s*\{/g;
+  function plainTables(t) {
+    if (t.indexOf("\\cr") < 0 && t.search(PLAIN_TABLE) < 0) return t;
+    for (var k = 0; k < 20; k++) {
+      PLAIN_TABLE.lastIndex = 0;
+      var m = PLAIN_TABLE.exec(t);
+      if (!m) break;
+      var open = m.index + m[0].length - 1, e = groupEnd(t, open);
+      if (e >= t.length) break;
+      var body = t.slice(open + 1, e), name = m[1];
+      if (/^l?eqalignno$/.test(name)) body = body.split(/\\cr(?![A-Za-z])/).map(function (r) { var c = r.split(/(?:^|[^\\])&/).length; return c >= 3 ? r.replace(/&(?!.*(?:^|[^\\])&)[\s\S]*$/, "") : r; }).join("\\cr ");
+      var rows = body.replace(/\\cr(?![A-Za-z])\s*$/, "").replace(/\\cr(?![A-Za-z])/g, "\\\\");
+      var env = /matrix|cases/.test(name) ? name : name === "displaylines" ? "gathered" : "aligned";
+      t = t.slice(0, m.index) + "\\begin{" + env + "}" + rows + "\\end{" + env + "}" + t.slice(e + 1);
+    }
+    return t;
   }
   function handCases(t) {
     if (t.indexOf("\\left") < 0 || t.indexOf("\\\\") < 0) return t;
@@ -900,7 +919,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
   }
   // the old font switches, {\sf F}, {\rm d}, and \textsf{F} and the like: as \mathsf{F}, \mathrm{d}
   // what lays out and draws nothing: \hspace{..}, \vspace{..}, \kern-3em, \mkern-9mu, \phantom{..}
-  var LAYOUT = /\\[hv]space\*?\s*\{[^{}]*\}|\\m?kern\s*[-+]?\s*[\d.]+\s*(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp)|\\[hv]?phantom\s*\{(?:[^{}]|\{[^{}]*\})*\}/g;
+  var LAYOUT = /\\[hv]space\*?\s*\{[^{}]*\}|\\m?kern\s*[-+]?\s*[\d.]+\s*(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp)|\\[hv]?phantom\s*\{(?:[^{}]|\{[^{}]*\})*\}|\\[hm]skip\s*[-+]?\s*(?:[\d.]+\s*(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp|dd|cc|true[a-z]{2})|\\[A-Za-z]+)(?:\s*plus\s*[-+]?\s*[\d.]*\s*(?:(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp|dd|cc|true[a-z]{2})|fil+))?(?:\s*minus\s*[-+]?\s*[\d.]*\s*(?:(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp|dd|cc|true[a-z]{2})|fil+))?|\\h?fil+(?![A-Za-z])|\\(?:math)?strut(?![A-Za-z])|\\rule\s*(?:\[[^\]]*\])?\s*\{\s*[-+]?0*\.?0*\s*(?:em|ex|pt|mu|cm|mm|in|bp|pc|sp|dd|cc|true[a-z]{2})?\s*\}\s*\{[^{}]*\}/g;   // (plain TeX's \hskip3pt, \hfill, a strut, a rule of no width: nothing drawn)
   var OLDF = own({rm: "mathrm", bf: "mathbf", it: "mathit", sf: "mathsf", tt: "mathtt", cal: "mathcal",
     textrm: "mathrm", textbf: "mathbf", textit: "mathit", textsf: "mathsf", texttt: "mathtt"});
   var OLDFONT = /\{\s*\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*([^{}]*)\}|\\(?:(textrm|textbf|textit|textsf|texttt))\{([^{}]*)\}/g;
@@ -920,7 +939,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = handCases(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--"))).replace(SIZES, "").replace(TEXT_SIZES, "")
+    t = handCases(plainTables(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")))).replace(SIZES, "").replace(TEXT_SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
     t = t.replace(/\}\s+\{/g, "}{").replace(/(\\[A-Za-z]+)\s+\{/g, "$1{");   // (\frac<line's end>{a}<line's end>{b}: its arguments, as drawn; TeX takes no space after a command's name)
     // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
@@ -1111,4 +1130,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-02.12";
+globalThis.L2M_searchRules.version = "2026-11-03.1";
