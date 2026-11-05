@@ -1854,7 +1854,7 @@ class Converter:
         name = name.strip().strip('"')                    # ("Figures/a b.jpg": quotes, for a name with spaces)
         dirs = [self.srcdir] + [(self.srcdir / d).resolve() for d in self.graphicspath]
         for d in dirs:
-            for ext in ("", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".eps", ".gif"):
+            for ext in ("", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".eps", ".gif", ".ps"):
                 p = d / (name + ext)
                 if p.is_file():
                     return p
@@ -1919,9 +1919,11 @@ class Converter:
                         ".gif": "image/gif", ".svg": "image/svg+xml"}[suf]
                 sz = png_size(data)
                 return data, mime, (sz[0] * 96 / 144 if sz else None)
-            if suf == ".eps":
+            if suf in (".eps", ".ps", ".epsf", ".epsi"):    # (PostScript, as old papers' figures are: clone.ps)
                 pdf = self.build / (path.stem + "-eps.pdf")
                 subprocess.run(["epstopdf", str(path), "--outfile=" + str(pdf)], capture_output=True, timeout=120)
+                if not pdf.exists() and shutil.which("ps2pdf"):   # (a .ps with no bounding box: its page)
+                    subprocess.run(["ps2pdf", "-dEPSCrop", str(path), str(pdf)], capture_output=True, timeout=120)
                 if not pdf.exists():
                     self.warn("could not convert %s (epstopdf failed)" % path.name)
                     return None, None, None
