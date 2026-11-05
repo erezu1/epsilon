@@ -66,7 +66,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     backslash: "setminus", smallsetminus: "setminus", bot: "perp", dag: "dagger", ddag: "ddagger", leadsto: "rightsquigarrow",
     widetilde: "tilde", widehat: "hat", Bar: "bar", Tilde: "tilde", Hat: "hat", Vec: "vec", Dot: "dot", Ddot: "ddot",
     Check: "check", Breve: "breve", Acute: "acute", Grave: "grave", dbinom: "binom", tbinom: "binom", pmb: "mathbf",
-    text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm", textsc: "mathrm", emph: "mathrm",
+    text: "mathrm", textrm: "mathrm", textup: "mathrm", textnormal: "mathrm", mbox: "mathrm", hbox: "mathrm", textsc: "mathrm", emph: "mathrm",
     textmd: "mathrm", textbf: "mathrm", textit: "mathrm", textsl: "mathrm", texttt: "mathtt", textsf: "mathsf"});   // (text as its font: upright \mathrm, bold \mathbf, as \textbf{p} a bold vector; italic \mathit)
   function alts(name) {
     var one = SAME[name] || name, out = [];
@@ -127,6 +127,9 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     // (one row of a brace built by hand, its \left\{ closed in a later row, N=\left\{ a, x>0: that row of a cases, too)
     var open = w && w.tex && !w.mixed ? handOpen(w.tex) : null;
     if (open) (w.alts || (w.alts = [])).push(open);
+    // (\Re, \Im with no packages said, as in a PDF: Re as the physics package draws it, or ℜ, a fraktur R, as LaTeX's)
+    if (w && w.tex && !w.mixed && !PACKAGES && /\\(Re|Im)(?![A-Za-z])/.test(w.tex) && macro("Re") == null)
+      (w.alts || (w.alts = [])).push(w.tex.replace(/\\(Re|Im)(?![A-Za-z])/g, function (x, n) { return "\\mathfrak{" + n.charAt(0) + "}"; }));
     // (a row or rows of a cases, as copied, value & condition: those rows of a cases, too)
     if (w && w.tex && !w.mixed && /(^|[^\\])&/.test(w.tex) && w.tex.indexOf("\\begin") < 0)
       (w.alts || (w.alts = [])).push("\\begin{cases}" + w.tex + "\\end{cases}");
@@ -304,7 +307,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       return x;
     });
     q.replace(/([_^])(\d{2,}|[a-z]{2,}|[A-Z]{2,})(?![A-Za-z0-9{])/g, function (x, s1, run, at) { add(at + 1, run.length, ["{" + run + "}"]); return x; });   // (x_ij^2, rho_AB)
-    q.replace(/\*/g, function (x, at, all) { if (!/[_^]\s*\{?\s*$|\\(begin|end)\s*\{[A-Za-z]*$|(^|[^\\])(\\\\)+$/.test(all.slice(Math.max(0, at - 20), at))) add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v; a script's star, r_*, eqnarray* and a row's end \\* not)
+    q.replace(/\*/g, function (x, at, all) { if (!/[_^]\s*\{?\s*$|\\(begin|end)\s*\{[A-Za-z]*$|(^|[^\\])(\\\\)+$/.test(all.slice(Math.max(0, at - 20), at)) && !(/\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[{\[]/.test(all.charAt(at + 1)))) add(at, 1, ["\\cdot ", "\\times "]); return x; });   // (u*v; a script's star, r_*, eqnarray* and a row's end \\* not)
     q.replace(/(\S)(\s+)x(\s+)(?=\S)/g, function (x, a, s1, s2, at) { add(at + 1 + s1.length, 1, ["\\times "]); return x; });   // (2 x 10^3, N x M)
     return out.sort(function (x, y) { return x.at - y.at; });
   }
@@ -838,6 +841,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var atom = /^(?:\\[A-Za-z]+\*?(?:\s*\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*|\\.|[^{}\\\s])(?:[_^'](?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s]))*$/.test(inner);   // (one thing, with its own scripts)
     return true;
   }
+  var SC_TAIL = /(?:[_^](?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])){1,2}$/;
   var SCRIPT_END = /([_^])(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])$/, SCRIPTS_AFTER = /^(?:[_^](?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])){1,2}(?![_^])/;
   function loose(t) {
     for (var k = 0; k < 3; k++) {
@@ -848,14 +852,21 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
         if (c === "{" && idleBraces(t, i)) {      // (braces that group nothing: what they hold, as it is)
           var ge = groupEnd(t, i), inner = t.slice(i + 1, ge);
           var own = SCRIPT_END.exec(inner), next = own && SCRIPTS_AFTER.exec(t.slice(ge + 1));
-          if (next) {                             // ({256.93^{\circ}}_{-6}^{+5}: 256.93_{-6}^{\circ+5}, the group's script and the one after it one)
+          if (next) {                             // ({256.93^{\circ}}_{-6}^{+5}: 256.93_{-6}^{\circ+5}; {C^a_b}^2: C_b^{a2}; the group's scripts and those after it one)
             var sc = [], sm, SC = /([_^])(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])/g;
             while ((sm = SC.exec(next[0]))) sc.push([sm[1], sm[2]]);
-            var same = sc.filter(function (x) { return x[0] === own[1]; });
-            if (same.length === 1 && sc.length - same.length <= 1) {
-              var ga = own[2].replace(/^\{|\}$/g, ""), gb = same[0][1].replace(/^\{|\}$/g, "");
-              inner = inner.slice(0, own.index) + sc.filter(function (x) { return x[0] !== own[1]; }).map(function (x) { return x[0] + x[1]; }).join("") +
-                own[1] + "{" + ga + (/\\[A-Za-z]+$/.test(ga) && /^[A-Za-z]/.test(gb) ? " " : "") + gb + "}";
+            var mine = [], ms = SC_TAIL.exec(inner)[0];
+            SC.lastIndex = 0;
+            while ((sm = SC.exec(ms))) mine.push([sm[1], sm[2]]);
+            var kinds = function (l) { return l.map(function (x) { return x[0]; }).join(""); };
+            if (!/(.).*\1/.test(kinds(mine)) && !/(.).*\1/.test(kinds(sc)) && sc.some(function (x) { return kinds(mine).indexOf(x[0]) >= 0; })) {
+              var join = function (k) {
+                return mine.concat(sc).filter(function (x) { return x[0] === k; }).map(function (x) { return x[1].replace(/^\{|\}$/g, ""); })
+                  .reduce(function (a, b) { return a === null ? b : a + (/\\[A-Za-z]+$/.test(a) && /^[A-Za-z]/.test(b) ? " " : "") + b; }, null);
+              };
+              var lo = join("_"), hi = join("^");
+              var arg = function (v) { return /^(?:[^{}\\\s]|\\[A-Za-z]+)$/.test(v) ? v : "{" + v + "}"; };
+              inner = inner.slice(0, inner.length - ms.length) + (lo !== null ? "_" + arg(lo) : "") + (hi !== null ? "^" + arg(hi) : "");
               ge += next[0].length;
             }
           }
@@ -939,7 +950,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = handCases(plainTables(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")))).replace(SIZES, "").replace(TEXT_SIZES, "")
+    t = handCases(plainTables(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")))).replace(/\\(left|right|[bB]igg?[lrm]?)\s*([<>])/g, function (x, c, a) { return "\\" + c + (a === "<" ? "\\langle " : "\\rangle "); }).replace(SIZES, "").replace(TEXT_SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
     t = t.replace(/\}\s+\{/g, "}{").replace(/(\\[A-Za-z]+)\s+\{/g, "$1{");   // (\frac<line's end>{a}<line's end>{b}: its arguments, as drawn; TeX takes no space after a command's name)
     // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
@@ -964,6 +975,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       return s1 + "{" + a + (/\\[A-Za-z]+$/.test(a) && /^[A-Za-z]/.test(b) ? " " : "") + b + "}";
     });
     t = t.replace(/(\d)\s*--\s*(?=\d)/g, "$1-");
+    t = t.replace(/(\\[A-Za-z]+|[A-Za-z])\s*(?:\\!\s*)+\\slash(?![A-Za-z])/g, "\\slashed{$1}");   // (v\!\!\!\slash: a slash over v, \slashed{v})
     t = t.replace(/\\x(right|left)arrow\s*\{\s*(?:\\[,;:! ]\s*)*\}/g, "\\$1arrow ");   // (\xrightarrow{}: drawn as long as \rightarrow; with a label, long)
     t = unspaced(cells(t))
       .replace(/\\prescript\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "{}^{$1}_{$2}$3")   // (mathtools' \prescript)
@@ -1000,7 +1012,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\Eqqcolon(?![A-Za-z])/g, "=::").replace(/\\Eqcolon(?![A-Za-z])/g, COLONEQ.charAt(1) + "::").replace(/\\dblcolon(?![A-Za-z])/g, "::")
       .replace(/\\(C|c)olon(sim|approx)(?![A-Za-z])/g, function (x, c, r) { return (c === "C" ? "::" : ":") + "\\" + r + " "; })   // (mathtools' others: \Coloneq ::- with it on, \eqcolon -:, \colonsim :\sim)
       .replace(/\\math(?:op|ord|bin|rel|open|close|punct|inner)(?![A-Za-z])\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?/g, "$1")                             // (\mathop{}\!\mathrm{d}x: \mathrm{d}x; what it holds, as it is)
-      .replace(/\\(Re|Im)(?![A-Za-z])/g, ROMAN_RE ? "\\mathrm{$1}" : "$&")               // (\Re: Re as the physics package draws it; with no package said, as a PDF, Re or ℜ)
+      .replace(/\\(Re|Im)(?![A-Za-z])/g, function (x, n) { return ROMAN_RE ? "\\mathrm{" + n + "}" : "\\mathfrak{" + n.charAt(0) + "}"; })               // (\Re: Re as the physics package draws it; with no package said, as a PDF, Re or ℜ)
       .replace(/\^\s*\{\s*((?:\\prime\s*)+)((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p.replace(/\\prime\s*/g, "'") + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{\prime 2}: '^{2})
       .replace(/\^\s*\\prime(?![A-Za-z])\s*/g, "'")                                         // (y^\prime: y')
       .replace(/\^\s*\{\s*('+)\s*((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, p, r) { return p + (r.trim() ? "^{" + r.trim() + "}" : ""); })   // (^{'k}: '^{k})
@@ -1014,6 +1026,8 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\([A-Za-z]+)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, n, a) { return OPNAME.test(n) && !/^(tr|Tr)$/.test(n) ? "\\" + n + " " + a + " " : x; });   // (\sin{\theta}: \sin\theta, no argument)
     t = t.replace(OLDFONT, function (x, f, a, g, b, at, all) {   // (a script's own braces kept: S_{\rm gen} is S_{\mathrm{gen}})
       var y = "\\" + OLDF[f || g] + "{" + (f ? a : b).trim() + "}";
+      if (f && /[^A-Za-z0-9\s]/.test(a) && !/\\(?!\\)/.test(a.replace(/\\[,;:! ]/g, "")))   // ({\cal M(W_R)}: \mathcal{M}(\mathcal{W}_\mathcal{R}), the font on its letters)
+        y = a.trim().replace(/[A-Za-z0-9]+/g, function (w) { return "\\" + OLDF[f] + "{" + w + "}"; });
       return f && (/[_^]\s*$/.test(all.slice(Math.max(0, at - 3), at)) || /\\[A-Za-z]+\s*$/.test(all.slice(Math.max(0, at - 30), at)) && argAt(all, at)) ? "{" + y + "}" : y;   // (and an argument's: \tilde{\cal N})
     });
     t = t.replace(/\\(rm|bf|it|sf|tt|cal)(?![A-Za-z])\s*([A-Za-z0-9]+)/g, function (x, f, w) { return "\\" + OLDF[f] + "{" + w + "}"; });   // (\rm eff: \mathrm{eff})
@@ -1036,6 +1050,12 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     });
     // a symbol or a sign in an upright group, which \mathrm draws as it is: outside it (\mathrm{Ly\alpha}: \mathrm{Ly}\alpha;
     // \mathrm{, \ldots}: ,\ldots)
+    // (a math accent on a letter in it, \mathrm{\acute{e}t}: the accent outside, on the upright letter, \acute{\mathrm{e}}\mathrm{t})
+    t = t.replace(/\\mathrm\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, function (x, b) {
+      var MACC = /\\(acute|grave|hat|tilde|bar|dot|ddot|check|breve|vec)\s*\{\s*([A-Za-z])\s*\}/g;
+      if (!MACC.test(b) || /\{/.test(b.replace(MACC, ""))) return x;
+      return b.split(MACC).map(function (y, k) { return k % 3 === 1 ? "\\" + y : k % 3 === 2 ? "{\\mathrm{" + y + "}}" : y.trim() ? "\\mathrm{" + y.trim() + "}" : ""; }).join("");
+    });
     t = t.replace(/\\mathrm\s*\{([^{}]*\\[^{}]*)\}/g, function (x, b) {
       if (/\\["'`^~=.]|\\[cvuHkrbdt](?![A-Za-z])/.test(b)) return x;   // (a word's accent kept in it: Schr\"odinger)
       return b.split(/(\\[A-Za-z]+ ?|\\[^A-Za-z]|[^A-Za-z\s\\]+)/).map(function (y, k) { return k % 2 ? y : y.trim() ? "\\mathrm{" + y.trim() + "}" : ""; }).join("");
@@ -1130,4 +1150,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-03.1";
+globalThis.L2M_searchRules.version = "2026-11-05.1";
