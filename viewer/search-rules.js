@@ -892,6 +892,20 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     }
     return t;
   }
+  function twoScripts(x, s, a, b) {
+    a = a.replace(/^\{|\}$/g, ""); b = b.replace(/^\{|\}$/g, "");
+    return s + "{" + a + (/\\[A-Za-z]+$/.test(a) && /^[A-Za-z]/.test(b) ? " " : "") + b + "}";
+  }
+  function scriptGroup(x, k, a, after) {
+    var sc = [[k, a]], m, SC = /([_^])\s*(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])/g;
+    while ((m = SC.exec(after))) sc.push([m[1], m[2]]);
+    if (sc.length === 1 || /(.).*\1.*\1/.test(sc.map(function (y) { return y[0]; }).join(""))) return k + a + after;
+    var arg = function (v) { return /^(?:[^{}\\\s]|\\[A-Za-z]+)$/.test(v) ? v : "{" + v + "}"; };
+    return ["_", "^"].map(function (kind) {
+      var parts = sc.filter(function (y) { return y[0] === kind; }).map(function (y) { return y[1].replace(/^\{|\}$/g, ""); });
+      return parts.length ? kind + arg(parts.reduce(function (p, q) { return p + (/\\[A-Za-z]+$/.test(p) && /^[A-Za-z]/.test(q) ? " " : "") + q; })) : "";
+    }).join("");
+  }
   var TWO_SCRIPTS = /([_^])(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])\1(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])/g;
   var FONT_GROUP = /\{(\\(?:mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\{[^{}]*\})\}/g;
   var FONT_RUN = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak|mathscr|boldsymbol)\s*\{([^{}]*)\}([\s\u0005]*-?[\s\u0005]*)\\\1\s*\{/g;   // (and across a hyphen: \mathrm{on}-\mathrm{shell})
@@ -950,7 +964,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     var hit = normed.get(t);
     if (hit !== undefined) return hit;
     var was = t;
-    t = handCases(plainTables(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--")))).replace(/\\(left|right|[bB]igg?[lrm]?)\s*([<>])/g, function (x, c, a) { return "\\" + c + (a === "<" ? "\\langle " : "\\rangle "); }).replace(SIZES, "").replace(TEXT_SIZES, "")
+    t = handCases(plainTables(uniTeX(physics(bare(expand(t))).replace(/—/g, "---").replace(/–/g, "--").replace(/[’‘]/g, function (q) { return q === "’" ? "'" : "`"; }).replace(/\\(AA|aa)(?![A-Za-z])\s*/g, function (x, a) { return "\\mathring{" + a.charAt(0) + "}"; })))).replace(/\\(left|right|[bB]igg?[lrm]?)\s*([<>])/g, function (x, c, a) { return "\\" + c + (a === "<" ? "\\langle " : "\\rangle "); }).replace(SIZES, "").replace(TEXT_SIZES, "")
       .replace(/\\([A-Za-z]+)(?![A-Za-z])/g, function (x, n) { var l = DRAWN[n]; return l && l !== n ? "\\mathrm{" + l + "}" : x; });   // (a command drawn as other letters, \varprojlim, \bmod: them)   // (– and —: -- and ---, in formulas only; a text keeps its dash)
     t = t.replace(/\}\s+\{/g, "}{").replace(/(\\[A-Za-z]+)\s+\{/g, "$1{");   // (\frac<line's end>{a}<line's end>{b}: its arguments, as drawn; TeX takes no space after a command's name)
     // (a text's spaces, drawn, kept: \text{analytic in}, not analyticin; a math's, which TeX does not draw, gone, as in
@@ -984,7 +998,7 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
       .replace(/\\tensor\*?\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1$2")   // (\tensor{\eta}{_\mu}: \eta_\mu)
       .replace(/\\indices\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g, "$1")
       .replace(/[_^]\s*\{\s*\}/g, "")                                                  // (an empty script, \eta^{*}{}^{}: none)
-      .replace(/\{\s*([_^])\s*(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])\s*\}/g, "$1$2")          // (\mathsf{D}{_{\mu}}: \mathsf{D}_{\mu})
+      .replace(/\{\s*([_^])\s*(\{[^{}]*\}|\\[A-Za-z]+|[^{}\\\s])\s*\}((?:\s*[_^]\s*(?:\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\\s])){0,2})/g, scriptGroup)   // (\mathsf{D}{_{\mu}}: \mathsf{D}_{\mu}; 31.71{^{\circ}}_{a}^{b}: 31.71_a^{\circ b})
       .replace(/\\operatorname\*/g, "\\operatorname").replace(EMPTY_CMD, " ").replace(/(\\[A-Za-z]+)?\s*\{\s*\}(?=([A-Za-z])?)/g, function (x, c, l) { return c ? c + (l ? " " : "") : ""; })   // (x\,dx, a,\ b; \Gamma^\mu{}_{\nu\rho}, {}_2F_1)
       .replace(/\\(?:lvert|rvert|vert|mid|shortmid)(?![A-Za-z])/g, "|").replace(/\\(?:lVert|rVert|Vert|parallel|shortparallel)(?![A-Za-z])/g, "\\|")
       .replace(/\\lbrack(?![A-Za-z])/g, "[").replace(/\\rbrack(?![A-Za-z])/g, "]").replace(/\\surd(?![A-Za-z])/g, "\\sqrt")   // (\surd x: the root's sign, as \sqrt x)
@@ -1081,14 +1095,14 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     t = t.replace(FONT_GROUP, function (x, g, at, all) { return argAt(all, at) ? x : g; });   // ({\mathbb R}^2: \mathbb{R}^2; an argument, \hat{\mathbf{n}}, kept)
     t = t.replace(/\\mathrm\{(\\math(?:tt|sf|bf|it|cal|bb|frak)\{[^{}]*\})\}/g, "$1")      // (\textup{\texttt{Eff}}: \mathtt{Eff})
       .replace(/\{([,.])\}/g, "$1")                                                     // (50{,}000)
-      .replace(TWO_SCRIPTS, function (x, s, a, b) { return s + "{" + a.replace(/^\{|\}$/g, "") + b.replace(/^\{|\}$/g, "") + "}"; })   // (\eta^{*}{}^{\mu}: \eta^{*\mu})
+      .replace(TWO_SCRIPTS, twoScripts)   // (\eta^{*}{}^{\mu}: \eta^{*\mu})
       .replace(/\\overline(?![A-Za-z])/g, "\\bar")
       .replace(new RegExp("\\\\(mathbf|boldsymbol|mathrm|mathit|mathcal|mathbb)\\{\\\\(" + ACCS + ")\\{([^{}]*)\\}\\}", "g"), "\\$2{\\$1{$3}}")   // (\boldsymbol{\hat{r}}: \hat{\boldsymbol{r}})                      // (\overline as \bar: a bar over what it holds, either way; a paper's own \bar may be \overline)
       .replace(/([A-Za-z}])('+)_(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\])/g, "$1_$3$2");          // (e'_i: e_i', its prime after its subscript)
     t = t.replace(new RegExp("\\\\(" + ACCS + ")\\{\\\\(mathfrak|mathcal|mathbb|mathbf|mathrm|mathsf|mathit|mathscr)\\{([A-Za-z])([A-Za-z]+)\\}\\}", "g"), "\\$1{\\$2{$3}}\\$2{$4}");   // (\dot{\mathfrak{gl}}: the dot over the g, as a PDF reads it)
     t = loose(t);
     for (var kl = 0; kl < 4; kl++) t = t.replace(FONT_RUN, fontRun);   // (and runs whose braces loose() took off: \mathbf{X}{\boldsymbol{w}})
-    t = t.replace(TWO_SCRIPTS, function (x, s, a, b) { return s + "{" + a.replace(/^\{|\}$/g, "") + b.replace(/^\{|\}$/g, "") + "}"; });   // ({x^a}^b, its braces gone: x^{ab})
+    t = t.replace(TWO_SCRIPTS, twoScripts);   // ({x^a}^b, its braces gone: x^{ab})
     t = scriptOrder(t).replace(/('+)_(\{(?:[^{}]|\{[^{}]*\})*\}|\\[A-Za-z]+|[^{}\\])/g, "_$2$1");
     // (a space only between a command's name and a letter after it: \mu e, not e_\mu^a e)
     t = t.replace(/ +/g, function (m, at, all) { return /\\[A-Za-z]+$/.test(all.slice(Math.max(0, at - 30), at)) && /^[A-Za-z]/.test(all.slice(at + m.length)) ? " " : ""; });
@@ -1150,4 +1164,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-05.1";
+globalThis.L2M_searchRules.version = "2026-11-07.1";
