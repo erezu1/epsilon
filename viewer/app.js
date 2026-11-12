@@ -509,7 +509,7 @@
   // is open (foldAbstracts swaps them, the line sliding to its new height with the abstract)
   function authorsSpan(a) {
     a = a || [];
-    if (a.length <= 4) return '<span class="lib-authors">' + esc(a.join(", ")) + "</span>";
+    if (a.length <= 4) return '<span class="lib-authors" data-all>' + esc(a.join(", ")) + "</span>";   // (cut short by "…" closed)
     return '<span class="lib-authors" data-all>' + esc(a.slice(0, 3).join(", ")) + '<span class="au-etal"> et al.</span><span class="au-rest">, ' +
       esc(a.slice(3).join(", ")) + "</span></span>";        // (the first three stay put; only the rest come and go)
   }
