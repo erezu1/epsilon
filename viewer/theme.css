@@ -1766,14 +1766,17 @@ html:not(.l2m-app-lists) main, .l2m-peek { font-size: var(--fs-paper); }
 .app-abs.shut:not(.open) { content-visibility: hidden; }
 /* a paper's authors: the first three while its abstract is shut, all of them while it is open, the line sliding to its
    height on the abstract's curve and the names fading in as the abstract's words do */
-.lib-authors[data-all] .au-full { display: none; }
-.au-open .lib-authors[data-all] { white-space: normal; overflow: hidden; text-overflow: clip; }
-.au-open .lib-authors[data-all] .au-short { display: none; }
-.au-open .lib-authors[data-all] .au-full { display: inline; animation: au-in 240ms ease; }
-.lib-authors.au-sliding .au-short { animation: au-in 240ms ease; }
+.lib-authors[data-all] .au-rest { display: none; }
+.au-open .lib-authors[data-all], .lib-authors.au-leaving { white-space: normal; overflow: hidden; text-overflow: clip; }
+.au-open .lib-authors[data-all] .au-etal { display: none; }
+.au-open .lib-authors[data-all] .au-rest, .lib-authors.au-leaving .au-rest { display: inline; }
+.lib-authors.au-leaving .au-etal { display: none; }
+.au-open .lib-authors.au-sliding .au-rest { animation: au-in 240ms ease; }
+.lib-authors.au-leaving .au-rest { animation: au-out 240ms ease forwards; }
 .lib-authors.au-sliding { overflow: hidden; transition: height 340ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 @keyframes au-in { from { opacity: 0; } to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .lib-authors.au-sliding { transition-duration: 0.01s; } .lib-authors[data-all] span { animation: none; } }
+@keyframes au-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lib-authors.au-sliding { transition-duration: 0.01s; } .lib-authors[data-all] span { animation: none; transition: none; } }
 .app-toggle { margin-top: 4px; }
 
 .l2m-peek.expanding .peek-scroll { opacity: 0; transition: opacity 140ms ease; }

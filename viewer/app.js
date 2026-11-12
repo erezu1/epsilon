@@ -510,8 +510,8 @@
   function authorsSpan(a) {
     a = a || [];
     if (a.length <= 4) return '<span class="lib-authors">' + esc(a.join(", ")) + "</span>";
-    return '<span class="lib-authors" data-all><span class="au-short">' + esc(authorsLine(a)) + '</span><span class="au-full">' +
-      esc(a.join(", ")) + "</span></span>";
+    return '<span class="lib-authors" data-all>' + esc(a.slice(0, 3).join(", ")) + '<span class="au-etal"> et al.</span><span class="au-rest">, ' +
+      esc(a.slice(3).join(", ")) + "</span></span>";        // (the first three stay put; only the rest come and go)
   }
 
   // ---------------------------------------------------------------- where papers come from
@@ -1803,10 +1803,11 @@
         if (h0 === h1) return;
         auLine.style.height = h0 + "px";
         void auLine.offsetHeight;
+        auLine.classList.toggle("au-leaving", !open);         // (closing: the names fade out as the line shrinks)
         auLine.classList.add("au-sliding");
         auLine.style.height = h1 + "px";
         clearTimeout(auLine.l2mT);
-        auLine.l2mT = setTimeout(function () { auLine.classList.remove("au-sliding"); auLine.style.height = ""; }, 360);
+        auLine.l2mT = setTimeout(function () { auLine.classList.remove("au-sliding", "au-leaving"); auLine.style.height = ""; }, 360);
       }
       b.addEventListener("click", function (e) { e.stopPropagation(); toggle(); });
       p.l2mToggle = toggle;
