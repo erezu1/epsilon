@@ -505,6 +505,14 @@
     a = a || [];
     return a.length > 4 ? a.slice(0, 3).join(", ") + " et al." : a.join(", ");
   }
+  // a paper's authors under its title: the first three "et al." while its abstract is shut, every one of them once it
+  // is open (foldAbstracts swaps them, the line sliding to its new height with the abstract)
+  function authorsSpan(a) {
+    a = a || [];
+    if (a.length <= 4) return '<span class="lib-authors">' + esc(a.join(", ")) + "</span>";
+    return '<span class="lib-authors" data-all><span class="au-short">' + esc(authorsLine(a)) + '</span><span class="au-full">' +
+      esc(a.join(", ")) + "</span></span>";
+  }
 
   // ---------------------------------------------------------------- where papers come from
   // a file's body, its bytes counted as they come (onBytes(n) for each piece), for the line that fills as a paper loads
@@ -1755,6 +1763,7 @@
         var open = want === undefined ? !p.classList.contains("open") : want;
         if (open === p.classList.contains("open")) return;
         if (open) p.classList.remove("shut");                  // (laid out again before its height is asked)
+        allAuthors(open, instant);
         if (instant) {                                         // (out of sight: no slide to watch)
           p.classList.toggle("open", open);
           p.classList.toggle("shut", !open);
@@ -1782,6 +1791,22 @@
         }
         b.setAttribute("aria-expanded", open ? "true" : "false");
         foldState();
+      }
+      // every author while the abstract is open: the line's height slides as the abstract's does (same time, same curve)
+      var au = p.closest("[data-k]"), auLine = au && au.querySelector(".lib-authors[data-all]");
+      function allAuthors(open, instant) {
+        if (!auLine) return;
+        var h0 = auLine.offsetHeight;
+        au.classList.toggle("au-open", open);
+        if (instant) return;
+        var h1 = auLine.offsetHeight;
+        if (h0 === h1) return;
+        auLine.style.height = h0 + "px";
+        void auLine.offsetHeight;
+        auLine.classList.add("au-sliding");
+        auLine.style.height = h1 + "px";
+        clearTimeout(auLine.l2mT);
+        auLine.l2mT = setTimeout(function () { auLine.classList.remove("au-sliding"); auLine.style.height = ""; }, 360);
       }
       b.addEventListener("click", function (e) { e.stopPropagation(); toggle(); });
       p.l2mToggle = toggle;
@@ -2070,7 +2095,7 @@
         '<a class="lib-title" href="?p=' + encodeURIComponent(k) + '" data-p="' + esc(k) + '">' + (fresh(x) ? '<span class="app-new-tag">New</span>' : "") +
         (x.titleHtml || esc(x.title || k)) + "</a>" +
         // the authors on one line (cut short with an ellipsis), the rest (arXiv number, category, INSPIRE, marks) under them
-        ((x.authors || []).length ? '<span class="lib-authors">' + esc(authorsLine(x.authors)) + "</span>" : "") +
+        ((x.authors || []).length ? authorsSpan(x.authors) : "") +
         (meta.length ? '<span class="lib-meta">' + meta.join(" &middot; ") + "</span>" : "") + "</div>" +
         '</div><div class="lib-foot">' + acts + "</div>" + (x.abstractHtml ? '<p class="app-abs">' + x.abstractHtml + "</p>" : "") +
         '<div class="app-confirm" aria-hidden="true"><div class="app-confirm-in"><span class="app-confirm-q">Remove it from the library?</span>' +
@@ -2263,7 +2288,7 @@
         var t = i.titleHtml || esc(i.title);
         return '<li class="app-paper" data-k="p:' + esc(k) + '"><div class="app-paper-head"><div class="app-paper-text">' +
           '<span class="lib-title app-abs-title">' + t + "</span>" +
-          '<span class="lib-authors">' + esc(authorsLine(i.authors)) + '</span><span class="lib-meta">' +
+          authorsSpan(i.authors) + '<span class="lib-meta">' +
           (i.type === "cross" ? "cross-list from " : "") + esc(i.category) + " &middot; " +          // the category, then the links
           '<a class="app-ext" href="https://arxiv.org/abs/' + encodeURIComponent(i.id).replace(/%2F/g, "/") + '" target="_blank" rel="noopener" aria-label="' + esc(i.id) + ' on arXiv">' + esc(i.id) + "</a>" +
           inspireLink(i.id, [i.category]) + ((have[k] || p[k]) && folderOf(k) ? ' &middot; in <span class="app-in">' + esc(folders[folderOf(k)].name) + "</span>" : "") + "</span></div>" +
