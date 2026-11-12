@@ -505,13 +505,10 @@
     a = a || [];
     return a.length > 4 ? a.slice(0, 3).join(", ") + " et al." : a.join(", ");
   }
-  // a paper's authors under its title: the first three "et al." while its abstract is shut, every one of them once it
-  // is open (foldAbstracts swaps them, the line sliding to its new height with the abstract)
+  // a paper's authors under its title: every name, on one line cut short by "…" where the row ends while its abstract is
+  // shut, wrapped in full once it is open (foldAbstracts: the line sliding to its new height with the abstract)
   function authorsSpan(a) {
-    a = a || [];
-    if (a.length <= 4) return '<span class="lib-authors" data-all>' + esc(a.join(", ")) + "</span>";   // (cut short by "…" closed)
-    return '<span class="lib-authors" data-all>' + esc(a.slice(0, 3).join(", ")) + '<span class="au-etal"> et al.</span><span class="au-rest">, ' +
-      esc(a.slice(3).join(", ")) + "</span></span>";        // (the first three stay put; only the rest come and go)
+    return '<span class="lib-authors" data-all>' + esc((a || []).join(", ")) + "</span>";
   }
 
   // ---------------------------------------------------------------- where papers come from
@@ -1803,7 +1800,7 @@
         if (h0 === h1) return;
         auLine.style.height = h0 + "px";
         void auLine.offsetHeight;
-        auLine.classList.toggle("au-leaving", !open);         // (closing: the names fade out as the line shrinks)
+        auLine.classList.toggle("au-leaving", !open);         // (closing: wrapped until it has shrunk, then "…")
         auLine.classList.add("au-sliding");
         auLine.style.height = h1 + "px";
         clearTimeout(auLine.l2mT);
