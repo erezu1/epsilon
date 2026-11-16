@@ -2268,6 +2268,20 @@
     newIdle = window.requestIdleCallback ? requestIdleCallback(run, {timeout: 1000}) : setTimeout(run, 200);
   }
   function ensureNew() { if (newStale && shell) renderNew(); }
+  // the bar's refresh turning while arXiv is checked; when done it finishes the turn it is on (no snap back)
+  function refreshTurning(rb, on) {
+    var ico = rb.firstChild;
+    if (on) { rb.l2mStop = false; rb.classList.add("spinning"); return; }
+    if (!rb.classList.contains("spinning") || rb.l2mStop) return;
+    rb.l2mStop = true;
+    function stop() {
+      ico.removeEventListener("animationiteration", stop);
+      clearTimeout(t);
+      if (rb.l2mStop) { rb.l2mStop = false; rb.classList.remove("spinning"); }
+    }
+    ico.addEventListener("animationiteration", stop);
+    var t = setTimeout(stop, 2500);                            // (a hidden tab, reduced motion: no turn to end)
+  }
   function renderNew() {
     newStale = false;
     var box = pane("app:new");
@@ -2320,7 +2334,7 @@
         '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
     }
     var rb = shell && shell.querySelector("#app-refresh");          // (the bar's refresh: turning while arXiv is checked)
-    if (rb) { rb.classList.toggle("spinning", !!feedCheck);
+    if (rb) { refreshTurning(rb, !!feedCheck);
               rb.setAttribute("aria-label", feedCheck ? "Checking arXiv" : "Check arXiv for new papers"); }
     box.innerHTML = '<div class="app-feedbar"><p class="app-note app-small">' + meta + "</p></div>" +
       (feedCheck ? '<div class="app-progress indet app-feed-progress" role="progressbar" aria-label="Checking arXiv"><span></span></div>' : "") +

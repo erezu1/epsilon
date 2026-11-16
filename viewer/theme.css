@@ -935,10 +935,10 @@ a.lib-title { color: var(--ink); }
 #app-fold:disabled { opacity: 0.35; cursor: default; }
 /* Explore's refresh: wide screens only (a phone pulls the list down), turning while arXiv is checked */
 #app-refresh { display: none; }
-@media (min-width: 720px) { #app-refresh { display: inline-flex; } }
-#app-refresh > span { display: grid; }
-#app-refresh.spinning { color: var(--progress); pointer-events: none; }
-#app-refresh.spinning > span { animation: l2m-spin 0.8s linear infinite; }
+@media (min-width: 720px) { #app-refresh { display: grid; } }            /* (a bar button: its icon in the middle) */
+#app-refresh > span { display: grid; transition: color 200ms ease; }
+#app-refresh.spinning { pointer-events: none; }
+#app-refresh.spinning > span { color: var(--progress); animation: l2m-spin 0.9s linear infinite; }
 #app-refresh[hidden] { display: none; }
 .app-bar.searching #app-refresh { display: none; }
 @media (prefers-reduced-motion: reduce) { #app-refresh.spinning > span { animation-duration: 2.4s; } }
