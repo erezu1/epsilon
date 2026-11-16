@@ -284,13 +284,68 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     function add(at, len, opts) { if (!out.some(function (o) { return at < o.at + o.len && o.at < at + len; })) out.push({at: at, len: len, opts: opts}); }
     function named(run) { var ns = asNames(run); return ns ? ns.map(function (n) { return "\\" + n; }).join("") : null; }
     function atom(x) { return /^\d+$|^\\[A-Za-z]+$|^[A-Za-z]$/.test(x) ? x : named(x); }
-    // a/b of one thing each: \frac{a}{b} (1/2, pi/2, 1/beta)
-    q.replace(/(^|[^A-Za-z0-9\\])(\d+|\\[A-Za-z]+|[A-Za-z]+)\/(\d+|\\[A-Za-z]+|[A-Za-z]+)(?![A-Za-z0-9])/g, function (x, pre, a, b, at, all) {
-      if (/[_^]-?$/.test(all.slice(0, at + pre.length))) return x;   // (f_-2/r: the 2 a script's)
-      var A = atom(a), B = atom(b);
-      if (A && B) add(at + pre.length, x.length - pre.length, ["\\frac{" + A + "}{" + B + "}"].concat(A + "/" + B !== a + "/" + b ? [A + "/" + B] : []));   // (and 1/rho as 1/\rho)
-      return x;
-    });
+    // a/b of one thing each: \frac{a}{b} (1/2, pi/2, 1/beta); a thing a letter, a number, a command or a Greek name, with
+    // its scripts (x^2/2, 1/x^2: TeX's x^2 is one), or a group in ( ) or { }, drawn over the line without them ((a+b)/2,
+    // 1/(2\pi), (1+x)/(1-x))
+    function group(at, dir) {            // the ( ) or { } group with its end at q[at], scanning dir (-1 back, 1 on): its other end
+      var o = q.charAt(at), c = dir > 0 ? (o === "(" ? ")" : "}") : (o === ")" ? "(" : "{"), d = 0;
+      for (var i = at; i >= 0 && i < q.length; i += dir) { var ch = q.charAt(i); if (ch === o) d++; else if (ch === c && !--d) return i; }
+      return -1;
+    }
+    function scripts(i) {                // the end of the scripts from i on (^2, _{ij}, ^\alpha)
+      for (;;) {
+        var ch = q.charAt(i);
+        if (ch !== "^" && ch !== "_") return i;
+        var n = q.charAt(i + 1), m;
+        if (n === "{") { var e = group(i + 1, 1); if (e < 0) return i; i = e + 1; }
+        else if ((m = /^\\[A-Za-z]+|^[A-Za-z0-9]/.exec(q.slice(i + 1)))) i += 1 + m[0].length;
+        else return i;
+      }
+    }
+    for (var sl = q.indexOf("/"); sl > 0; sl = q.indexOf("/", sl + 1)) {
+      if (q.charAt(sl + 1) === "/" || q.charAt(sl - 1) === "/") continue;
+      var a0, A = null, b1, B = null, m;
+      // the thing before: back over its scripts to its base
+      var j = sl - 1, k;
+      if (q.charAt(j) === ")" || q.charAt(j) === "}") {
+        k = group(j, -1);
+        if (k < 0) continue;
+        if (/[_^]$/.test(q.slice(0, k))) {       // (x^{2}/2: a script's group, its base before it)
+          var base = /(\\[A-Za-z]+|[A-Za-z0-9])((?:[_^](?:\{[^{}]*\}|\\[A-Za-z]+|[A-Za-z0-9]))*)[_^]$/.exec(q.slice(0, k));
+          if (!base) continue;
+          a0 = k - base[0].length; A = q.slice(a0, sl);
+        } else if (q.charAt(j) === ")" && /[A-Za-z]$/.test(q.slice(0, k))) continue;   // (f(x)/2: a function's argument)
+        else { a0 = k; A = q.slice(k + 1, j); }
+      } else {
+        var left = q.slice(0, sl), sc = /((?:[_^](?:\{[^{}]*\}|\\[A-Za-z]+|[A-Za-z0-9]))*)$/.exec(left)[1], core = left.slice(0, left.length - sc.length);
+        if (sc && /[_^]-?$/.test(core.slice(0, -1))) continue;
+        m = /(\d+(?:\.\d+)?|\\[A-Za-z]+|[A-Za-z]+)$/.exec(core);
+        if (!m) continue;
+        var at = atom(m[1]);
+        if (!at && !/^\d+\.\d+$/.test(m[1])) continue;
+        a0 = core.length - m[1].length; A = (at || m[1]) + sc;
+      }
+      var pre = q.slice(0, a0);
+      if (/[A-Za-z0-9\\]$/.test(pre) || /[_^]-?$/.test(pre)) continue;   // (2a/b: 2 times a/b or 2a over b; f_-2/r: the 2 a script's)
+      // the thing after: a group, or a thing and its scripts
+      var r = sl + 1;
+      if (q.charAt(r) === "(" || q.charAt(r) === "{") {
+        k = group(r, 1);
+        if (k < 0) continue;
+        B = q.slice(r + 1, k); b1 = k + 1;
+        if (q.charAt(r) === "{") { var e2 = scripts(b1); if (e2 > b1) { B = "{" + B + "}" + q.slice(b1, e2); b1 = e2; } }
+      } else {
+        m = /^(\d+(?:\.\d+)?|\\[A-Za-z]+|[A-Za-z]+)/.exec(q.slice(r));
+        if (!m) continue;
+        var bt = atom(m[1]);
+        if (!bt && !/^\d+\.\d+$/.test(m[1])) continue;
+        b1 = scripts(r + m[1].length); B = (bt || m[1]) + q.slice(r + m[1].length, b1);
+      }
+      if (/^[A-Za-z0-9]/.test(q.slice(b1))) continue;            // (1/2x: over 2x, or x halved)
+      if (!A.trim() || !B.trim()) continue;
+      var plain = q.slice(a0, b1), alt = /^[(){}]|[(){}]$/.test(plain) ? [] : [plain.replace(/(\d+|\\[A-Za-z]+|[A-Za-z]+)\//, function (x, t) { return (atom(t) || t) + "/"; })];
+      add(a0, b1 - a0, ["\\frac{" + A + "}{" + B + "}"].concat(alt[0] && alt[0] !== plain ? alt : []));   // (and 1/rho as 1/\rho)
+    }
     q.replace(/-->|->/g, function (x, at) { add(at, x.length, [x.length > 2 ? "\\longrightarrow " : "\\to "]); return x; });   // (t->\infty)
     q.replace(/=>/g, function (x, at) { add(at, 2, ["\\Rightarrow "]); return x; });
     q.replace(/(^|[^\\])!=/g, function (x, pre, at) { add(at + pre.length, 2, ["\\neq "]); return x; });   // (a!=b: \neq, or as TeX, d!=n, a factorial; \!= a thin space less and =)
@@ -1164,4 +1219,4 @@ globalThis.L2M_searchRules = function (MACROS, PACKAGES) {
     reEsc: reEsc, hex: hex};
 };
 // (this file's version: changed with every change to the rules; the PDF viewer for Chrome keeps its own copy and takes this one when it differs)
-globalThis.L2M_searchRules.version = "2026-11-07.1";
+globalThis.L2M_searchRules.version = "2026-11-16.1";
