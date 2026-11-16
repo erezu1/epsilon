@@ -1203,6 +1203,9 @@
       '<span class="app-spacer"></span>' +
       '<div class="app-searchbar"><span class="find-box"><input class="app-field" id="lib-q" type="search" placeholder="Search your library" aria-label="Search your library" ' +
       'autocomplete="off" autocapitalize="off" spellcheck="false"></span></div>' +
+      // Explore's refresh (wide screens: no pull to refresh with a mouse), fading with the tab as search does
+      '<button type="button" class="bar-btn app-away app-refresh" id="app-refresh" aria-label="Check arXiv for new papers" tabindex="-1"><span>' +
+        (I.refresh || "&#8635;") + "</span></button>" +
       // search (Library) and opening every abstract (Explore) share a place, each shown on its own tab
       '<span class="app-slot"><button type="button" class="bar-btn" id="app-search" aria-label="Search your library">' + (I.search || "?") + "</button>" +
       '<button type="button" class="bar-btn app-away" id="app-fold" aria-label="Expand all abstracts" tabindex="-1">' + (I.unfoldAll || "+") + "</button></span>" +
@@ -1226,6 +1229,7 @@
     holder.querySelector("#app-plus").addEventListener("click", function (e) { e.stopPropagation(); panelOpen === "add" ? closePanel() : openPanel("add"); });
     holder.querySelector("#app-search").addEventListener("click", function () { searching(true); });
     holder.querySelector("#app-fold").addEventListener("click", function () { foldAll(); });
+    holder.querySelector("#app-refresh").addEventListener("click", function () { checkFeed(); });
     holder.querySelector("#app-close").addEventListener("click", function (e) {      // the settings' cross, or the search's
       e.stopPropagation();
       if (shell.querySelector("#app-bar").classList.contains("searching")) searching(false); else closePanel();
@@ -1329,6 +1333,10 @@
     var fb = shell.querySelector("#app-fold");
     fb.classList.toggle("app-away", name !== "new");
     fb.tabIndex = name === "new" ? 0 : -1;
+    var rb = shell.querySelector("#app-refresh");
+    rb.hidden = !(src && src.run);                               // (as "+": only where GitHub can be asked)
+    rb.classList.toggle("app-away", name !== "new");
+    rb.tabIndex = name === "new" ? 0 : -1;
     if (name === "new") feedSeen();
     foldState();
     var dd = document.querySelector('[data-pane="app:' + name + '"] .app-day.stuck');
@@ -1448,6 +1456,8 @@
     Array.prototype.forEach.call(shell.querySelectorAll(".app-tabs:not(.set-tabs) .seg-btn, #app-search, #app-plus"), function (b) { b.tabIndex = on ? -1 : 0; });
     var fb = shell.querySelector("#app-fold");
     fb.tabIndex = !on && !fb.classList.contains("app-away") ? 0 : -1;
+    var rb = shell.querySelector("#app-refresh");
+    rb.tabIndex = !on && !rb.classList.contains("app-away") ? 0 : -1;
   }
   function closePanel(how, keep) {  // how: "pop" (closed by back), "jump" (something else follows at once); keep: left
                                     // open, for the panel opening next to take its glass over (L2M_panelSwitch)
@@ -2309,6 +2319,9 @@
       older = '<p class="app-row app-older">' + (fetchingDay ? '<span class="app-pill app-busy">' + SPIN + "Fetching the day before</span>" :
         '<button type="button" class="app-pill" id="feed-older">The day before</button>') + "</p>";
     }
+    var rb = shell && shell.querySelector("#app-refresh");          // (the bar's refresh: turning while arXiv is checked)
+    if (rb) { rb.classList.toggle("spinning", !!feedCheck);
+              rb.setAttribute("aria-label", feedCheck ? "Checking arXiv" : "Check arXiv for new papers"); }
     box.innerHTML = '<div class="app-feedbar"><p class="app-note app-small">' + meta + "</p></div>" +
       (feedCheck ? '<div class="app-progress indet app-feed-progress" role="progressbar" aria-label="Checking arXiv"><span></span></div>' : "") +
       (days || '<p class="app-note">' + (feed ? "No new papers in the last few days." : "The new papers have not been fetched yet.") + "</p>") + older;

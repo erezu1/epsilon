@@ -927,12 +927,21 @@ a.lib-title { color: var(--ink); }
 
 .app-tappable { cursor: pointer; }
 /* the search button fades in and out with the Library tab (it keeps its place, so nothing else moves) */
-#app-search.app-away, #app-fold.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
+#app-search.app-away, #app-fold.app-away, #app-refresh.app-away { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 200ms ease, visibility 0s linear 200ms; }
 /* search and "every abstract" share one place in the bar, crossing as the tab changes */
 .app-slot { display: grid; align-items: center; flex: 0 0 auto; }
 .app-slot > * { grid-area: 1 / 1; }
 .app-bar.searching .app-slot > #app-fold { display: none; }
 #app-fold:disabled { opacity: 0.35; cursor: default; }
+/* Explore's refresh: wide screens only (a phone pulls the list down), turning while arXiv is checked */
+#app-refresh { display: none; }
+@media (min-width: 720px) { #app-refresh { display: inline-flex; } }
+#app-refresh > span { display: grid; }
+#app-refresh.spinning { color: var(--progress); pointer-events: none; }
+#app-refresh.spinning > span { animation: l2m-spin 0.8s linear infinite; }
+#app-refresh[hidden] { display: none; }
+.app-bar.searching #app-refresh { display: none; }
+@media (prefers-reduced-motion: reduce) { #app-refresh.spinning > span { animation-duration: 2.4s; } }
 @media (prefers-reduced-motion: reduce) { #app-search, #app-fold { transition-duration: 0.01s; } }
 
 @media (prefers-reduced-motion: reduce) { .app-bar.joined .app-bar-day { transition: none; } }
@@ -1319,7 +1328,7 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-lead, .app-tabswap { display: grid; align-items: center; flex: 0 0 auto; }
 .app-lead > *, .app-tabswap > * { grid-area: 1 / 1; }
 .app-lead .app-close { justify-self: center; width: 40px; height: 40px; border-radius: var(--r-round); }
-.app-lead .app-logo, .app-lead .app-close, .app-tabswap > .app-tabs, #app-search, #app-fold, #app-plus {
+.app-lead .app-logo, .app-lead .app-close, .app-tabswap > .app-tabs, #app-search, #app-fold, #app-refresh, #app-plus {
   transition: opacity 200ms ease, transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0s;
 }
 .app-lead .app-close { opacity: 0; transform: rotate(-90deg) scale(0.6); visibility: hidden; transition-delay: 0s, 0s, 260ms; }
@@ -1328,10 +1337,10 @@ svg > g[stroke-linecap="round"] > * { vector-effect: non-scaling-stroke; }
 .app-tabswap > .set-tabs { pointer-events: none; }
 .app-bar.set-mode .app-tabswap > .app-tabs:not(.set-tabs) { pointer-events: none; }
 .app-bar.set-mode .app-tabswap > .set-tabs { pointer-events: auto; }
-.app-bar.set-mode #app-search, .app-bar.set-mode #app-fold, .app-bar.set-mode #app-plus { opacity: 0; transform: scale(0.8); pointer-events: none; }
+.app-bar.set-mode #app-search, .app-bar.set-mode #app-fold, .app-bar.set-mode #app-refresh, .app-bar.set-mode #app-plus { opacity: 0; transform: scale(0.8); pointer-events: none; }
 .app-bar .set-tabs .sel-ind { bottom: 5px; }
 @media (prefers-reduced-motion: reduce) {
-  .app-lead > *, .app-tabswap > *, #app-search, #app-fold, #app-plus { transition-duration: 0.01s; }
+  .app-lead > *, .app-tabswap > *, #app-search, #app-fold, #app-refresh, #app-plus { transition-duration: 0.01s; }
 }
 
 /* a panel over a list with a pinned header: it rolls down from behind the bar with the header (its full height:
